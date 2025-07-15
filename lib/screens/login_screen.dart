@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../providers/auth_provider.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 class LoginScreen extends StatefulWidget {
   final AuthProvider authProvider;
@@ -28,33 +29,56 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+// En tu login_screen.dart
+Future<void> _submit() async {
+  if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+  setState(() => _isLoading = true);
 
-    try {
-      await widget.authProvider.login(
-        _usuarioController.text.trim(),
-        _contrasenaController.text.trim(),
-      );
-      widget.onLoginSuccess();
-    } catch (e) {
+  try {
+    final connectivityResult = await Connectivity().checkConnectivity();
+    final isOffline = connectivityResult == ConnectivityResult.none;
+
+    if (isOffline) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString()),
+        const SnackBar(
+          content: Text('Modo offline: Verificando credenciales locales'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
+
+    await widget.authProvider.login(
+      _usuarioController.text.trim(),
+      _contrasenaController.text.trim(),
+    );
+    
+    if (widget.authProvider.isAuthenticated) {
+      widget.onLoginSuccess?.call();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo autenticar'),
           backgroundColor: Colors.red,
         ),
       );
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
     }
+  } catch (e) {
+    String errorMessage = 'Error de autenticación';
+    if (e.toString().contains('Credenciales no válidas')) {
+      errorMessage = 'Usuario o contraseña incorrectos';
+    }
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(errorMessage),
+        backgroundColor: Colors.red,
+      ),
+    );
+  } finally {
+    setState(() => _isLoading = false);
   }
-
+}
   @override
   Widget build(BuildContext context) {
     return Scaffold(
