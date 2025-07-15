@@ -17,20 +17,22 @@ class AuthProvider extends ChangeNotifier {
   Map<String, dynamic>? get sede => _sede;
   bool get isAuthenticated => _token != null;
 
-   Future<void> login(String usuario, String contrasena) async {
+  Future<void> login(String usuario, String contrasena) async {
   try {
     final connectivityResult = await _connectivity.checkConnectivity();
     
     if (connectivityResult != ConnectivityResult.none) {
-      // Modo online - limpia estado previo primero
       _resetAuthState();
-      
       final response = await ApiService.login(usuario, contrasena);
+      
+      if (response['token'] == null || response['usuario'] == null) {
+        throw Exception('Datos de usuario inválidos');
+      }
+
       _token = response['token'];
       _user = response['usuario'];
-      _sede = response['sede'];
-      
-      // Guarda en SQLite con más datos
+      _sede = response['sede'] ?? {};  // Manejo seguro si sede es null
+
       await _dbHelper.createUser({
         'id': _user!['id'].toString(),
         'usuario': usuario,
@@ -38,7 +40,7 @@ class AuthProvider extends ChangeNotifier {
         'nombre': _user!['nombre'],
         'correo': _user!['correo'],
         'token': _token,
-        'sede_id': _sede!['id'].toString(),
+        'sede_id': _sede?['id']?.toString() ?? '',  // Manejo seguro
         'is_logged_in': 1,
         'last_login': DateTime.now().toIso8601String(),
       });
@@ -158,24 +160,20 @@ void _resetAuthState() {
   } }
   Future<void> logout() async {
   try {
+    final userId = _user?['id']?.toString();  // Guarda ID antes de limpiar
     final connectivityResult = await _connectivity.checkConnectivity();
+    
     if (connectivityResult != ConnectivityResult.none && _token != null) {
       await ApiService.logout(_token!);
     }
+    
+    if (userId != null) {
+      await _dbHelper.updateUserLoginStatus(userId, false);
+    }
   } catch (e) {
-    debugPrint('Error al hacer logout: $e');
+    debugPrint('Error en logout: $e');
   }
   
-  // Limpiar estado local
-  _token = null;
-  _user = null;
-  _sede = null;
-  
-  // Actualizar base de datos local
-  if (_user != null && _user!['id'] != null) {
-    await _dbHelper.updateUserLoginStatus(_user!['id'].toString(), false);
-  }
-  
-  notifyListeners();
+  _resetAuthState();  // Limpia todo al final
 }
 }

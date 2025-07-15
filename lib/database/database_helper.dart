@@ -20,7 +20,7 @@ class DatabaseHelper {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
 
-    return await openDatabase(path, version: 1, onCreate: _createDB);
+    return await openDatabase(path, version: 2, onCreate: _createDB);
   }
 
   Future _createDB(Database db, int version) async {
@@ -49,7 +49,9 @@ class DatabaseHelper {
         token TEXT,
         sede_id TEXT,
         last_sync TEXT,
-        is_logged_in INTEGER DEFAULT 0
+        is_logged_in INTEGER DEFAULT 0,
+        last_login TEXT
+       
       )
     ''');
   }
@@ -89,11 +91,32 @@ class DatabaseHelper {
     db.close();
   }
 
-    // Métodos para usuarios
+  // Métodos para usuarios
   Future<int> createUser(Map<String, dynamic> user) async {
     final db = await instance.database;
-    return await db.insert('usuarios', user);
+    
+    // 1. Intenta buscar si el usuario ya existe por ID
+    final existingUser = await db.query(
+      'usuarios',
+      where: 'id = ?',
+      whereArgs: [user['id']],
+      limit: 1,
+    );
+
+    if (existingUser.isNotEmpty) {
+      // 2. Si existe, actualiza el registro
+      return await db.update(
+        'usuarios',
+        user,
+        where: 'id = ?',
+        whereArgs: [user['id']],
+      );
+    } else {
+      // 3. Si no existe, inserta uno nuevo
+      return await db.insert('usuarios', user);
+    }
   }
+
 Future<Map<String, dynamic>?> getUserByCredentials(String usuario, String contrasena) async {
   final db = await database;
   try {
