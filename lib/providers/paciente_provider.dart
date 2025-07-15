@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/paciente_model.dart';
 import '../api/api_service.dart';
 import 'auth_provider.dart';
+import '../database/database_helper.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
 class PacienteProvider with ChangeNotifier {
@@ -15,22 +16,33 @@ class PacienteProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
 
   Future<void> loadPacientes() async {
-    _isLoading = true;
-    notifyListeners();
+  _isLoading = true;
+  notifyListeners();
 
-    try {
-      final connectivityResult = await Connectivity().checkConnectivity();
-      if (connectivityResult != ConnectivityResult.none && _authProvider.isAuthenticated) {
-        final response = await ApiService.getPacientes(_authProvider.token!);
-        _pacientes = response.map<Paciente>((json) => Paciente.fromJson(json)).toList();
+  try {
+    final connectivityResult = await Connectivity().checkConnectivity();
+    if (connectivityResult != ConnectivityResult.none && _authProvider.isAuthenticated) {
+      // Online: traer desde API
+      final response = await ApiService.getPacientes(_authProvider.token!);
+      _pacientes = response.map<Paciente>((json) => Paciente.fromJson(json)).toList();
+
+      // Guardar localmente
+      final db = DatabaseHelper.instance;
+      for (final paciente in _pacientes) {
+        await db.createPaciente(paciente); // Inserta (puedes optimizar con upsert si es necesario)
       }
-    } catch (e) {
-      print('Error loading pacientes: $e');
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+    } else {
+      // Offline: cargar desde SQLite
+      _pacientes = await DatabaseHelper.instance.readAllPacientes();
+      debugPrint('Pacientes cargados localmente: ${_pacientes.length}');
     }
+  } catch (e) {
+    print('Error loading pacientes: $e');
+  } finally {
+    _isLoading = false;
+    notifyListeners();
   }
+}
 
   Future<void> addPaciente(Paciente paciente) async {
     _isLoading = true;

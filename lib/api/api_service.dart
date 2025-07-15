@@ -1,5 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 class ApiService {
   static const String baseUrl = 'http://fnpvi.nacerparavivir.org/api';
@@ -23,21 +26,33 @@ class ApiService {
     throw Exception('Error: ${response.statusCode}');
   }
 }
-  static Future<Map<String, dynamic>> login(String usuario, String contrasena) async {
+ static Future<Map<String, dynamic>> login(String usuario, String contrasena) async {
   try {
+    // Verificar conexión primero
+    final connectivityResult = await Connectivity().checkConnectivity();
+    if (connectivityResult == ConnectivityResult.none) {
+      throw Exception('No hay conexión a internet');
+    }
+
     final response = await http.post(
       Uri.parse('$baseUrl/login'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'usuario': usuario, 'contrasena': contrasena}),
-    );
-    print('Respuesta del login: ${response.body}'); // 👈 Agrega esto
+    ).timeout(const Duration(seconds: 10)); // Añadir timeout
+    
+    print('Respuesta del login: ${response.body}');
     return _handleResponse(response) as Map<String, dynamic>;
+  } on SocketException catch (e) {
+    print('Error de conexión: $e');
+    throw Exception('No se pudo conectar al servidor. Verifica tu conexión a internet.');
+  } on TimeoutException catch (e) {
+    print('Tiempo de espera agotado: $e');
+    throw Exception('El servidor no respondió a tiempo. Intenta nuevamente.');
   } catch (e) {
-    print('Error en login: $e'); // 👈 Captura errores de red/parsing
+    print('Error en login: $e');
     rethrow;
   }
 }
-
   // Logout method
   static Future<void> logout(String token) async {
     final response = await http.post(

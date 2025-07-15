@@ -22,12 +22,34 @@ class _MyAppState extends State<MyApp> {
   final AuthProvider _authProvider = AuthProvider();
   late Connectivity _connectivity;
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  bool _isInitialized = false;
 
   @override
   void initState() {
     super.initState();
     _connectivity = Connectivity();
     _setupConnectivityListener();
+    _initializeApp();
+  }
+
+  // MÉTODO NUEVO: Inicializar la aplicación
+  Future<void> _initializeApp() async {
+    try {
+      // Intentar auto-login
+      await _authProvider.autoLogin();
+      
+      // Debug: Mostrar usuarios en la base de datos
+      await _authProvider.debugListUsers();
+      
+      setState(() {
+        _isInitialized = true;
+      });
+    } catch (e) {
+      debugPrint('Error al inicializar app: $e');
+      setState(() {
+        _isInitialized = true;
+      });
+    }
   }
 
   void _setupConnectivityListener() {
@@ -62,30 +84,32 @@ class _MyAppState extends State<MyApp> {
           visualDensity: VisualDensity.adaptivePlatformDensity,
         ),
         navigatorKey: navigatorKey,
-        home: Consumer<AuthProvider>(
-          builder: (context, auth, child) {
-            if (auth.isAuthenticated) {
-              // Si está autenticado, cargar pacientes y mostrar PacientesScreen
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                Provider.of<PacienteProvider>(context, listen: false).loadPacientes();
-              });
-              return PacientesScreen(
-                onLogout: () {
-                  auth.logout();
-                  // No necesitamos navegar porque el Consumer reconstruirá la UI
+        home: _isInitialized 
+            ? Consumer<AuthProvider>(
+                builder: (context, auth, child) {
+                  if (auth.isAuthenticated) {
+                    // Si está autenticado, cargar pacientes y mostrar PacientesScreen
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      Provider.of<PacienteProvider>(context, listen: false).loadPacientes();
+                    });
+                    return PacientesScreen(
+                      onLogout: () {
+                        auth.logout();
+                        // No necesitamos navegar porque el Consumer reconstruirá la UI
+                      },
+                    );
+                  } else {
+                    // Si no está autenticado, mostrar LoginScreen
+                    return LoginScreen(
+                      authProvider: _authProvider,
+                      onLoginSuccess: () {
+                        // El Consumer ya manejará el cambio de estado
+                      },
+                    );
+                  }
                 },
-              );
-            } else {
-              // Si no está autenticado, mostrar LoginScreen
-              return LoginScreen(
-                authProvider: _authProvider,
-                onLoginSuccess: () {
-                  // El Consumer ya manejará el cambio de estado
-                },
-              );
-            }
-          },
-        ),
+              )
+            : const Center(child: CircularProgressIndicator()), // Mostrar loading mientras inicializa
         routes: {
           '/profile': (context) => ProfileScreen(
                 authProvider: _authProvider,
