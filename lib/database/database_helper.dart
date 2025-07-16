@@ -1,3 +1,4 @@
+import 'package:fnpv_app/models/visita_model.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/paciente_model.dart';
@@ -21,12 +22,13 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 2,
+      version: 4, // Incrementado a 4 por la nueva tabla visitas
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
     );
   }
 
+  // Crear todas las tablas desde el principio
   Future _createDB(Database db, int version) async {
     await db.execute('''
       CREATE TABLE pacientes (
@@ -57,9 +59,58 @@ class DatabaseHelper {
         last_login TEXT
       )
     ''');
+    
+    await db.execute('''
+      CREATE TABLE sedes (
+        id TEXT PRIMARY KEY,
+        nombresede TEXT,
+        direccion TEXT
+      )
+    ''');
+
+    // Nueva tabla para visitas
+    await db.execute('''
+      CREATE TABLE visitas (
+        id TEXT PRIMARY KEY,
+        nombre_apellido TEXT NOT NULL,
+        identificacion TEXT NOT NULL,
+        hta TEXT,
+        dm TEXT,
+        fecha TEXT NOT NULL,
+        telefono TEXT,
+        zona TEXT,
+        peso REAL,
+        talla REAL,
+        imc REAL,
+        perimetro_abdominal REAL,
+        frecuencia_cardiaca INTEGER,
+        frecuencia_respiratoria INTEGER,
+        tension_arterial TEXT,
+        glucometria REAL,
+        temperatura REAL,
+        familiar TEXT,
+        riesgo_fotografico TEXT,
+        abandono_social TEXT,
+        motivo TEXT,
+        medicamentos TEXT,
+        factores TEXT,
+        conductas TEXT,
+        novedades TEXT,
+        proximo_control TEXT,
+        idusuario TEXT NOT NULL,
+        idpaciente TEXT NOT NULL,
+        sync_status INTEGER DEFAULT 0,
+        FOREIGN KEY (idpaciente) REFERENCES pacientes (id),
+        FOREIGN KEY (idusuario) REFERENCES usuarios (id)
+      )
+    ''');
+    
+    debugPrint('Base de datos creada con todas las tablas incluyendo visitas');
   }
 
   Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    debugPrint('Actualizando base de datos de versión $oldVersion a $newVersion');
+    
     if (oldVersion < 2) {
       await db.execute('''
         CREATE TABLE IF NOT EXISTS usuarios (
@@ -75,6 +126,84 @@ class DatabaseHelper {
           last_login TEXT
         )
       ''');
+    }
+    
+    if (oldVersion < 3) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS sedes (
+          id TEXT PRIMARY KEY,
+          nombresede TEXT,
+          direccion TEXT
+        )
+      ''');
+    }
+
+    if (oldVersion < 4) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS visitas (
+          id TEXT PRIMARY KEY,
+          nombre_apellido TEXT NOT NULL,
+          identificacion TEXT NOT NULL,
+          hta TEXT,
+          dm TEXT,
+          fecha TEXT NOT NULL,
+          telefono TEXT,
+          zona TEXT,
+          peso REAL,
+          talla REAL,
+          imc REAL,
+          perimetro_abdominal REAL,
+          frecuencia_cardiaca INTEGER,
+          frecuencia_respiratoria INTEGER,
+          tension_arterial TEXT,
+          glucometria REAL,
+          temperatura REAL,
+          familiar TEXT,
+          riesgo_fotografico TEXT,
+          abandono_social TEXT,
+          motivo TEXT,
+          medicamentos TEXT,
+          factores TEXT,
+          conductas TEXT,
+          novedades TEXT,
+          proximo_control TEXT,
+          idusuario TEXT NOT NULL,
+          idpaciente TEXT NOT NULL,
+          sync_status INTEGER DEFAULT 0,
+          FOREIGN KEY (idpaciente) REFERENCES pacientes (id),
+          FOREIGN KEY (idusuario) REFERENCES usuarios (id)
+        )
+      ''');
+      debugPrint('Tabla visitas creada durante upgrade');
+    }
+  }
+
+  // Método para verificar si una tabla existe
+  Future<bool> tableExists(String tableName) async {
+    final db = await database;
+    final result = await db.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='$tableName'"
+    );
+    return result.isNotEmpty;
+  }
+
+  // Método para crear tabla sedes si no existe (método de emergencia)
+  Future<void> ensureSedesTableExists() async {
+    final db = await database;
+    try {
+      final exists = await tableExists('sedes');
+      if (!exists) {
+        await db.execute('''
+          CREATE TABLE sedes (
+            id TEXT PRIMARY KEY,
+            nombresede TEXT,
+            direccion TEXT
+          )
+        ''');
+        debugPrint('Tabla sedes creada manualmente');
+      }
+    } catch (e) {
+      debugPrint('Error al crear tabla sedes: $e');
     }
   }
 
@@ -100,6 +229,34 @@ class DatabaseHelper {
     );
   }
 
+  Future<int> upsertPaciente(Paciente paciente) async {
+    final db = await database;
+    return await db.insert(
+      'pacientes',
+      paciente.toJson(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<Paciente>> getUnsyncedPacientes() async {
+    final db = await database;
+    final result = await db.query(
+      'pacientes',
+      where: 'sync_status = 0',
+    );
+    return result.map((json) => Paciente.fromJson(json)).toList();
+  }
+
+  Future<void> markPacientesAsSynced(List<String> pacienteIds) async {
+    final db = await database;
+    await db.update(
+      'pacientes',
+      {'sync_status': 1},
+      where: 'id IN (${List.filled(pacienteIds.length, '?').join(',')})',
+      whereArgs: pacienteIds,
+    );
+  }
+
   Future<int> deletePaciente(String id) async {
     final db = await instance.database;
     return await db.delete(
@@ -107,6 +264,132 @@ class DatabaseHelper {
       where: 'id = ?',
       whereArgs: [id],
     );
+  }
+
+  // Buscar paciente por identificación
+  Future<Paciente?> getPacienteByIdentificacion(String identificacion) async {
+    final db = await database;
+    try {
+      final result = await db.query(
+        'pacientes',
+        where: 'identificacion = ?',
+        whereArgs: [identificacion],
+        limit: 1,
+      );
+      
+      if (result.isNotEmpty) {
+        return Paciente.fromJson(result.first);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error al buscar paciente por identificación: $e');
+      return null;
+    }
+  }
+
+  // Obtener paciente por ID
+  Future<Paciente?> getPacienteById(String id) async {
+    final db = await database;
+    try {
+      final result = await db.query(
+        'pacientes',
+        where: 'id = ?',
+        whereArgs: [id],
+        limit: 1,
+      );
+      
+      if (result.isNotEmpty) {
+        return Paciente.fromJson(result.first);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error al buscar paciente por ID: $e');
+      return null;
+    }
+  }
+
+  // MÉTODOS PARA SEDES
+  Future<void> saveSedes(List<dynamic> sedes) async {
+    final db = await database;
+    
+    try {
+      // Asegurar que la tabla existe
+      await ensureSedesTableExists();
+      
+      // Limpiar sedes anteriores
+      await db.delete('sedes');
+      debugPrint('Sedes anteriores eliminadas');
+
+      // Insertar nuevas sedes
+      for (final sede in sedes) {
+        final sedeData = {
+          'id': sede['id'].toString(),
+          'nombresede': sede['nombresede'].toString(),
+          'direccion': sede['direccion']?.toString() ?? '',
+        };
+        
+        await db.insert('sedes', sedeData);
+        debugPrint('Sede insertada: ${sedeData['nombresede']}');
+      }
+      
+      debugPrint('Sedes guardadas correctamente: ${sedes.length}');
+    } catch (e) {
+      debugPrint('Error al guardar sedes: $e');
+      rethrow;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getSedes() async {
+    final db = await database;
+    try {
+      // Asegurar que la tabla existe
+      await ensureSedesTableExists();
+      
+      final result = await db.query('sedes');
+      debugPrint('Sedes obtenidas desde DB: ${result.length}');
+      return result;
+    } catch (e) {
+      debugPrint('Error al obtener sedes: $e');
+      return [];
+    }
+  }
+
+  // Método para verificar si hay sedes en la base de datos
+  Future<bool> hasSedesInDB() async {
+    final sedes = await getSedes();
+    return sedes.isNotEmpty;
+  }
+
+  // Método para insertar sedes por defecto
+  Future<void> insertDefaultSedes() async {
+    final db = await database;
+    
+    try {
+      // Asegurar que la tabla existe
+      await ensureSedesTableExists();
+      
+      // Verificar si ya hay sedes
+      final existingSedes = await getSedes();
+      if (existingSedes.isNotEmpty) {
+        debugPrint('Ya existen sedes, no se insertarán por defecto');
+        return;
+      }
+      
+      // Insertar sedes por defecto
+      final defaultSedes = [
+        {'id': 'sede-1', 'nombresede': 'Sede Principal', 'direccion': 'Dirección principal'},
+        {'id': 'sede-2', 'nombresede': 'Sede Secundaria', 'direccion': 'Dirección secundaria'},
+      ];
+      
+      for (final sede in defaultSedes) {
+        await db.insert('sedes', sede);
+        debugPrint('Sede por defecto insertada: ${sede['nombresede']}');
+      }
+      
+      debugPrint('Sedes por defecto insertadas: ${defaultSedes.length}');
+    } catch (e) {
+      debugPrint('Error al insertar sedes por defecto: $e');
+    }
   }
 
   // Métodos para usuarios
@@ -125,7 +408,7 @@ class DatabaseHelper {
     final userData = {
       'id': user['id'],
       'usuario': user['usuario'],
-      'contrasena': user['contrasena'], // En producción usar hash
+      'contrasena': user['contrasena'],
       'nombre': user['nombre'],
       'correo': user['correo'],
       'token': user['token'],
@@ -149,13 +432,12 @@ class DatabaseHelper {
     }
   }
 
-  // MÉTODO CORREGIDO: No requiere is_logged_in = 1 para buscar
   Future<Map<String, dynamic>?> getUserByCredentials(String usuario, String contrasena) async {
     final db = await database;
     try {
       final result = await db.query(
         'usuarios',
-        where: 'usuario = ?', // CORREGIDO: Solo busca por usuario
+        where: 'usuario = ?',
         whereArgs: [usuario],
         limit: 1,
       );
@@ -170,7 +452,7 @@ class DatabaseHelper {
         return null;
       }
       
-      // Comparación directa (en producción usar hash)
+      // Comparación directa
       if (user['contrasena'] == contrasena) {
         debugPrint('Credenciales válidas encontradas para usuario: $usuario');
         return {
@@ -221,7 +503,7 @@ class DatabaseHelper {
       final result = await db.query(
         'usuarios',
         where: 'is_logged_in = 1',
-        orderBy: 'last_login DESC', // Obtener el más reciente
+        orderBy: 'last_login DESC',
         limit: 1,
       );
       
@@ -238,7 +520,6 @@ class DatabaseHelper {
     }
   }
 
-  // MÉTODO NUEVO: Para limpiar sesiones al iniciar la app
   Future<void> clearOldSessions() async {
     final db = await database;
     await db.update(
@@ -249,7 +530,6 @@ class DatabaseHelper {
     debugPrint('Sesiones anteriores limpiadas');
   }
 
-  // MÉTODO NUEVO: Para debug - listar todos los usuarios
   Future<void> debugListUsers() async {
     final db = await database;
     final users = await db.query('usuarios');
@@ -258,6 +538,133 @@ class DatabaseHelper {
       debugPrint('ID: ${user['id']}, Usuario: ${user['usuario']}, Logged: ${user['is_logged_in']}, Token: ${user['token'] != null ? '[EXISTE]' : '[FALTA]'}');
     }
     debugPrint('=== FIN USUARIOS ===');
+  }
+
+  Future<void> debugListSedes() async {
+    final sedes = await getSedes();
+    debugPrint('=== SEDES EN BASE DE DATOS ===');
+    for (final sede in sedes) {
+      debugPrint('ID: ${sede['id']}, Nombre: ${sede['nombresede']}, Dirección: ${sede['direccion']}');
+    }
+    debugPrint('=== FIN SEDES ===');
+  }
+
+  Future<List<Map<String, dynamic>>> getAllUsers() async {
+    final db = await database;
+    try {
+      return await db.query('usuarios');
+    } catch (e) {
+      debugPrint('Error al obtener todos los usuarios: $e');
+      return [];
+    }
+  }
+
+  // MÉTODOS PARA VISITAS
+  Future<int> createVisita(Visita visita) async {
+    final db = await database;
+    return await db.insert('visitas', visita.toJson());
+  }
+
+  Future<List<Visita>> getVisitasByUsuario(String usuarioId) async {
+    final db = await database;
+    final result = await db.query(
+      'visitas',
+      where: 'idusuario = ?',
+      whereArgs: [usuarioId],
+      orderBy: 'fecha DESC',
+    );
+    return result.map((json) => Visita.fromJson(json)).toList();
+  }
+
+  Future<Visita?> getVisitaById(String id) async {
+    final db = await database;
+    final result = await db.query(
+      'visitas',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    if (result.isNotEmpty) {
+      return Visita.fromJson(result.first);
+    }
+    return null;
+  }
+
+  Future<int> updateVisita(Visita visita) async {
+    final db = await database;
+    return await db.update(
+      'visitas',
+      visita.toJson(),
+      where: 'id = ?',
+      whereArgs: [visita.id],
+    );
+  }
+
+  Future<int> deleteVisita(String id) async {
+    final db = await database;
+    return await db.delete(
+      'visitas',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  // Método para contar visitas por usuario
+  Future<int> countVisitasByUsuario(String usuarioId) async {
+    final db = await database;
+    final result = await db.rawQuery(
+      'SELECT COUNT(*) FROM visitas WHERE idusuario = ?',
+      [usuarioId],
+    );
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  // Método para obtener las últimas N visitas
+  Future<List<Visita>> getUltimasVisitas(int limit, {String? usuarioId}) async {
+    final db = await database;
+    final result = await db.query(
+      'visitas',
+      where: usuarioId != null ? 'idusuario = ?' : null,
+      whereArgs: usuarioId != null ? [usuarioId] : null,
+      orderBy: 'fecha DESC',
+      limit: limit,
+    );
+    return result.map((json) => Visita.fromJson(json)).toList();
+  }
+
+  // Método adicional para buscar visitas por paciente
+  Future<List<Visita>> getVisitasByPaciente(String pacienteId) async {
+    final db = await database;
+    final result = await db.query(
+      'visitas',
+      where: 'idpaciente = ?',
+      whereArgs: [pacienteId],
+      orderBy: 'fecha DESC',
+    );
+    return result.map((json) => Visita.fromJson(json)).toList();
+  }
+
+  // Método para obtener visitas no sincronizadas
+  Future<List<Visita>> getVisitasNoSincronizadas() async {
+    final db = await database;
+    final result = await db.query(
+      'visitas',
+      where: 'sync_status = ?',
+      whereArgs: [0], // 0 = no sincronizado
+      orderBy: 'fecha DESC',
+    );
+    return result.map((json) => Visita.fromJson(json)).toList();
+  }
+
+  // Método para marcar visitas como sincronizadas
+  Future<int> marcarVisitasComoSincronizadas(List<String> ids) async {
+    final db = await database;
+    return await db.update(
+      'visitas',
+      {'sync_status': 1}, // 1 = sincronizado
+      where: 'id IN (${List.filled(ids.length, '?').join(',')})',
+      whereArgs: ids,
+    );
   }
 
   Future close() async {

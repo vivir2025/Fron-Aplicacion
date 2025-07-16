@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:fnpv_app/api/api_service.dart';
+import 'package:fnpv_app/database/database_helper.dart';
+import 'package:fnpv_app/screens/visitas_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'providers/auth_provider.dart';
@@ -6,6 +9,8 @@ import 'providers/paciente_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/pacientes_screen.dart';
+import 'screens/pacientes_screen.dart';
+import 'screens/home_screen.dart'; // NUEVO IMPORT
 
 void main() {
   runApp(const MyApp());
@@ -33,24 +38,54 @@ class _MyAppState extends State<MyApp> {
   }
 
   // MÉTODO NUEVO: Inicializar la aplicación
-  Future<void> _initializeApp() async {
-    try {
-      // Intentar auto-login
-      await _authProvider.autoLogin();
+Future<void> _initializeApp() async {
+  try {
+    // Limpiar sesiones anteriores
+    await _authProvider.clearOldSessions();
+    
+    // Intentar auto-login
+    await _authProvider.autoLogin();
+    
+    // Si está autenticado, cargar datos iniciales
+    if (_authProvider.isAuthenticated) {
+      // Verificar conexión
+      final connectivity = await Connectivity().checkConnectivity();
+      final isOnline = connectivity != ConnectivityResult.none;
       
-      // Debug: Mostrar usuarios en la base de datos
-      await _authProvider.debugListUsers();
+      if (isOnline) {
+        // Sincronizar datos
+        await _authProvider.syncUserData();
+        
+        // Cargar y guardar sedes
+        try {
+          final sedes = await ApiService.getSedes(_authProvider.token!);
+          await DatabaseHelper.instance.saveSedes(sedes);
+        } catch (e) {
+          debugPrint('Error al cargar sedes: $e');
+        }
+      }
       
-      setState(() {
-        _isInitialized = true;
-      });
-    } catch (e) {
-      debugPrint('Error al inicializar app: $e');
-      setState(() {
-        _isInitialized = true;
-      });
+      // Cargar pacientes (usará los locales si está offline)
+      final pacienteProvider = Provider.of<PacienteProvider>(
+        navigatorKey.currentContext!,
+        listen: false,
+      );
+      await pacienteProvider.loadPacientes();
     }
+    
+    // Debug: Mostrar usuarios en la base de datos
+    await _authProvider.debugListUsers();
+    
+    setState(() {
+      _isInitialized = true;
+    });
+  } catch (e) {
+    debugPrint('Error al inicializar app: $e');
+    setState(() {
+      _isInitialized = true;
+    });
   }
+}
 
   void _setupConnectivityListener() {
     _connectivity.onConnectivityChanged.listen((result) async {
@@ -88,11 +123,11 @@ class _MyAppState extends State<MyApp> {
             ? Consumer<AuthProvider>(
                 builder: (context, auth, child) {
                   if (auth.isAuthenticated) {
-                    // Si está autenticado, cargar pacientes y mostrar PacientesScreen
+                    // Si está autenticado, cargar pacientes y mostrar HomeScreen
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                       Provider.of<PacienteProvider>(context, listen: false).loadPacientes();
                     });
-                    return PacientesScreen(
+                    return HomeScreen( // CAMBIO: Usar HomeScreen en lugar de PacientesScreen
                       onLogout: () {
                         auth.logout();
                         // No necesitamos navegar porque el Consumer reconstruirá la UI
@@ -117,6 +152,7 @@ class _MyAppState extends State<MyApp> {
                   Provider.of<AuthProvider>(context, listen: false).logout();
                 },
               ),
+              '/visitas': (context) => VisitasScreen(onLogout: () {  },), // <-- Agrega esta línea
         },
       ),
     );

@@ -5,6 +5,8 @@ import '../database/database_helper.dart';
 
 class AuthProvider with ChangeNotifier {
   String? _token;
+  String? _userId;
+  String? get userId => _userId;
   Map<String, dynamic>? _user;
   Map<String, dynamic>? _sede;
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
@@ -14,7 +16,10 @@ class AuthProvider with ChangeNotifier {
   Map<String, dynamic>? get user => _user;
   Map<String, dynamic>? get sede => _sede;
   bool get isAuthenticated => _token != null;
-
+  void setUserId(String id) {
+    _userId = id;
+    notifyListeners();
+  }
   Future<void> login(String usuario, String contrasena) async {
     try {
       _resetAuthState();
@@ -66,10 +71,34 @@ class AuthProvider with ChangeNotifier {
     _user = response['usuario'];
     _sede = response['sede'] ?? {};
 
+    // Guardar credenciales y sedes localmente
     await _saveCredentialsLocally(usuario, contrasena);
+    
+    // Obtener y guardar sedes
+    try {
+      final sedes = await ApiService.getSedes(_token!);
+      await DatabaseHelper.instance.saveSedes(sedes);
+    } catch (e) {
+      debugPrint('Error al guardar sedes: $e');
+    }
   }
 
-  // MÉTODO CORREGIDO: No requiere is_logged_in = 1 inicialmente
+  Future<Map<String, dynamic>?> getCurrentSede() async {
+    if (_sede != null) return _sede;
+    
+    final db = DatabaseHelper.instance;
+    final user = await db.getLoggedInUser();
+    if (user == null || user['sede_id'] == null) return null;
+    
+    final sedes = await db.getSedes();
+    _sede = sedes.firstWhere(
+      (s) => s['id'] == user['sede_id'],
+      orElse: () => {},
+    );
+    
+    return _sede;
+  }
+
   Future<void> _offlineLogin(String usuario, String contrasena) async {
     final localUser = await _dbHelper.getUserByCredentials(usuario, contrasena);
     
@@ -115,7 +144,6 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // MÉTODO CORREGIDO: Asegura que el usuario tenga credenciales válidas
   Future<void> autoLogin() async {
     try {
       final localUser = await _dbHelper.getLoggedInUser();
@@ -164,6 +192,7 @@ class AuthProvider with ChangeNotifier {
     String? correo,
     String? contrasenaActual,
     String? contrasenaNueva,
+    String? sedeId,
   }) async {
     if (_token != null) {
       try {
@@ -173,14 +202,38 @@ class AuthProvider with ChangeNotifier {
           correo: correo,
           contrasenaActual: contrasenaActual,
           contrasenaNueva: contrasenaNueva,
+          sedeId: sedeId,
         );
+        
         _user = response['usuario'];
+        _sede = response['sede'];
+        
+        // Actualizar en SQLite
+        final db = DatabaseHelper.instance;
+        await db.createUser({
+          'id': _user!['id'].toString(),
+          'usuario': _user!['usuario'],
+          'contrasena': contrasenaNueva ?? await _getCurrentPassword(),
+          'nombre': _user!['nombre'],
+          'correo': _user!['correo'],
+          'token': _token,
+          'sede_id': _sede?['id']?.toString() ?? '',
+          'is_logged_in': 1,
+          'last_login': DateTime.now().toIso8601String(),
+        });
+        
         notifyListeners();
       } catch (e) {
         debugPrint('Error al actualizar perfil: $e');
         rethrow;
       }
     }
+  }
+
+  Future<String> _getCurrentPassword() async {
+    final db = DatabaseHelper.instance;
+    final currentUser = await db.getLoggedInUser();
+    return currentUser?['contrasena'] ?? '';
   }
 
   Future<void> syncUserData() async {
@@ -237,7 +290,24 @@ class AuthProvider with ChangeNotifier {
     
     _resetAuthState();
   }
+
   Future<void> debugListUsers() async {
-  await _dbHelper.debugListUsers();
-}
+    await _dbHelper.debugListUsers();
+  }
+
+  Future<void> clearOldSessions() async {
+    try {
+      final users = await _dbHelper.getAllUsers();
+      final now = DateTime.now();
+      
+      for (var user in users) {
+        final lastLogin = DateTime.tryParse(user['last_login'] ?? '');
+        if (lastLogin != null && now.difference(lastLogin).inDays > 30) {
+          await _dbHelper.updateUserLoginStatus(user['id'].toString(), false);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error en clearOldSessions: $e');
+    }
+  }
 }

@@ -77,7 +77,7 @@ class ApiService {
     String? nombre,
     String? correo,
     String? contrasenaActual,
-    String? contrasenaNueva,
+    String? contrasenaNueva, String? sedeId,
   }) async {
     final response = await http.put(
       Uri.parse('$baseUrl/actualizar-perfil'),
