@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:geolocator/geolocator.dart';
 import '../models/paciente_model.dart';
 import '../models/visita_model.dart';
 import '../database/database_helper.dart';
@@ -8,7 +9,6 @@ import '../providers/auth_provider.dart';
 
 class VisitasScreen extends StatefulWidget {
   final VoidCallback onLogout;
-
   const VisitasScreen({Key? key, required this.onLogout}) : super(key: key);
 
   @override
@@ -16,6 +16,7 @@ class VisitasScreen extends StatefulWidget {
 }
 
 class _VisitasScreenState extends State<VisitasScreen> {
+  // Controladores originales
   final _formKey = GlobalKey<FormState>();
   final _identificacionController = TextEditingController();
   final _nombreApellidoController = TextEditingController();
@@ -43,6 +44,12 @@ class _VisitasScreenState extends State<VisitasScreen> {
   final _novedadesController = TextEditingController();
   final _proximoControlController = TextEditingController();
 
+  // Controladores NUEVOS para geo
+  final _latitudController = TextEditingController();
+  final _longitudController = TextEditingController();
+  bool _showGeolocalizacion = false;
+  bool _isGettingLocation = false;
+
   List<Visita> _visitas = [];
   bool _isLoading = false;
   bool _isEditing = false;
@@ -69,10 +76,10 @@ class _VisitasScreenState extends State<VisitasScreen> {
         minimumSize: MaterialStateProperty.all(const Size.fromHeight(48)),
       ),
     ),
-    cardTheme: CardThemeData(
+    cardTheme: const CardThemeData(
       elevation: 3,
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      margin: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(14))),
     ),
     inputDecorationTheme: InputDecorationTheme(
       border: OutlineInputBorder(
@@ -118,6 +125,8 @@ class _VisitasScreenState extends State<VisitasScreen> {
     _conductasController.dispose();
     _novedadesController.dispose();
     _proximoControlController.dispose();
+    _latitudController.dispose();
+    _longitudController.dispose();
     super.dispose();
   }
 
@@ -136,6 +145,7 @@ class _VisitasScreenState extends State<VisitasScreen> {
     }
   }
 
+  // BUSCAR PACIENTE (Actualizado para cargar coords si existen)
   Future<void> _searchPaciente() async {
     final identificacion = _identificacionController.text.trim();
     if (identificacion.isEmpty) return;
@@ -148,6 +158,8 @@ class _VisitasScreenState extends State<VisitasScreen> {
           _currentPaciente = paciente;
           _nombreApellidoController.text = paciente.nombreCompleto;
           _fechaNacimientoController.text = DateFormat('yyyy-MM-dd').format(paciente.fecnacimiento);
+          _latitudController.text = paciente.latitud?.toString() ?? '';
+          _longitudController.text = paciente.longitud?.toString() ?? '';
         });
         _updateEdad();
       } else {
@@ -216,6 +228,100 @@ class _VisitasScreenState extends State<VisitasScreen> {
         if (isNacimiento) _updateEdad();
       });
     }
+  }
+
+  // *** Geolocalización ***
+  // --- CHECK PERMISOS ---
+  Future<bool> _checkLocationPermission() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Los servicios de ubicación están desactivados')),
+      );
+      return false;
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.deniedForever) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Los permisos de ubicación fueron denegados permanentemente')),
+      );
+      return false;
+    }
+
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission != LocationPermission.whileInUse &&
+          permission != LocationPermission.always) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Los permisos de ubicación fueron denegados')),
+        );
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  // --- GET LOCATION ---
+  Future<void> _getCurrentLocation() async {
+    setState(() => _isGettingLocation = true);
+    try {
+      final hasPermission = await _checkLocationPermission();
+      if (!hasPermission) {
+        setState(() => _isGettingLocation = false);
+        return;
+      }
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      setState(() {
+        _latitudController.text = position.latitude.toString();
+        _longitudController.text = position.longitude.toString();
+      });
+
+      if (_currentPaciente != null) {
+        await DatabaseHelper.instance.updatePacienteGeolocalizacion(
+          _currentPaciente!.id,
+          position.latitude,
+          position.longitude,
+        );
+
+        _currentPaciente = _currentPaciente!.copyWith(
+          latitud: position.latitude,
+          longitud: position.longitude,
+        );
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Geolocalización guardada')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al obtener ubicación: $e')),
+      );
+    } finally {
+      setState(() => _isGettingLocation = false);
+    }
+  }
+
+  // --- CLEAR GEOLOCALIZACIÓN ---
+  void _clearGeolocalizacion() {
+    _latitudController.clear();
+    _longitudController.clear();
+    if (_currentPaciente != null) {
+      DatabaseHelper.instance.updatePacienteGeolocalizacion(
+        _currentPaciente!.id,
+        0.0,
+        0.0,
+      );
+      _currentPaciente = _currentPaciente!.copyWith(
+        latitud: null,
+        longitud: null,
+      );
+    }
+    setState(() {}); // actualizar UI
   }
 
   Future<void> _saveVisita() async {
@@ -316,6 +422,8 @@ class _VisitasScreenState extends State<VisitasScreen> {
       _conductasController.clear();
       _novedadesController.clear();
       _proximoControlController.clear();
+      _latitudController.clear();
+      _longitudController.clear();
     });
   }
 
@@ -368,6 +476,8 @@ class _VisitasScreenState extends State<VisitasScreen> {
         setState(() {
           _currentPaciente = paciente;
           _fechaNacimientoController.text = DateFormat('yyyy-MM-dd').format(paciente.fecnacimiento);
+          _latitudController.text = paciente.latitud?.toString() ?? '';
+          _longitudController.text = paciente.longitud?.toString() ?? '';
         });
         _updateEdad();
       }
@@ -549,6 +659,71 @@ class _VisitasScreenState extends State<VisitasScreen> {
 
                 const SizedBox(height: 8),
                 TextFormField(controller: _telefonoController, decoration: const InputDecoration(labelText: "Teléfono"), keyboardType: TextInputType.phone),
+
+                // ------------ GEOLOCALIZACIÓN --------------------
+                ExpansionTile(
+                  title: const Text('Geolocalización'),
+                  trailing: Icon(
+                    _showGeolocalizacion ? Icons.expand_less : Icons.expand_more,
+                  ),
+                  onExpansionChanged: (expanded) {
+                    setState(() => _showGeolocalizacion = expanded);
+                  },
+                  initiallyExpanded: _showGeolocalizacion,
+                  children: [
+                    if (_currentPaciente?.latitud != null && _currentPaciente?.longitud != null)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: Text(
+                          'Ubicación actual: ${_currentPaciente!.latitud!.toStringAsFixed(6)}, ${_currentPaciente!.longitud!.toStringAsFixed(6)}',
+                          style: TextStyle(color: Colors.green[700]),
+                        ),
+                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _latitudController,
+                            decoration: const InputDecoration(labelText: 'Latitud'),
+                            readOnly: true,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _longitudController,
+                            decoration: const InputDecoration(labelText: 'Longitud'),
+                            readOnly: true,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _isGettingLocation ? null : _getCurrentLocation,
+                            icon: const Icon(Icons.location_on),
+                            label: _isGettingLocation
+                                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator())
+                                : const Text('Obtener Ubicación'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _clearGeolocalizacion,
+                            icon: const Icon(Icons.clear),
+                            label: const Text('Limpiar'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+                // ---------/GEO---------------------------
 
                 const Divider(height: 28),
 
@@ -781,7 +956,6 @@ class _VisitasScreenState extends State<VisitasScreen> {
               Text('Paciente: ${visita.nombreApellido}', style: const TextStyle(fontWeight: FontWeight.bold)),
               Text('Identificación: ${visita.identificacion}'),
               const SizedBox(height: 10),
-
               if (visita.hta != null && visita.hta!.isNotEmpty)
                 Text('HTA: ${visita.hta}'),
               if (visita.dm != null && visita.dm!.isNotEmpty)
@@ -790,6 +964,8 @@ class _VisitasScreenState extends State<VisitasScreen> {
                 Text('Zona: ${visita.zona}'),
               if (visita.telefono != null && visita.telefono!.isNotEmpty)
                 Text('Teléfono: ${visita.telefono}'),
+              if (_currentPaciente?.latitud != null && _currentPaciente?.longitud != null)
+                Text('Geolocalización: ${_currentPaciente?.latitud}, ${_currentPaciente?.longitud}'),
               const SizedBox(height: 10),
               const Text('Signos Vitales:', style: TextStyle(fontWeight: FontWeight.bold)),
               if (visita.peso != null)

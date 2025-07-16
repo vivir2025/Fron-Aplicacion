@@ -10,6 +10,7 @@ class Paciente {
   final String idsede;
   final String? nombreSede;
   final int syncStatus;
+
   Paciente({
     required this.id,
     required this.identificacion,
@@ -24,7 +25,7 @@ class Paciente {
     this.syncStatus = 1, // Por defecto asumimos que está sincronizado
   });
 
- factory Paciente.fromJson(Map<String, dynamic> json) {
+  factory Paciente.fromJson(Map<String, dynamic> json) {
     return Paciente(
       id: json['id']?.toString() ?? '',
       identificacion: json['identificacion']?.toString() ?? '',
@@ -54,6 +55,7 @@ class Paciente {
       'sync_status': syncStatus,
     };
   }
+
   Paciente copyWith({
     String? id,
     String? identificacion,
@@ -82,7 +84,8 @@ class Paciente {
     );
   }
 
+  bool get tieneGeolocalizacion => latitud != null && longitud != null;
+  String? get coordenadas => tieneGeolocalizacion ? '$latitud, $longitud' : null;
   String get nombreCompleto => '$nombre $apellido';
   String get infoBasica => 'ID: $identificacion | ${fecnacimiento.year}';
-
 }

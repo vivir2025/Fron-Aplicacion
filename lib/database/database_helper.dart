@@ -496,6 +496,20 @@ class DatabaseHelper {
     
     debugPrint('Usuario $userId actualizado (is_logged_in: $isLoggedIn), filas afectadas: $rowsUpdated');
   }
+    Future<int> updatePacienteGeolocalizacion(String pacienteId, double latitud, double longitud) async {
+    final db = await database;
+    return await db.update(
+      'pacientes',
+      {
+        'latitud': latitud,
+        'longitud': longitud,
+        'sync_status': 0, // Marcar como no sincronizado
+      },
+      where: 'id = ?',
+      whereArgs: [pacienteId],
+    );
+  }
+
 
   Future<Map<String, dynamic>?> getLoggedInUser() async {
     final db = await instance.database;
