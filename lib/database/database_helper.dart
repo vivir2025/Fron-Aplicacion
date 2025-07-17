@@ -22,7 +22,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 4, // Incrementado a 4 por la nueva tabla visitas
+      version: 5, // Incrementado a 4 por la nueva tabla visitas
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
     );
@@ -69,7 +69,7 @@ class DatabaseHelper {
     ''');
 
     // Nueva tabla para visitas
-    await db.execute('''
+     await db.execute('''
       CREATE TABLE visitas (
         id TEXT PRIMARY KEY,
         nombre_apellido TEXT NOT NULL,
@@ -97,11 +97,12 @@ class DatabaseHelper {
         conductas TEXT,
         novedades TEXT,
         proximo_control TEXT,
+        firma TEXT,
         idusuario TEXT NOT NULL,
         idpaciente TEXT NOT NULL,
         sync_status INTEGER DEFAULT 0,
-        FOREIGN KEY (idpaciente) REFERENCES pacientes (id),
-        FOREIGN KEY (idusuario) REFERENCES usuarios (id)
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
       )
     ''');
     
@@ -138,7 +139,7 @@ class DatabaseHelper {
       ''');
     }
 
-    if (oldVersion < 4) {
+     if (oldVersion < 4) {
       await db.execute('''
         CREATE TABLE IF NOT EXISTS visitas (
           id TEXT PRIMARY KEY,
@@ -167,16 +168,27 @@ class DatabaseHelper {
           conductas TEXT,
           novedades TEXT,
           proximo_control TEXT,
+            
           idusuario TEXT NOT NULL,
           idpaciente TEXT NOT NULL,
           sync_status INTEGER DEFAULT 0,
-          FOREIGN KEY (idpaciente) REFERENCES pacientes (id),
-          FOREIGN KEY (idusuario) REFERENCES usuarios (id)
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
       ''');
       debugPrint('Tabla visitas creada durante upgrade');
     }
+    // ← NUEVA MIGRACIÓN PARA AGREGAR COLUMNA FIRMA
+    if (oldVersion < 5) {
+      try {
+        await db.execute('ALTER TABLE visitas ADD COLUMN firma TEXT');
+        debugPrint('Columna firma agregada a tabla visitas');
+      } catch (e) {
+        debugPrint('Error al agregar columna firma (puede que ya exista): $e');
+      }
+    }
   }
+  
 
   // Método para verificar si una tabla existe
   Future<bool> tableExists(String tableName) async {
@@ -574,115 +586,215 @@ class DatabaseHelper {
   }
 
   // MÉTODOS PARA VISITAS
-  Future<int> createVisita(Visita visita) async {
-    final db = await database;
-    return await db.insert('visitas', visita.toJson());
+   Future<bool> createVisita(Visita visita) async {
+    try {
+      final db = await database;
+      final result = await db.insert(
+        'visitas', 
+        visita.toJson(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+      debugPrint('Visita guardada localmente con ID: ${visita.id}');
+      return result > 0;
+    } catch (e) {
+      debugPrint('Error al guardar visita localmente: $e');
+      return false;
+    }
   }
 
   Future<List<Visita>> getVisitasByUsuario(String usuarioId) async {
-    final db = await database;
-    final result = await db.query(
-      'visitas',
-      where: 'idusuario = ?',
-      whereArgs: [usuarioId],
-      orderBy: 'fecha DESC',
-    );
-    return result.map((json) => Visita.fromJson(json)).toList();
-  }
-
-  Future<Visita?> getVisitaById(String id) async {
-    final db = await database;
-    final result = await db.query(
-      'visitas',
-      where: 'id = ?',
-      whereArgs: [id],
-      limit: 1,
-    );
-    if (result.isNotEmpty) {
-      return Visita.fromJson(result.first);
+    try {
+      final db = await database;
+      final result = await db.query(
+        'visitas',
+        where: 'idusuario = ?',
+        whereArgs: [usuarioId],
+        orderBy: 'fecha DESC',
+      );
+      return result.map((json) => Visita.fromJson(json)).toList();
+    } catch (e) {
+      debugPrint('Error al obtener visitas por usuario: $e');
+      return [];
     }
-    return null;
+  }
+    Future<Visita?> getVisitaById(String id) async {
+    try {
+      final db = await database;
+      final result = await db.query(
+        'visitas',
+        where: 'id = ?',
+        whereArgs: [id],
+        limit: 1,
+      );
+      if (result.isNotEmpty) {
+        return Visita.fromJson(result.first);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error al obtener visita por ID: $e');
+      return null;
+    }
   }
 
-  Future<int> updateVisita(Visita visita) async {
-    final db = await database;
-    return await db.update(
-      'visitas',
-      visita.toJson(),
-      where: 'id = ?',
-      whereArgs: [visita.id],
-    );
+  Future<bool> updateVisita(Visita visita) async {
+    try {
+      final db = await database;
+      final result = await db.update(
+        'visitas',
+        {
+          ...visita.toJson(),
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        where: 'id = ?',
+        whereArgs: [visita.id],
+      );
+      return result > 0;
+    } catch (e) {
+      debugPrint('Error al actualizar visita: $e');
+      return false;
+    }
   }
 
-  Future<int> deleteVisita(String id) async {
-    final db = await database;
-    return await db.delete(
-      'visitas',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+ Future<bool> deleteVisita(String id) async {
+    try {
+      final db = await database;
+      final result = await db.delete(
+        'visitas',
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      return result > 0;
+    } catch (e) {
+      debugPrint('Error al eliminar visita: $e');
+      return false;
+    }
   }
-
   // Método para contar visitas por usuario
   Future<int> countVisitasByUsuario(String usuarioId) async {
-    final db = await database;
-    final result = await db.rawQuery(
-      'SELECT COUNT(*) FROM visitas WHERE idusuario = ?',
-      [usuarioId],
-    );
-    return Sqflite.firstIntValue(result) ?? 0;
+    try {
+      final db = await database;
+      final result = await db.rawQuery(
+        'SELECT COUNT(*) FROM visitas WHERE idusuario = ?',
+        [usuarioId],
+      );
+      return Sqflite.firstIntValue(result) ?? 0;
+    } catch (e) {
+      debugPrint('Error al contar visitas: $e');
+      return 0;
+    }
   }
 
   // Método para obtener las últimas N visitas
   Future<List<Visita>> getUltimasVisitas(int limit, {String? usuarioId}) async {
-    final db = await database;
-    final result = await db.query(
-      'visitas',
-      where: usuarioId != null ? 'idusuario = ?' : null,
-      whereArgs: usuarioId != null ? [usuarioId] : null,
-      orderBy: 'fecha DESC',
-      limit: limit,
-    );
-    return result.map((json) => Visita.fromJson(json)).toList();
+    try {
+      final db = await database;
+      final result = await db.query(
+        'visitas',
+        where: usuarioId != null ? 'idusuario = ?' : null,
+        whereArgs: usuarioId != null ? [usuarioId] : null,
+        orderBy: 'fecha DESC',
+        limit: limit,
+      );
+      return result.map((json) => Visita.fromJson(json)).toList();
+    } catch (e) {
+      debugPrint('Error al obtener últimas visitas: $e');
+      return [];
+    }
   }
-
   // Método adicional para buscar visitas por paciente
-  Future<List<Visita>> getVisitasByPaciente(String pacienteId) async {
-    final db = await database;
-    final result = await db.query(
-      'visitas',
-      where: 'idpaciente = ?',
-      whereArgs: [pacienteId],
-      orderBy: 'fecha DESC',
-    );
-    return result.map((json) => Visita.fromJson(json)).toList();
+   Future<List<Visita>> getVisitasByPaciente(String pacienteId) async {
+    try {
+      final db = await database;
+      final result = await db.query(
+        'visitas',
+        where: 'idpaciente = ?',
+        whereArgs: [pacienteId],
+        orderBy: 'fecha DESC',
+      );
+      return result.map((json) => Visita.fromJson(json)).toList();
+    } catch (e) {
+      debugPrint('Error al obtener visitas por paciente: $e');
+      return [];
+    }
   }
-
   // Método para obtener visitas no sincronizadas
   Future<List<Visita>> getVisitasNoSincronizadas() async {
-    final db = await database;
-    final result = await db.query(
-      'visitas',
-      where: 'sync_status = ?',
-      whereArgs: [0], // 0 = no sincronizado
-      orderBy: 'fecha DESC',
-    );
-    return result.map((json) => Visita.fromJson(json)).toList();
+    try {
+      final db = await database;
+      final result = await db.query(
+        'visitas',
+        where: 'sync_status = ?',
+        whereArgs: [0], // 0 = no sincronizado
+        orderBy: 'fecha DESC',
+      );
+      return result.map((json) => Visita.fromJson(json)).toList();
+    } catch (e) {
+      debugPrint('Error al obtener visitas no sincronizadas: $e');
+      return [];
+    }
   }
-
   // Método para marcar visitas como sincronizadas
-  Future<int> marcarVisitasComoSincronizadas(List<String> ids) async {
-    final db = await database;
-    return await db.update(
-      'visitas',
-      {'sync_status': 1}, // 1 = sincronizado
-      where: 'id IN (${List.filled(ids.length, '?').join(',')})',
-      whereArgs: ids,
-    );
+  Future<bool> marcarVisitasComoSincronizadas(List<String> ids) async {
+    if (ids.isEmpty) return true;
+    
+    try {
+      final db = await database;
+      final result = await db.update(
+        'visitas',
+        {
+          'sync_status': 1,
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        where: 'id IN (${List.filled(ids.length, '?').join(',')})',
+        whereArgs: ids,
+      );
+      return result > 0;
+    } catch (e) {
+      debugPrint('Error al marcar visitas como sincronizadas: $e');
+      return false;
+    }
+  }
+  
+Future<bool> marcarVisitaComoSincronizada(String id) async {
+    try {
+      final db = await database;
+      final result = await db.update(
+        'visitas',
+        {
+          'sync_status': 1,
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      return result > 0;
+    } catch (e) {
+      debugPrint('Error al marcar visita como sincronizada: $e');
+      return false;
+    }
   }
 
   Future close() async {
-    final db = await instance.database;
-    db.close();
+    final db = await _database;
+    if (db != null) {
+      await db.close();
+    }
   }
+
+  Future<List<Visita>> getAllVisitas() async {
+  try {
+    final db = await database;
+    final result = await db.query(
+      'visitas',
+      orderBy: 'fecha DESC',
+    );
+    return result.map((json) => Visita.fromJson(json)).toList();
+  } catch (e) {
+    debugPrint('Error al obtener todas las visitas: $e');
+    return [];
+  }
+}
+
+
+
 }

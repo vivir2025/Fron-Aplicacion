@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:connectivity_plus/connectivity_plus.dart';
+
 
 class ApiService {
   static const String baseUrl = 'http://fnpvi.nacerparavivir.org/api';
@@ -15,15 +17,37 @@ class ApiService {
       'Authorization': 'Bearer $token',
     };
   }
+  
 
   static dynamic _handleResponse(http.Response response) {
-  if (response.statusCode == 401 || response.statusCode == 403) {
-    throw Exception('Credenciales inválidas');
+  final statusCode = response.statusCode;
+  final responseBody = response.body;
+  
+  debugPrint('📡 Respuesta HTTP $statusCode: ${response.request?.url}');
+  
+  if (statusCode >= 200 && statusCode < 300) {
+    try {
+      return jsonDecode(responseBody);
+    } catch (e) {
+      debugPrint('❌ Error decodificando JSON: $e');
+      return responseBody; // Devuelve el cuerpo sin decodificar si no es JSON
+    }
   }
-  if (response.statusCode >= 200 && response.statusCode < 300) {
-    return jsonDecode(response.body);
-  } else {
-    throw Exception('Error: ${response.statusCode}');
+  
+  // Manejo específico de errores conocidos
+  switch(statusCode) {
+    case 400:
+      throw Exception('Solicitud incorrecta');
+    case 401:
+      throw Exception('Autenticación requerida');
+    case 403:
+      throw Exception('No autorizado');
+    case 404:
+      throw Exception('Recurso no encontrado');
+    case 500:
+      throw Exception('Error interno del servidor');
+    default:
+      throw Exception('Error $statusCode: ${responseBody.length > 100 ? responseBody.substring(0, 100) + '...' : responseBody}');
   }
 }
  static Future<Map<String, dynamic>> login(String usuario, String contrasena) async {
@@ -91,27 +115,137 @@ class ApiService {
     );
     return _handleResponse(response) as Map<String, dynamic>;
   }
+// Modificar en ApiService
 
-  static Future<Map<String, dynamic>?> guardarVisita(Map<String, dynamic> visitaData, String? token) async {
+static Future<Map<String, dynamic>?> guardarVisita(
+  Map<String, dynamic> visitaData, 
+  String? token
+) async {
+  try {
+    debugPrint('📤 Enviando visita al servidor...');
+    debugPrint('🔑 Token presente: ${token != null}');
+    debugPrint('📊 Datos de visita: ${visitaData['id']}');
+    debugPrint('🌐 URL completa: $baseUrl/visitas');
+    
+    // Limpiar datos nulos para evitar problemas
+    final cleanedData = <String, dynamic>{};
+    visitaData.forEach((key, value) {
+      if (value != null) {
+        cleanedData[key] = value;
+      }
+    });
+    
+    debugPrint('📋 Datos limpiados: ${cleanedData.keys.length} campos');
+    debugPrint('📄 Payload completo: ${jsonEncode(cleanedData)}'); // ← AGREGAR ESTO
+    
+    final headers = token != null 
+      ? _buildHeaders(token) 
+      : {'Content-Type': 'application/json'};
+    
+    final response = await http.post(
+      Uri.parse('$baseUrl/visitas'),
+      headers: headers,
+      body: jsonEncode(cleanedData),
+    ).timeout(Duration(seconds: 30));
+
+    debugPrint('📥 Respuesta del servidor: ${response.statusCode}');
+    debugPrint('📄 Respuesta completa: ${response.body}');
+    
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      debugPrint('✅ Visita guardada en servidor exitosamente');
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } else {
+      debugPrint('❌ Error del servidor: ${response.statusCode}');
+      
+      // Intentar decodificar la respuesta de error
+      try {
+        final errorResponse = jsonDecode(response.body);
+        debugPrint('📄 Error detallado: $errorResponse');
+        
+        if (errorResponse['errors'] != null) {
+          throw Exception('Errores de validación: ${errorResponse['errors']}');
+        } else {
+          throw Exception('Error del servidor: ${errorResponse['message'] ?? 'Desconocido'}');
+        }
+      } catch (e) {
+        throw Exception('Error del servidor: ${response.statusCode} - ${response.body}');
+      }
+    }
+  } catch (e) {
+    debugPrint('💥 Excepción al guardar visita: $e');
+    debugPrint('🔍 Tipo de error: ${e.runtimeType}');
+    rethrow;
+  }
+}
+
+// Corregir también el método de verificación
+static Future<bool> verificarSaludServidor() async {
+  try {
+    debugPrint('🔍 Verificando disponibilidad del servidor...');
+    
+    // Ahora probamos con el endpoint correcto
+    final response = await http.get(
+      Uri.parse('$baseUrl/health'),  // ← Usar /health ahora que existe
+      headers: {'Content-Type': 'application/json'},
+    ).timeout(const Duration(seconds: 10));
+    
+    // Consideramos éxito cualquier respuesta 2xx
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      debugPrint('✅ Servidor disponible');
+      return true;
+    }
+    
+    debugPrint('⚠️ Servidor respondió con código: ${response.statusCode}');
+    return false;
+  } catch (e) {
+    debugPrint('❌ Error verificando servidor: ${e.toString()}');
+    return false;
+  }
+}
+  static Future<bool> verificarConectividad() async {
+  try {
+    debugPrint('🔄 Verificando conectividad...');
+    
+    // 1. Primero verifica si hay conexión de red básica
+    final hasNetwork = await Connectivity().checkConnectivity() != ConnectivityResult.none;
+    if (!hasNetwork) {
+      debugPrint('📵 No hay conexión de red');
+      return false;
+    }
+
+    // 2. Verificar acceso a Internet (ping a servidor confiable)
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/visitas'),
-        headers: token != null ? _buildHeaders(token) : {'Content-Type': 'application/json'},
-        body: jsonEncode(visitaData),
-      );
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return jsonDecode(response.body) as Map<String, dynamic>;
-      } else {
-        print('Error al guardar visita: ${response.statusCode}');
-        print('Respuesta del servidor: ${response.body}');
-        return null;
+      final result = await InternetAddress.lookup('google.com');
+      if (result.isEmpty || result[0].rawAddress.isEmpty) {
+        debugPrint('🌐 Sin acceso a Internet');
+        return false;
       }
     } catch (e) {
-      print('Excepción al guardar visita: $e');
-      return null;
+      debugPrint('❌ Falló el ping a Internet: $e');
+      return false;
     }
+    
+
+    // 3. Verificar endpoint específico del API (con timeout generoso)
+    final response = await http.get(
+      Uri.parse('$baseUrl/health'),
+      headers: {'Content-Type': 'application/json'},
+    ).timeout(const Duration(seconds: 25)); // Aumentamos timeout
+
+    // Solo considerar como exitoso si es 200
+    if (response.statusCode == 200) {
+      debugPrint('✅ Servidor disponible');
+      return true;
+    }
+
+    debugPrint('⚠️ Servidor respondió con código: ${response.statusCode}');
+    return false;
+  } catch (e) {
+    debugPrint('💥 Error en verificación de conectividad: $e');
+    return false;
   }
+}
+
 
   // Métodos para pacientes
   static Future<List<dynamic>> getPacientes(String token) async {

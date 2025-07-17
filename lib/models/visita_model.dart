@@ -25,6 +25,7 @@ class Visita {
   final String? conductas;
   final String? novedades;
   final DateTime? proximoControl;
+  final String? firma;
   final String idusuario;
   final String idpaciente;
   final int syncStatus;
@@ -56,47 +57,48 @@ class Visita {
     this.conductas,
     this.novedades,
     this.proximoControl,
+    this.firma,
     required this.idusuario,
     required this.idpaciente,
-    this.syncStatus = 0, // Por defecto no sincronizado
+    this.syncStatus = 0,
   });
 
-  factory Visita.fromJson(Map<String, dynamic> json) {
-    return Visita(
-      id: json['id']?.toString() ?? '',
-      nombreApellido: json['nombre_apellido']?.toString() ?? '',
-      identificacion: json['identificacion']?.toString() ?? '',
-      hta: json['hta']?.toString(),
-      dm: json['dm']?.toString(),
-      fecha: DateTime.parse(json['fecha']?.toString() ?? DateTime.now().toString()),
-      telefono: json['telefono']?.toString(),
-      zona: json['zona']?.toString(),
-      peso: double.tryParse(json['peso']?.toString() ?? ''),
-      talla: double.tryParse(json['talla']?.toString() ?? ''),
-      imc: double.tryParse(json['imc']?.toString() ?? ''),
-      perimetroAbdominal: double.tryParse(json['perimetro_abdominal']?.toString() ?? ''),
-      frecuenciaCardiaca: int.tryParse(json['frecuencia_cardiaca']?.toString() ?? ''),
-      frecuenciaRespiratoria: int.tryParse(json['frecuencia_respiratoria']?.toString() ?? ''),
-      tensionArterial: json['tension_arterial']?.toString(),
-      glucometria: double.tryParse(json['glucometria']?.toString() ?? ''),
-      temperatura: double.tryParse(json['temperatura']?.toString() ?? ''),
-      familiar: json['familiar']?.toString(),
-      riesgoFotografico: json['riesgo_fotografico']?.toString(),
-      abandonoSocial: json['abandono_social']?.toString(),
-      motivo: json['motivo']?.toString(),
-      medicamentos: json['medicamentos']?.toString(),
-      factores: json['factores']?.toString(),
-      conductas: json['conductas']?.toString(),
-      novedades: json['novedades']?.toString(),
-      proximoControl: json['proximo_control'] != null 
-          ? DateTime.parse(json['proximo_control']?.toString() ?? '')
-          : null,
-      idusuario: json['idusuario']?.toString() ?? '',
-      idpaciente: json['idpaciente']?.toString() ?? '',
-      syncStatus: json['sync_status'] as int? ?? 0,
-    );
+  // Método para convertir a JSON para el servidor (snake_case)
+  Map<String, dynamic> toServerJson() {
+    return {
+      'id': id,
+      'nombre_apellido': nombreApellido,  // ← Convertir a snake_case
+      'identificacion': identificacion,
+      'hta': hta,
+      'dm': dm,
+      'fecha': fecha.toIso8601String().split('T')[0], // Solo la fecha
+      'telefono': telefono,
+      'zona': zona,
+      'peso': peso,
+      'talla': talla,
+      'imc': imc,
+      'perimetro_abdominal': perimetroAbdominal,  // ← snake_case
+      'frecuencia_cardiaca': frecuenciaCardiaca,  // ← snake_case
+      'frecuencia_respiratoria': frecuenciaRespiratoria,  // ← snake_case
+      'tension_arterial': tensionArterial,  // ← snake_case
+      'glucometria': glucometria,
+      'temperatura': temperatura,
+      'familiar': familiar,
+      'riesgo_fotografico': riesgoFotografico,  // ← snake_case
+      'abandono_social': abandonoSocial,  // ← snake_case
+      'motivo': motivo,
+      'medicamentos': medicamentos,
+      'factores': factores,
+      'conductas': conductas,
+      'novedades': novedades,
+      'proximo_control': proximoControl?.toIso8601String().split('T')[0],  // ← snake_case
+      'firma': firma,
+      'idusuario': idusuario,
+      'idpaciente': idpaciente,
+    };
   }
 
+  // Método para SQLite local (camelCase)
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -125,9 +127,49 @@ class Visita {
       'conductas': conductas,
       'novedades': novedades,
       'proximo_control': proximoControl?.toIso8601String(),
+      'firma': firma,
       'idusuario': idusuario,
       'idpaciente': idpaciente,
       'sync_status': syncStatus,
+      'created_at': DateTime.now().toIso8601String(),
+      'updated_at': DateTime.now().toIso8601String(),
     };
+  }
+
+  factory Visita.fromJson(Map<String, dynamic> json) {
+    return Visita(
+      id: json['id'],
+      nombreApellido: json['nombre_apellido'],
+      identificacion: json['identificacion'],
+      hta: json['hta'],
+      dm: json['dm'],
+      fecha: DateTime.parse(json['fecha']),
+      telefono: json['telefono'],
+      zona: json['zona'],
+      peso: json['peso']?.toDouble(),
+      talla: json['talla']?.toDouble(),
+      imc: json['imc']?.toDouble(),
+      perimetroAbdominal: json['perimetro_abdominal']?.toDouble(),
+      frecuenciaCardiaca: json['frecuencia_cardiaca']?.toInt(),
+      frecuenciaRespiratoria: json['frecuencia_respiratoria']?.toInt(),
+      tensionArterial: json['tension_arterial'],
+      glucometria: json['glucometria']?.toDouble(),
+      temperatura: json['temperatura']?.toDouble(),
+      familiar: json['familiar'],
+      riesgoFotografico: json['riesgo_fotografico'],
+      abandonoSocial: json['abandono_social'],
+      motivo: json['motivo'],
+      medicamentos: json['medicamentos'],
+      factores: json['factores'],
+      conductas: json['conductas'],
+      novedades: json['novedades'],
+      proximoControl: json['proximo_control'] != null 
+          ? DateTime.parse(json['proximo_control']) 
+          : null,
+      firma: json['firma'],
+      idusuario: json['idusuario'],
+      idpaciente: json['idpaciente'],
+      syncStatus: json['sync_status'] ?? 0,
+    );
   }
 }

@@ -1,4 +1,11 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:fnpv_app/api/api_service.dart';
+import 'package:fnpv_app/api/visita_service.dart';
+import 'package:fnpv_app/services/sincronizacion_service.dart';
+import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:geolocator/geolocator.dart';
@@ -41,6 +48,7 @@ class _VisitasScreenState extends State<VisitasScreen> {
   final _medicamentosController = TextEditingController();
   final _factoresController = TextEditingController();
   final _conductasController = TextEditingController();
+  final _firmaController = TextEditingController();
   final _novedadesController = TextEditingController();
   final _proximoControlController = TextEditingController();
 
@@ -125,25 +133,49 @@ class _VisitasScreenState extends State<VisitasScreen> {
     _conductasController.dispose();
     _novedadesController.dispose();
     _proximoControlController.dispose();
+    _firmaController.dispose();
     _latitudController.dispose();
     _longitudController.dispose();
     super.dispose();
   }
+  
 
   Future<void> _loadVisitas() async {
-    setState(() => _isLoading = true);
-    try {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final dbHelper = DatabaseHelper.instance;
-      _visitas = await dbHelper.getVisitasByUsuario(authProvider.userId!);
-      setState(() => _isLoading = false);
-    } catch (e) {
-      setState(() => _isLoading = false);
+  setState(() => _isLoading = true);
+  try {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final userId = await authProvider.getCurrentUserId();
+    
+    if (userId == null) {
+      throw Exception('Usuario no autenticado. ID de usuario nulo');
+    }
+
+    final dbHelper = DatabaseHelper.instance;
+    _visitas = await dbHelper.getVisitasByUsuario(userId);
+    
+    if (_visitas.isEmpty && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al cargar visitas: ${e.toString()}')),
+        const SnackBar(content: Text('No hay visitas registradas')),
       );
     }
+  } catch (e) {
+    debugPrint('Error cargando visitas: $e');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString()}')),
+      );
+      
+      // Si es error de autenticación, redirigir
+      if (e.toString().contains('no autenticado')) {
+        Navigator.of(context).pushReplacementNamed('/login');
+      }
+    }
+  } finally {
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
+}
 
   // BUSCAR PACIENTE (Actualizado para cargar coords si existen)
   Future<void> _searchPaciente() async {
@@ -235,17 +267,21 @@ class _VisitasScreenState extends State<VisitasScreen> {
   Future<bool> _checkLocationPermission() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Los servicios de ubicación están desactivados')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Los servicios de ubicación están desactivados')),
+        );
+      }
       return false;
     }
 
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.deniedForever) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Los permisos de ubicación fueron denegados permanentemente')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Los permisos de ubicación fueron denegados permanentemente')),
+        );
+      }
       return false;
     }
 
@@ -253,9 +289,11 @@ class _VisitasScreenState extends State<VisitasScreen> {
       permission = await Geolocator.requestPermission();
       if (permission != LocationPermission.whileInUse &&
           permission != LocationPermission.always) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Los permisos de ubicación fueron denegados')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Los permisos de ubicación fueron denegados')),
+          );
+        }
         return false;
       }
     }
@@ -293,16 +331,22 @@ class _VisitasScreenState extends State<VisitasScreen> {
           longitud: position.longitude,
         );
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Geolocalización guardada')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Geolocalización guardada')),
+          );
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al obtener ubicación: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al obtener ubicación: $e')),
+        );
+      }
     } finally {
-      setState(() => _isGettingLocation = false);
+      if (mounted) {
+        setState(() => _isGettingLocation = false);
+      }
     }
   }
 
@@ -324,69 +368,195 @@ class _VisitasScreenState extends State<VisitasScreen> {
     setState(() {}); // actualizar UI
   }
 
-  Future<void> _saveVisita() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_currentPaciente == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Debe buscar un paciente primero')),
-      );
-      return;
+ Future<void> _saveVisita() async {
+  if (!_formKey.currentState!.validate()) return;
+  
+  if (_currentPaciente == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Debe buscar un paciente primero')),
+    );
+    return;
+  }
+
+  setState(() => _isLoading = true);
+
+  try {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final userId = await authProvider.getCurrentUserId();
+    final token = authProvider.token;
+
+    debugPrint('🔍 DEBUG - UserID: $userId, Token: ${token != null ? "exists" : "null"}');
+
+    if (userId == null) {
+      throw Exception('No se pudo obtener el ID del usuario. Vuelva a iniciar sesión.');
     }
-    setState(() => _isLoading = true);
-    try {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final dbHelper = DatabaseHelper.instance;
-      final visita = Visita(
-        id: _isEditing ? _currentVisitaId! : DateTime.now().millisecondsSinceEpoch.toString(),
-        nombreApellido: _nombreApellidoController.text,
-        identificacion: _identificacionController.text,
-        hta: _htaController.text,
-        dm: _dmController.text,
-        fecha: DateTime.parse(_fechaVisitaController.text),
-        telefono: _telefonoController.text,
-        zona: _zonaController.text,
-        peso: double.tryParse(_pesoController.text),
-        talla: double.tryParse(_tallaController.text),
-        imc: _imcValue,
-        perimetroAbdominal: double.tryParse(_perimetroAbdominalController.text),
-        frecuenciaCardiaca: int.tryParse(_frecuenciaCardiacaController.text),
-        frecuenciaRespiratoria: int.tryParse(_frecuenciaRespiratoriaController.text),
-        tensionArterial: _tensionArterialController.text,
-        glucometria: double.tryParse(_glucometriaController.text),
-        temperatura: double.tryParse(_temperaturaController.text),
-        familiar: _familiarController.text,
-        riesgoFotografico: _riesgoFotograficoController.text,
-        abandonoSocial: _abandonoSocialController.text,
-        motivo: _motivoController.text,
-        medicamentos: _medicamentosController.text,
-        factores: _factoresController.text,
-        conductas: _conductasController.text,
-        novedades: _novedadesController.text,
-        proximoControl: _proximoControlController.text.isNotEmpty
-            ? DateTime.parse(_proximoControlController.text)
-            : null,
-        idusuario: authProvider.userId!,
-        idpaciente: _currentPaciente!.id,
-        syncStatus: 0,
-      );
-      if (_isEditing) {
-        await dbHelper.updateVisita(visita);
-      } else {
-        await dbHelper.createVisita(visita);
-      }
+
+    final visita = Visita(
+      id: _isEditing ? _currentVisitaId! : VisitaService.generateId(), // ← CAMBIO AQUÍ
+      nombreApellido: _nombreApellidoController.text,
+      identificacion: _identificacionController.text,
+      hta: _htaController.text.isEmpty ? null : _htaController.text,
+      dm: _dmController.text.isEmpty ? null : _dmController.text,
+      fecha: DateTime.parse(_fechaVisitaController.text),
+      telefono: _telefonoController.text.isEmpty ? null : _telefonoController.text,
+      zona: _zonaController.text.isEmpty ? null : _zonaController.text,
+      peso: double.tryParse(_pesoController.text),
+      talla: double.tryParse(_tallaController.text),
+      imc: _imcValue,
+      perimetroAbdominal: double.tryParse(_perimetroAbdominalController.text),
+      frecuenciaCardiaca: int.tryParse(_frecuenciaCardiacaController.text),
+      frecuenciaRespiratoria: int.tryParse(_frecuenciaRespiratoriaController.text),
+      tensionArterial: _tensionArterialController.text.isEmpty ? null : _tensionArterialController.text,
+      glucometria: double.tryParse(_glucometriaController.text),
+      temperatura: double.tryParse(_temperaturaController.text),
+      familiar: _familiarController.text.isEmpty ? null : _familiarController.text,
+      riesgoFotografico: _riesgoFotograficoController.text.isEmpty ? null : _riesgoFotograficoController.text,
+      abandonoSocial: _abandonoSocialController.text.isEmpty ? null : _abandonoSocialController.text,
+      motivo: _motivoController.text.isEmpty ? null : _motivoController.text,
+      medicamentos: _medicamentosController.text.isEmpty ? null : _medicamentosController.text,
+      factores: _factoresController.text.isEmpty ? null : _factoresController.text,
+      conductas: _conductasController.text.isEmpty ? null : _conductasController.text,
+      novedades: _novedadesController.text.isEmpty ? null : _novedadesController.text,
+
+      proximoControl: _proximoControlController.text.isNotEmpty
+          ? DateTime.parse(_proximoControlController.text)
+          : null,
+      firma: _firmaController.text.isEmpty ? null : _firmaController.text,
+      idusuario: userId,
+      idpaciente: _currentPaciente!.id,
+      syncStatus: 0,
+    );
+
+    final success = await SincronizacionService.guardarVisita(visita, token);
+
+    if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Visita ${_isEditing ? 'actualizada' : 'guardada'} correctamente')),
+        SnackBar(
+          content: Text('Visita ${_isEditing ? 'actualizada' : 'guardada'} correctamente'),
+          backgroundColor: Colors.green,
+        ),
       );
       _resetForm();
       _loadVisitas();
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al guardar visita: ${e.toString()}')),
-      );
-    } finally {
+      _mostrarEstadoSincronizacion();
+    } else {
+      throw Exception('No se pudo guardar la visita');
+    }
+  } catch (e) {
+    debugPrint('💥 Error al guardar visita: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Error: ${e.toString()}'),
+        backgroundColor: Colors.red,
+      ),
+    );
+  } finally {
+    if (mounted) {
       setState(() => _isLoading = false);
     }
   }
+}
+
+// 4. Método para mostrar estado de sincronización
+Future<void> _mostrarEstadoSincronizacion() async {
+  final estado = await SincronizacionService.obtenerEstadoSincronizacion();
+  
+  if (mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Estado: ${estado['sincronizadas']} sincronizadas, ${estado['pendientes']} pendientes',
+        ),
+        duration: Duration(seconds: 3),
+      ),
+    );
+  }
+}
+Future<void> _sincronizarManualmente() async {
+  final authProvider = Provider.of<AuthProvider>(context, listen: false);
+  final token = authProvider.token;
+  
+  if (token == null) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Autenticación requerida')),
+      );
+    }
+    return;
+  }
+
+  setState(() => _isLoading = true);
+  
+  try {
+    // Verificación optimizada del servidor
+    debugPrint('🔄 Verificando disponibilidad del servidor...');
+    final serverAvailable = await ApiService.verificarSaludServidor();
+    
+    if (!serverAvailable) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo conectar con el servidor'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+
+    debugPrint('🔄 Iniciando sincronización...');
+    final resultado = await SincronizacionService.sincronizarVisitasPendientes(token)
+      .timeout(const Duration(seconds: 30));
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Sincronización: ${resultado['exitosas']} exitosas, ${resultado['fallidas']} fallidas',
+          ),
+          duration: const Duration(seconds: 4),
+          backgroundColor: resultado['fallidas'] == 0 ? Colors.green : Colors.orange,
+        ),
+      );
+    }
+  } on TimeoutException {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('El servidor no respondió a tiempo'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  } on http.ClientException catch (e) {
+    if (mounted) {
+      final message = e.message.contains('404') 
+          ? 'Recurso no encontrado' 
+          : 'Error de comunicación: ${e.message.split(':').first}';
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString().replaceFirst('Exception: ', '')}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+    debugPrint('Error completo: $e');
+  } finally {
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
+  }
+}
 
   void _resetForm() {
     _formKey.currentState?.reset();
@@ -422,6 +592,7 @@ class _VisitasScreenState extends State<VisitasScreen> {
       _conductasController.clear();
       _novedadesController.clear();
       _proximoControlController.clear();
+      _firmaController.clear();
       _latitudController.clear();
       _longitudController.clear();
     });
@@ -467,6 +638,7 @@ class _VisitasScreenState extends State<VisitasScreen> {
       _proximoControlController.text = visita.proximoControl != null
           ? DateFormat('yyyy-MM-dd').format(visita.proximoControl!)
           : '';
+      _firmaController.text = visita.firma ?? '';
     });
 
     try {
@@ -510,50 +682,64 @@ class _VisitasScreenState extends State<VisitasScreen> {
       try {
         final dbHelper = DatabaseHelper.instance;
         await dbHelper.deleteVisita(id);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Visita eliminada correctamente')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Visita eliminada correctamente')),
+          );
+        }
         _loadVisitas();
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al eliminar visita: ${e.toString()}')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al eliminar visita: ${e.toString()}')),
+          );
+        }
       } finally {
-        setState(() => _isLoading = false);
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
       }
     }
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Theme(
-      data: customTheme,
-      child: DefaultTabController(
-        length: 2,
-        child: Scaffold(
-          appBar: AppBar(
-            title: const Text('Visitas Domiciliarias'),
-            actions: [
-              IconButton(icon: const Icon(Icons.refresh), onPressed: _loadVisitas),
-            ],
-            bottom: const TabBar(
-              tabs: [
-                Tab(icon: Icon(Icons.list), text: 'Listado'),
-                Tab(icon: Icon(Icons.add), text: 'Nueva Visita'),
-              ],
+Widget build(BuildContext context) {
+  return Theme(
+    data: customTheme,
+    child: DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Visitas Domiciliarias'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.sync),
+              tooltip: 'Sincronizar manualmente',
+              onPressed: _sincronizarManualmente,
             ),
-          ),
-          body: TabBarView(
-            children: [
-              _buildVisitasList(),
-              _buildVisitaFormModern(),
+            IconButton(
+              icon: const Icon(Icons.refresh), 
+              onPressed: _loadVisitas,
+              tooltip: 'Recargar visitas',
+            ),
+          ],
+          bottom: const TabBar(
+            tabs: [
+              Tab(icon: Icon(Icons.list), text: 'Listado'),
+              Tab(icon: Icon(Icons.add), text: 'Nueva Visita'),
             ],
           ),
         ),
+        body: TabBarView(
+          children: [
+            _buildVisitasList(),
+            _buildVisitaFormModern(),
+          ],
+        ),
       ),
-    );
-  }
-
+    ),
+  );
+}
   Widget _buildVisitasList() {
     if (_isLoading) return const Center(child: CircularProgressIndicator());
     if (_visitas.isEmpty) return const Center(child: Text('No hay visitas registradas'));
@@ -595,6 +781,7 @@ class _VisitasScreenState extends State<VisitasScreen> {
   }
 
   Widget _buildVisitaFormModern() {
+ 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Card(
@@ -661,280 +848,289 @@ class _VisitasScreenState extends State<VisitasScreen> {
                 TextFormField(controller: _telefonoController, decoration: const InputDecoration(labelText: "Teléfono"), keyboardType: TextInputType.phone),
 
                 // ------------ GEOLOCALIZACIÓN --------------------
-                ExpansionTile(
-                  title: const Text('Geolocalización'),
-                  trailing: Icon(
-                    _showGeolocalizacion ? Icons.expand_less : Icons.expand_more,
-                  ),
-                  onExpansionChanged: (expanded) {
-                    setState(() => _showGeolocalizacion = expanded);
-                  },
-                  initiallyExpanded: _showGeolocalizacion,
-                  children: [
-                    if (_currentPaciente?.latitud != null && _currentPaciente?.longitud != null)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8.0),
-                        child: Text(
-                          'Ubicación actual: ${_currentPaciente!.latitud!.toStringAsFixed(6)}, ${_currentPaciente!.longitud!.toStringAsFixed(6)}',
-                          style: TextStyle(color: Colors.green[700]),
-                        ),
-                      ),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _latitudController,
-                            decoration: const InputDecoration(labelText: 'Latitud'),
-                            readOnly: true,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _longitudController,
-                            decoration: const InputDecoration(labelText: 'Longitud'),
-                            readOnly: true,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: _isGettingLocation ? null : _getCurrentLocation,
-                            icon: const Icon(Icons.location_on),
-                            label: _isGettingLocation
-                                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator())
-                                : const Text('Obtener Ubicación'),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: _clearGeolocalizacion,
-                            icon: const Icon(Icons.clear),
-                            label: const Text('Limpiar'),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                ),
+ExpansionTile(
+  title: const Text('Geolocalización'),
+  trailing: Icon(
+    _showGeolocalizacion ? Icons.expand_less : Icons.expand_more,
+  ),
+  onExpansionChanged: (expanded) {
+    setState(() => _showGeolocalizacion = expanded);
+  },
+  initiallyExpanded: _showGeolocalizacion,
+  children: [
+    // Verificación segura para mostrar ubicación actual
+    if (_currentPaciente != null && 
+        _currentPaciente!.latitud != null && 
+        _currentPaciente!.longitud != null)
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8.0),
+        child: Text(
+          'Ubicación actual: ${_currentPaciente!.latitud!.toStringAsFixed(6)}, ${_currentPaciente!.longitud!.toStringAsFixed(6)}',
+          style: TextStyle(color: Colors.green[700]),
+        ),
+      ),
+    Row(
+      children: [
+        Expanded(
+          child: TextFormField(
+            controller: _latitudController,
+            decoration: const InputDecoration(labelText: 'Latitud'),
+            readOnly: true,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: TextFormField(
+            controller: _longitudController,
+            decoration: const InputDecoration(labelText: 'Longitud'),
+            readOnly: true,
+          ),
+        ),
+      ],
+    ),
+    const SizedBox(height: 8),
+    Row(
+      children: [
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: _isGettingLocation ? null : _getCurrentLocation,
+            icon: const Icon(Icons.location_on),
+            label: _isGettingLocation
+                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator())
+                : const Text('Obtener Ubicación'),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: _clearGeolocalizacion,
+            icon: const Icon(Icons.clear),
+            label: const Text('Limpiar'),
+          ),
+        ),
+      ],
+    ),
+    const SizedBox(height: 8),
+  ],
+),
                 // ---------/GEO---------------------------
 
-                const Divider(height: 28),
+const Divider(height: 28),
 
-                Text("Datos de la Visita", style: customTheme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
+Text("Datos de la Visita", style: customTheme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+const SizedBox(height: 8),
 
-                TextFormField(
-                  controller: _fechaVisitaController,
-                  decoration: const InputDecoration(labelText: 'Fecha de Visita'),
-                  readOnly: true,
-                  onTap: () => _selectDate(context, _fechaVisitaController),
-                ),
-                const SizedBox(height: 8),
+TextFormField(
+  controller: _fechaVisitaController,
+  decoration: const InputDecoration(labelText: 'Fecha de Visita'),
+  readOnly: true,
+  onTap: () => _selectDate(context, _fechaVisitaController),
+),
+const SizedBox(height: 8),
 
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _htaController,
-                        decoration: const InputDecoration(labelText: 'HTA'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _dmController,
-                        decoration: const InputDecoration(labelText: 'DM'),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _zonaController,
-                  decoration: const InputDecoration(labelText: 'Zona/Barrio'),
-                ),
-                const Divider(height: 28),
-                Text('Signos Vitales', style: customTheme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _pesoController,
-                        decoration: const InputDecoration(labelText: 'Peso (kg)'),
-                        keyboardType: TextInputType.number,
-                        onChanged: (_) => _calculateIMC(),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _tallaController,
-                        decoration: const InputDecoration(labelText: 'Talla (cm)'),
-                        keyboardType: TextInputType.number,
-                        onChanged: (_) => _calculateIMC(),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextFormField(
-                        decoration: const InputDecoration(labelText: 'IMC'),
-                        readOnly: true,
-                        controller: TextEditingController(text: _imcValue?.toStringAsFixed(2) ?? ''),
-                        enabled: false,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _perimetroAbdominalController,
-                  decoration: const InputDecoration(labelText: 'Perímetro Abdominal (cm)'),
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _frecuenciaCardiacaController,
-                        decoration: const InputDecoration(labelText: 'Frec. Cardiaca'),
-                        keyboardType: TextInputType.number,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _frecuenciaRespiratoriaController,
-                        decoration: const InputDecoration(labelText: 'Frec. Respiratoria'),
-                        keyboardType: TextInputType.number,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _tensionArterialController,
-                  decoration: const InputDecoration(labelText: 'Tensión Arterial (mmHg)'),
-                  keyboardType: TextInputType.text,
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _glucometriaController,
-                        decoration: const InputDecoration(labelText: 'Glucometría (mg/dL)'),
-                        keyboardType: TextInputType.number,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _temperaturaController,
-                        decoration: const InputDecoration(labelText: 'Temperatura (°C)'),
-                        keyboardType: TextInputType.number,
-                      ),
-                    ),
-                  ],
-                ),
-                const Divider(height: 28),
-                Text('Evaluación', style: customTheme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _familiarController,
-                  decoration: const InputDecoration(labelText: 'Familiar'),
-                  maxLines: 2,
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _riesgoFotograficoController,
-                  decoration: const InputDecoration(labelText: 'Riesgo Fotográfico'),
-                  maxLines: 2,
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _abandonoSocialController,
-                  decoration: const InputDecoration(labelText: 'Abandono Social'),
-                  maxLines: 2,
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _motivoController,
-                  decoration: const InputDecoration(labelText: 'Motivo de la Visita'),
-                  maxLines: 3,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) return 'Ingrese el motivo de la visita';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _medicamentosController,
-                  decoration: const InputDecoration(labelText: 'Medicamentos'),
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _factoresController,
-                  decoration: const InputDecoration(labelText: 'Factores de Riesgo'),
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _conductasController,
-                  decoration: const InputDecoration(labelText: 'Conductas'),
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _novedadesController,
-                  decoration: const InputDecoration(labelText: 'Novedades'),
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _proximoControlController,
-                  decoration: const InputDecoration(labelText: 'Próximo Control'),
-                  readOnly: true,
-                  onTap: () => _selectDate(context, _proximoControlController),
-                ),
-                const SizedBox(height: 22),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _resetForm,
-                        icon: const Icon(Icons.clear_rounded),
-                        label: const Text("Limpiar"),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.red,
-                          textStyle: customTheme.textTheme.bodyMedium,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 18),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _isLoading ? null : _saveVisita,
-                        icon: const Icon(Icons.save),
-                        label: _isLoading
-                          ? const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 8.0),
-                            child: CircularProgressIndicator(color: Colors.white),
-                          )
-                          : Text(_isEditing ? "Actualizar" : "Guardar"),
-                      ),
-                    ),
-                  ],
-                ),
+Row(
+  children: [
+    Expanded(
+      child: TextFormField(
+        controller: _htaController,
+        decoration: const InputDecoration(labelText: 'HTA'),
+      ),
+    ),
+    const SizedBox(width: 8),
+    Expanded(
+      child: TextFormField(
+        controller: _dmController,
+        decoration: const InputDecoration(labelText: 'DM'),
+      ),
+    ),
+  ],
+),
+const SizedBox(height: 8),
+TextFormField(
+  controller: _zonaController,
+  decoration: const InputDecoration(labelText: 'Zona/Barrio'),
+),
+const Divider(height: 28),
+Text('Signos Vitales', style: customTheme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+const SizedBox(height: 8),
+Row(
+  children: [
+    Expanded(
+      child: TextFormField(
+        controller: _pesoController,
+        decoration: const InputDecoration(labelText: 'Peso (kg)'),
+        keyboardType: TextInputType.number,
+        onChanged: (_) => _calculateIMC(),
+      ),
+    ),
+    const SizedBox(width: 8),
+    Expanded(
+      child: TextFormField(
+        controller: _tallaController,
+        decoration: const InputDecoration(labelText: 'Talla (cm)'),
+        keyboardType: TextInputType.number,
+        onChanged: (_) => _calculateIMC(),
+      ),
+    ),
+    const SizedBox(width: 8),
+    Expanded(
+      child: TextFormField(
+        decoration: const InputDecoration(labelText: 'IMC'),
+        readOnly: true,
+        controller: TextEditingController(text: _imcValue?.toStringAsFixed(2) ?? ''),
+        enabled: false,
+      ),
+    ),
+  ],
+),
+const SizedBox(height: 8),
+TextFormField(
+  controller: _perimetroAbdominalController,
+  decoration: const InputDecoration(labelText: 'Perímetro Abdominal (cm)'),
+  keyboardType: TextInputType.number,
+),
+const SizedBox(height: 8),
+Row(
+  children: [
+    Expanded(
+      child: TextFormField(
+        controller: _frecuenciaCardiacaController,
+        decoration: const InputDecoration(labelText: 'Frec. Cardiaca'),
+        keyboardType: TextInputType.number,
+      ),
+    ),
+    const SizedBox(width: 8),
+    Expanded(
+      child: TextFormField(
+        controller: _frecuenciaRespiratoriaController,
+        decoration: const InputDecoration(labelText: 'Frec. Respiratoria'),
+        keyboardType: TextInputType.number,
+      ),
+    ),
+  ],
+),
+const SizedBox(height: 8),
+TextFormField(
+  controller: _tensionArterialController,
+  decoration: const InputDecoration(labelText: 'Tensión Arterial (mmHg)'),
+  keyboardType: TextInputType.text,
+),
+const SizedBox(height: 8),
+Row(
+  children: [
+    Expanded(
+      child: TextFormField(
+        controller: _glucometriaController,
+        decoration: const InputDecoration(labelText: 'Glucometría (mg/dL)'),
+        keyboardType: TextInputType.number,
+      ),
+    ),
+    const SizedBox(width: 8),
+    Expanded(
+      child: TextFormField(
+        controller: _temperaturaController,
+        decoration: const InputDecoration(labelText: 'Temperatura (°C)'),
+        keyboardType: TextInputType.number,
+      ),
+    ),
+  ],
+),
+const Divider(height: 28),
+Text('Evaluación', style: customTheme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+const SizedBox(height: 8),
+TextFormField(
+  controller: _familiarController,
+  decoration: const InputDecoration(labelText: 'Familiar'),
+  maxLines: 2,
+),
+const SizedBox(height: 8),
+TextFormField(
+  controller: _riesgoFotograficoController,
+  decoration: const InputDecoration(labelText: 'Riesgo Fotográfico'),
+  maxLines: 2,
+),
+const SizedBox(height: 8),
+TextFormField(
+  controller: _abandonoSocialController,
+  decoration: const InputDecoration(labelText: 'Abandono Social'),
+  maxLines: 2,
+),
+const SizedBox(height: 8),
+TextFormField(
+  controller: _motivoController,
+  decoration: const InputDecoration(labelText: 'Motivo de la Visita'),
+  maxLines: 3,
+  validator: (value) {
+    if (value == null || value.isEmpty) return 'Ingrese el motivo de la visita';
+    return null;
+  },
+),
+const SizedBox(height: 8),
+TextFormField(
+  controller: _medicamentosController,
+  decoration: const InputDecoration(labelText: 'Medicamentos'),
+  maxLines: 3,
+),
+const SizedBox(height: 8),
+TextFormField(
+  controller: _factoresController,
+  decoration: const InputDecoration(labelText: 'Factores de Riesgo'),
+  maxLines: 3,
+),
+const SizedBox(height: 8),
+TextFormField(
+  controller: _conductasController,
+  decoration: const InputDecoration(labelText: 'Conductas'),
+  maxLines: 3,
+),
+const SizedBox(height: 8),
+TextFormField(
+  controller: _novedadesController,
+  decoration: const InputDecoration(labelText: 'Novedades'),
+  maxLines: 3,
+),
+const SizedBox(height: 8),
+TextFormField(
+  controller: _proximoControlController,
+  decoration: const InputDecoration(labelText: 'Próximo Control'),
+  readOnly: true,
+  onTap: () => _selectDate(context, _proximoControlController),
+),
+const SizedBox(height: 8),
+TextFormField(
+  controller: _firmaController,
+  decoration: const InputDecoration(labelText: 'Firma'),
+  maxLines: 3,
+),
+const SizedBox(height: 22),
+Row(
+  children: [
+    Expanded(
+      child: OutlinedButton.icon(
+        onPressed: _resetForm,
+        icon: const Icon(Icons.clear_rounded),
+        label: const Text("Limpiar"),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.red,
+          textStyle: customTheme.textTheme.bodyMedium,
+        ),
+      ),
+    ),
+    const SizedBox(width: 18),
+    Expanded(
+      child: ElevatedButton.icon(
+        onPressed: _isLoading ? null : _saveVisita,
+        icon: const Icon(Icons.save),
+        label: _isLoading
+          ? const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8.0),
+            child: CircularProgressIndicator(color: Colors.white),
+          )
+          : Text(_isEditing ? "Actualizar" : "Guardar"),
+      ),
+    ),
+  ],
+),  
               ],
             ),
           ),
@@ -942,73 +1138,77 @@ class _VisitasScreenState extends State<VisitasScreen> {
       ),
     );
   }
-
-  void _showVisitaDetails(Visita visita) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Visita del ${DateFormat('dd/MM/yyyy').format(visita.fecha)}'),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Paciente: ${visita.nombreApellido}', style: const TextStyle(fontWeight: FontWeight.bold)),
-              Text('Identificación: ${visita.identificacion}'),
-              const SizedBox(height: 10),
-              if (visita.hta != null && visita.hta!.isNotEmpty)
-                Text('HTA: ${visita.hta}'),
-              if (visita.dm != null && visita.dm!.isNotEmpty)
-                Text('DM: ${visita.dm}'),
-              if (visita.zona != null && visita.zona!.isNotEmpty)
-                Text('Zona: ${visita.zona}'),
-              if (visita.telefono != null && visita.telefono!.isNotEmpty)
-                Text('Teléfono: ${visita.telefono}'),
-              if (_currentPaciente?.latitud != null && _currentPaciente?.longitud != null)
-                Text('Geolocalización: ${_currentPaciente?.latitud}, ${_currentPaciente?.longitud}'),
-              const SizedBox(height: 10),
-              const Text('Signos Vitales:', style: TextStyle(fontWeight: FontWeight.bold)),
-              if (visita.peso != null)
-                Text('Peso: ${visita.peso} kg'),
-              if (visita.talla != null)
-                Text('Talla: ${visita.talla} cm'),
-              if (visita.imc != null)
-                Text('IMC: ${visita.imc!.toStringAsFixed(2)}'),
-              if (visita.perimetroAbdominal != null)
-                Text('Perímetro Abdominal: ${visita.perimetroAbdominal} cm'),
-              if (visita.frecuenciaCardiaca != null)
-                Text('Frec. Cardiaca: ${visita.frecuenciaCardiaca} lpm'),
-              if (visita.frecuenciaRespiratoria != null)
-                Text('Frec. Respiratoria: ${visita.frecuenciaRespiratoria} rpm'),
-              if (visita.tensionArterial != null && visita.tensionArterial!.isNotEmpty)
-                Text('Tensión Arterial: ${visita.tensionArterial}'),
-              if (visita.glucometria != null)
-                Text('Glucometría: ${visita.glucometria} mg/dL'),
-              if (visita.temperatura != null)
-                Text('Temperatura: ${visita.temperatura} °C'),
-              const SizedBox(height: 10),
-              if (visita.motivo != null && visita.motivo!.isNotEmpty)
-                Text('Motivo: ${visita.motivo}'),
-              if (visita.medicamentos != null && visita.medicamentos!.isNotEmpty)
-                Text('Medicamentos: ${visita.medicamentos}'),
-              if (visita.factores != null && visita.factores!.isNotEmpty)
-                Text('Factores de Riesgo: ${visita.factores}'),
-              if (visita.conductas != null && visita.conductas!.isNotEmpty)
-                Text('Conductas: ${visita.conductas}'),
-              if (visita.novedades != null && visita.novedades!.isNotEmpty)
-                Text('Novedades: ${visita.novedades}'),
-              if (visita.proximoControl != null)
-                Text('Próximo Control: ${DateFormat('dd/MM/yyyy').format(visita.proximoControl!)}'),
-            ],
-          ),
+ void _showVisitaDetails(Visita visita) {
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text('Visita del ${DateFormat('dd/MM/yyyy').format(visita.fecha)}'),
+      content: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Paciente: ${visita.nombreApellido}', style: const TextStyle(fontWeight: FontWeight.bold)),
+            Text('Identificación: ${visita.identificacion}'),
+            const SizedBox(height: 10),
+            if (visita.hta != null && visita.hta!.isNotEmpty)
+              Text('HTA: ${visita.hta}'),
+            if (visita.dm != null && visita.dm!.isNotEmpty)
+              Text('DM: ${visita.dm}'),
+            if (visita.zona != null && visita.zona!.isNotEmpty)
+              Text('Zona: ${visita.zona}'),
+            if (visita.telefono != null && visita.telefono!.isNotEmpty)
+              Text('Teléfono: ${visita.telefono}'),
+            // CORRECCIÓN: Verificación segura para geolocalización
+            if (_currentPaciente != null && 
+                _currentPaciente!.latitud != null && 
+                _currentPaciente!.longitud != null)
+              Text('Geolocalización: ${_currentPaciente!.latitud}, ${_currentPaciente!.longitud}'),
+            const SizedBox(height: 10),
+            const Text('Signos Vitales:', style: TextStyle(fontWeight: FontWeight.bold)),
+            if (visita.peso != null)
+              Text('Peso: ${visita.peso} kg'),
+            if (visita.talla != null)
+              Text('Talla: ${visita.talla} cm'),
+            if (visita.imc != null)
+              Text('IMC: ${visita.imc!.toStringAsFixed(2)}'),
+            if (visita.perimetroAbdominal != null)
+              Text('Perímetro Abdominal: ${visita.perimetroAbdominal} cm'),
+            if (visita.frecuenciaCardiaca != null)
+              Text('Frec. Cardiaca: ${visita.frecuenciaCardiaca} lpm'),
+            if (visita.frecuenciaRespiratoria != null)
+              Text('Frec. Respiratoria: ${visita.frecuenciaRespiratoria} rpm'),
+            if (visita.tensionArterial != null && visita.tensionArterial!.isNotEmpty)
+              Text('Tensión Arterial: ${visita.tensionArterial}'),
+            if (visita.glucometria != null)
+              Text('Glucometría: ${visita.glucometria} mg/dL'),
+            if (visita.temperatura != null)
+              Text('Temperatura: ${visita.temperatura} °C'),
+            const SizedBox(height: 10),
+            if (visita.motivo != null && visita.motivo!.isNotEmpty)
+              Text('Motivo: ${visita.motivo}'),
+            if (visita.medicamentos != null && visita.medicamentos!.isNotEmpty)
+              Text('Medicamentos: ${visita.medicamentos}'),
+            if (visita.factores != null && visita.factores!.isNotEmpty)
+              Text('Factores de Riesgo: ${visita.factores}'),
+            if (visita.conductas != null && visita.conductas!.isNotEmpty)
+              Text('Conductas: ${visita.conductas}'),
+            if (visita.novedades != null && visita.novedades!.isNotEmpty)
+              Text('Novedades: ${visita.novedades}'),
+            if (visita.proximoControl != null)
+              Text('Próximo Control: ${DateFormat('dd/MM/yyyy').format(visita.proximoControl!)}'),
+            if (visita.firma != null && visita.firma!.isNotEmpty)
+              Text('Firma: ${visita.firma}'),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cerrar'),
-          ),
-        ],
       ),
-    );
-  }
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cerrar'),
+        ),
+      ],
+    ),
+  );
+}
 }

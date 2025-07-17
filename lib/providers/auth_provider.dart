@@ -310,4 +310,30 @@ class AuthProvider with ChangeNotifier {
       debugPrint('Error en clearOldSessions: $e');
     }
   }
+
+  // Agrega estos métodos en tu AuthProvider
+Future<String?> getCurrentUserId() async {
+  if (_user != null && _user!['id'] != null) {
+    return _user!['id'].toString();
+  }
+  
+  // Fallback a SQLite si no está en memoria
+  final localUser = await _dbHelper.getLoggedInUser();
+  return localUser?['id']?.toString();
+}
+
+Future<bool> canCreateVisitas() async {
+  if (!isAuthenticated) return false;
+  
+  // Verificar permisos del usuario si es necesario
+  final user = await getCurrentUserData();
+  return user != null; // O alguna lógica específica de permisos
+}
+
+Future<Map<String, dynamic>?> getCurrentUserData() async {
+  if (_user != null) return _user;
+  
+  final localUser = await _dbHelper.getLoggedInUser();
+  return localUser;
+}
 }
