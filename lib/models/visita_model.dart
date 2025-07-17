@@ -29,6 +29,8 @@ class Visita {
   final String idusuario;
   final String idpaciente;
   final int syncStatus;
+  final double? latitud;
+  final double? longitud;
 
   Visita({
     required this.id,
@@ -61,6 +63,8 @@ class Visita {
     required this.idusuario,
     required this.idpaciente,
     this.syncStatus = 0,
+    this.latitud,
+    this.longitud,
   });
 
   // Método para convertir a JSON para el servidor (snake_case)
@@ -130,6 +134,8 @@ class Visita {
       'firma': firma,
       'idusuario': idusuario,
       'idpaciente': idpaciente,
+      'latitud': latitud,
+      'longitud': longitud,
       'sync_status': syncStatus,
       'created_at': DateTime.now().toIso8601String(),
       'updated_at': DateTime.now().toIso8601String(),
@@ -170,6 +176,10 @@ class Visita {
       idusuario: json['idusuario'],
       idpaciente: json['idpaciente'],
       syncStatus: json['sync_status'] ?? 0,
+      latitud: json['latitud']?.toDouble(),
+      longitud: json['longitud']?.toDouble(),
     );
   }
+  
+
 }

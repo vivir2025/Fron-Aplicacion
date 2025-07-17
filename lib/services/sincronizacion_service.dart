@@ -34,6 +34,11 @@ class SincronizacionService {
             if (serverData != null) {
               // Marcar como sincronizada
               await dbHelper.marcarVisitaComoSincronizada(visita.id);
+              debugPrint('✅ Visita sincronizada con servidor. Ahora intentando sincronizar geolocalización del paciente...');
+              // --- AÑADIR ESTA LÍNEA ---
+              // Después de sincronizar la visita, intenta sincronizar los datos pendientes del paciente.
+              await sincronizarPacientesPendientes(token);
+
               debugPrint('✅ Visita sincronizada con servidor');
               return true;
             }
@@ -54,6 +59,8 @@ class SincronizacionService {
       return false;
     }
   }
+
+  
   
   static Future<Map<String, dynamic>> sincronizarVisitasPendientes(String token) async {
     final dbHelper = DatabaseHelper.instance;
@@ -130,6 +137,54 @@ class SincronizacionService {
       'sincronizadas': sincronizadas, 
       'pendientes': pendientes,
       'total': todasLasVisitas.length
+    };
+  }
+
+  static Future<Map<String, dynamic>> sincronizarPacientesPendientes(String token) async {
+    final dbHelper = DatabaseHelper.instance;
+    final pacientesPendientes = await dbHelper.getUnsyncedPacientes();
+
+    int exitosas = 0;
+    int fallidas = 0;
+    List<String> errores = [];
+
+    debugPrint('📊 Sincronizando ${pacientesPendientes.length} pacientes pendientes...');
+
+    for (final paciente in pacientesPendientes) {
+      try {
+        debugPrint('📡 Sincronizando geolocalización del paciente ${paciente.id}: latitud=${paciente.latitud}, longitud=${paciente.longitud}');
+        
+        final serverData = await ApiService.updatePaciente(
+          token, 
+          paciente.id, 
+          {
+            'latitud': paciente.latitud, 
+            'longitud': paciente.longitud
+          }
+        );
+        
+        if (serverData != null) {
+          await dbHelper.markPacientesAsSynced([paciente.id]);
+          exitosas++;
+          debugPrint('✅ Geolocalización del paciente ${paciente.id} sincronizada exitosamente');
+          // Add a specific log message for successful geolocalization update
+          debugPrint('🌍 Geolocalización del paciente ${paciente.id} actualizada en el backend.');
+        } else {
+          fallidas++;
+          errores.add('Servidor respondió con error para paciente ${paciente.id}');
+          debugPrint('❌ Falló paciente ${paciente.id}');
+        }
+      } catch (e) {
+        fallidas++;
+        errores.add('Error en paciente ${paciente.id}: $e');
+        debugPrint('💥 Error sincronizando paciente ${paciente.id}: $e');
+      }
+    }
+
+    return {
+      'exitosas': exitosas,
+      'fallidas': fallidas,
+      'errores': errores,
     };
   }
 }

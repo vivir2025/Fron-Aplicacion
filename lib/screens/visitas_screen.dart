@@ -140,71 +140,89 @@ class _VisitasScreenState extends State<VisitasScreen> {
   }
   
 
-  Future<void> _loadVisitas() async {
-  setState(() => _isLoading = true);
-  try {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final userId = await authProvider.getCurrentUserId();
-    
-    if (userId == null) {
-      throw Exception('Usuario no autenticado. ID de usuario nulo');
-    }
-
-    final dbHelper = DatabaseHelper.instance;
-    _visitas = await dbHelper.getVisitasByUsuario(userId);
-    
-    if (_visitas.isEmpty && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No hay visitas registradas')),
-      );
-    }
-  } catch (e) {
-    debugPrint('Error cargando visitas: $e');
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
-      );
+    Future<void> _loadVisitas() async {
+    setState(() => _isLoading = true);
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final userId = await authProvider.getCurrentUserId();
       
-      // Si es error de autenticación, redirigir
-      if (e.toString().contains('no autenticado')) {
-        Navigator.of(context).pushReplacementNamed('/login');
+      if (userId == null) {
+        throw Exception('Usuario no autenticado. ID de usuario nulo');
+      }
+
+      final dbHelper = DatabaseHelper.instance;
+      _visitas = await dbHelper.getVisitasByUsuario(userId);
+      
+      if (_visitas.isEmpty && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No hay visitas registradas')),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error cargando visitas: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+        
+        // Si es error de autenticación, redirigir
+        if (e.toString().contains('no autenticado')) {
+          Navigator.of(context).pushReplacementNamed('/login');
+        }
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
       }
     }
-  } finally {
-    if (mounted) {
-      setState(() => _isLoading = false);
-    }
   }
-}
 
   // BUSCAR PACIENTE (Actualizado para cargar coords si existen)
-  Future<void> _searchPaciente() async {
+    Future<void> _searchPaciente() async {
     final identificacion = _identificacionController.text.trim();
     if (identificacion.isEmpty) return;
+    
     setState(() => _isLoading = true);
     try {
       final dbHelper = DatabaseHelper.instance;
       final paciente = await dbHelper.getPacienteByIdentificacion(identificacion);
+      
       if (paciente != null) {
         setState(() {
           _currentPaciente = paciente;
           _nombreApellidoController.text = paciente.nombreCompleto;
           _fechaNacimientoController.text = DateFormat('yyyy-MM-dd').format(paciente.fecnacimiento);
-          _latitudController.text = paciente.latitud?.toString() ?? '';
-          _longitudController.text = paciente.longitud?.toString() ?? '';
+          
+          // Mostrar coordenadas si existen
+          if (paciente.latitud != null && paciente.longitud != null) {
+            _latitudController.text = paciente.latitud!.toString();
+            _longitudController.text = paciente.longitud!.toString();
+          } else {
+            _latitudController.clear();
+            _longitudController.clear();
+          }
         });
         _updateEdad();
+        
+        debugPrint('Paciente cargado - Lat: ${paciente.latitud}, Lng: ${paciente.longitud}');
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Paciente no encontrado')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Paciente no encontrado')),
+          );
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al buscar paciente: ${e.toString()}')),
-      );
+      debugPrint('Error al buscar paciente: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -310,6 +328,7 @@ class _VisitasScreenState extends State<VisitasScreen> {
         setState(() => _isGettingLocation = false);
         return;
       }
+
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
@@ -319,13 +338,25 @@ class _VisitasScreenState extends State<VisitasScreen> {
         _longitudController.text = position.longitude.toString();
       });
 
-      if (_currentPaciente != null) {
-        await DatabaseHelper.instance.updatePacienteGeolocalizacion(
-          _currentPaciente!.id,
-          position.latitude,
-          position.longitude,
-        );
+      // Verificar que tenemos un paciente válido
+      if (_currentPaciente == null || _identificacionController.text.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Primero busque un paciente para guardar la ubicación')),
+          );
+        }
+        return;
+      }
 
+      // Actualizar en la base de datos
+      final updated = await DatabaseHelper.instance.updatePacienteGeolocalizacion(
+        _currentPaciente!.id,
+        position.latitude,
+        position.longitude,
+      );
+
+      if (updated > 0) {
+        // Actualizar el objeto en memoria
         _currentPaciente = _currentPaciente!.copyWith(
           latitud: position.latitude,
           longitud: position.longitude,
@@ -333,14 +364,21 @@ class _VisitasScreenState extends State<VisitasScreen> {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Geolocalización guardada')),
+            const SnackBar(content: Text('Ubicación guardada para el paciente')),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No se pudo guardar la ubicación')),
           );
         }
       }
     } catch (e) {
+      debugPrint('Error al obtener ubicación: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al obtener ubicación: $e')),
+          SnackBar(content: Text('Error: ${e.toString()}')),
         );
       }
     } finally {
@@ -349,25 +387,33 @@ class _VisitasScreenState extends State<VisitasScreen> {
       }
     }
   }
-
   // --- CLEAR GEOLOCALIZACIÓN ---
-  void _clearGeolocalizacion() {
+void _clearGeolocalizacion() {
+  setState(() {
     _latitudController.clear();
     _longitudController.clear();
-    if (_currentPaciente != null) {
-      DatabaseHelper.instance.updatePacienteGeolocalizacion(
-        _currentPaciente!.id,
-        0.0,
-        0.0,
-      );
+  });
+  
+  if (_currentPaciente != null) {
+    // Actualizar en base de datos
+    DatabaseHelper.instance.updatePacienteGeolocalizacion(
+      _currentPaciente!.id,
+      0.0,
+      0.0,
+    ).then((_) {
+      // Actualizar en memoria
       _currentPaciente = _currentPaciente!.copyWith(
         latitud: null,
         longitud: null,
       );
-    }
-    setState(() {}); // actualizar UI
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Ubicación eliminada')),
+        );
+      }
+    });
   }
-
+}
  Future<void> _saveVisita() async {
   if (!_formKey.currentState!.validate()) return;
   
@@ -391,14 +437,35 @@ class _VisitasScreenState extends State<VisitasScreen> {
       throw Exception('No se pudo obtener el ID del usuario. Vuelva a iniciar sesión.');
     }
 
+    // Si hay coordenadas en los campos, actualizar el paciente
+    if (_latitudController.text.isNotEmpty && _longitudController.text.isNotEmpty) {
+      final lat = double.tryParse(_latitudController.text);
+      final lng = double.tryParse(_longitudController.text);
+      
+      if (lat != null && lng != null) {
+        await DatabaseHelper.instance.updatePacienteGeolocalizacion(
+          _currentPaciente!.id,
+          lat,
+          lng,
+        );
+        
+        _currentPaciente = _currentPaciente!.copyWith(
+          latitud: lat,
+          longitud: lng,
+        );
+      }
+    }
+
     final visita = Visita(
-      id: _isEditing ? _currentVisitaId! : VisitaService.generateId(), // ← CAMBIO AQUÍ
+      id: _isEditing ? _currentVisitaId! : VisitaService.generateId(),
       nombreApellido: _nombreApellidoController.text,
       identificacion: _identificacionController.text,
       hta: _htaController.text.isEmpty ? null : _htaController.text,
       dm: _dmController.text.isEmpty ? null : _dmController.text,
       fecha: DateTime.parse(_fechaVisitaController.text),
       telefono: _telefonoController.text.isEmpty ? null : _telefonoController.text,
+      longitud: double.tryParse(_longitudController.text),
+      latitud: double.tryParse(_latitudController.text),
       zona: _zonaController.text.isEmpty ? null : _zonaController.text,
       peso: double.tryParse(_pesoController.text),
       talla: double.tryParse(_tallaController.text),
@@ -417,7 +484,6 @@ class _VisitasScreenState extends State<VisitasScreen> {
       factores: _factoresController.text.isEmpty ? null : _factoresController.text,
       conductas: _conductasController.text.isEmpty ? null : _conductasController.text,
       novedades: _novedadesController.text.isEmpty ? null : _novedadesController.text,
-
       proximoControl: _proximoControlController.text.isNotEmpty
           ? DateTime.parse(_proximoControlController.text)
           : null,
@@ -456,7 +522,6 @@ class _VisitasScreenState extends State<VisitasScreen> {
     }
   }
 }
-
 // 4. Método para mostrar estado de sincronización
 Future<void> _mostrarEstadoSincronizacion() async {
   final estado = await SincronizacionService.obtenerEstadoSincronizacion();
@@ -504,18 +569,23 @@ Future<void> _sincronizarManualmente() async {
       return;
     }
 
-    debugPrint('🔄 Iniciando sincronización...');
-    final resultado = await SincronizacionService.sincronizarVisitasPendientes(token)
-      .timeout(const Duration(seconds: 30));
+    // Sincronizar visitas
+    debugPrint('🔄 Iniciando sincronización de visitas...');
+    final resultadoVisitas = await SincronizacionService.sincronizarVisitasPendientes(token)
+        .timeout(const Duration(seconds: 60));
 
+    // Sincronizar pacientes
+    debugPrint('🔄 Iniciando sincronización de geolocalización de pacientes...');
+    final resultadoPacientes = await SincronizacionService.sincronizarPacientesPendientes(token)
+        .timeout(const Duration(seconds: 60));
+
+    
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'Sincronización: ${resultado['exitosas']} exitosas, ${resultado['fallidas']} fallidas',
-          ),
+          content: Text('Visitas: ${resultadoVisitas['exitosas']} OK, ${resultadoVisitas['fallidas']} F. | Pacientes: ${resultadoPacientes['exitosas']} OK, ${resultadoPacientes['fallidas']} F.'),
           duration: const Duration(seconds: 4),
-          backgroundColor: resultado['fallidas'] == 0 ? Colors.green : Colors.orange,
+          backgroundColor: (resultadoVisitas['fallidas'] == 0 && resultadoPacientes['fallidas'] == 0) ? Colors.green : Colors.orange,
         ),
       );
     }
@@ -848,71 +918,106 @@ Widget build(BuildContext context) {
                 TextFormField(controller: _telefonoController, decoration: const InputDecoration(labelText: "Teléfono"), keyboardType: TextInputType.phone),
 
                 // ------------ GEOLOCALIZACIÓN --------------------
-ExpansionTile(
-  title: const Text('Geolocalización'),
-  trailing: Icon(
-    _showGeolocalizacion ? Icons.expand_less : Icons.expand_more,
-  ),
-  onExpansionChanged: (expanded) {
-    setState(() => _showGeolocalizacion = expanded);
-  },
-  initiallyExpanded: _showGeolocalizacion,
-  children: [
-    // Verificación segura para mostrar ubicación actual
-    if (_currentPaciente != null && 
-        _currentPaciente!.latitud != null && 
-        _currentPaciente!.longitud != null)
-      Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8.0),
-        child: Text(
-          'Ubicación actual: ${_currentPaciente!.latitud!.toStringAsFixed(6)}, ${_currentPaciente!.longitud!.toStringAsFixed(6)}',
-          style: TextStyle(color: Colors.green[700]),
+  ExpansionTile(
+    title: const Text('Geolocalización'),
+    trailing: Icon(
+      _showGeolocalizacion ? Icons.expand_less : Icons.expand_more,
+    ),
+    onExpansionChanged: (expanded) {
+      setState(() => _showGeolocalizacion = expanded);
+    },
+    initiallyExpanded: _showGeolocalizacion,
+    children: [
+      // Sección de estado de ubicación
+      if (_currentPaciente != null && 
+          _currentPaciente!.latitud != null && 
+          _currentPaciente!.longitud != null)
+        ListTile(
+          leading: Icon(Icons.check_circle, color: Colors.green),
+          title: Text('Ubicación registrada'),
+          subtitle: Text(
+            'Lat: ${_currentPaciente!.latitud!.toStringAsFixed(6)}\n'
+            'Lng: ${_currentPaciente!.longitud!.toStringAsFixed(6)}',
+          ),
+        )
+      else
+        ListTile(
+          leading: Icon(Icons.location_off, color: Colors.orange),
+          title: Text('Sin ubicación registrada'),
+          subtitle: Text('Presione el botón para obtener ubicación actual'),
         ),
+
+      // Campos de latitud y longitud
+      Row(
+        children: [
+          Expanded(
+            child: TextFormField(
+              controller: _latitudController,
+              decoration: const InputDecoration(
+                labelText: 'Latitud',
+                prefixIcon: Icon(Icons.location_pin),
+              ),
+              keyboardType: TextInputType.numberWithOptions(decimal: true),
+              readOnly: true,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextFormField(
+              controller: _longitudController,
+              decoration: const InputDecoration(
+                labelText: 'Longitud',
+                prefixIcon: Icon(Icons.location_pin),
+              ),
+              keyboardType: TextInputType.numberWithOptions(decimal: true),
+              readOnly: true,
+            ),
+          ),
+        ],
       ),
-    Row(
-      children: [
-        Expanded(
-          child: TextFormField(
-            controller: _latitudController,
-            decoration: const InputDecoration(labelText: 'Latitud'),
-            readOnly: true,
-          ),
+        const SizedBox(height: 12),
+
+        // Botones de acción
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue[700],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                onPressed: _isGettingLocation ? null : _getCurrentLocation,
+                icon: const Icon(Icons.location_on),
+                label: _isGettingLocation
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text('Obtener Ubicación Actual'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  side: BorderSide(color: Colors.grey.shade400),
+                ),
+                onPressed: _clearGeolocalizacion,
+                icon: const Icon(Icons.clear),
+                label: const Text('Limpiar'),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: TextFormField(
-            controller: _longitudController,
-            decoration: const InputDecoration(labelText: 'Longitud'),
-            readOnly: true,
-          ),
-        ),
+        const SizedBox(height: 8),
       ],
     ),
-    const SizedBox(height: 8),
-    Row(
-      children: [
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed: _isGettingLocation ? null : _getCurrentLocation,
-            icon: const Icon(Icons.location_on),
-            label: _isGettingLocation
-                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator())
-                : const Text('Obtener Ubicación'),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: _clearGeolocalizacion,
-            icon: const Icon(Icons.clear),
-            label: const Text('Limpiar'),
-          ),
-        ),
-      ],
-    ),
-    const SizedBox(height: 8),
-  ],
-),
                 // ---------/GEO---------------------------
 
 const Divider(height: 28),

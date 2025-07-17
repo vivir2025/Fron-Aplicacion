@@ -312,4 +312,18 @@ static Future<bool> verificarSaludServidor() async {
   }
   throw Exception('Formato de respuesta inesperado para sedes');
 }
+
+    static Future<Map<String, dynamic>> actualizarPaciente(String token, String id, Map<String, dynamic> pacienteData) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl/pacientes/$id'),
+        headers: _buildHeaders(token),
+        body: jsonEncode(pacienteData),
+      );
+      return _handleResponse(response) as Map<String, dynamic>;
+    } catch (e) {
+      debugPrint('Error al actualizar paciente: $e');
+      rethrow;
+    }
+  }
 }

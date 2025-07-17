@@ -22,7 +22,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 5, // Incrementado a 4 por la nueva tabla visitas
+      version: 6, // 🚀 Incrementado a 6 para la migración de geolocalización
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
     );
@@ -100,6 +100,8 @@ class DatabaseHelper {
         firma TEXT,
         idusuario TEXT NOT NULL,
         idpaciente TEXT NOT NULL,
+        latitud REAL,
+        longitud REAL,
         sync_status INTEGER DEFAULT 0,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -187,6 +189,17 @@ class DatabaseHelper {
         debugPrint('Error al agregar columna firma (puede que ya exista): $e');
       }
     }
+
+    // 🚀 NUEVA MIGRACIÓN PARA AGREGAR COLUMNAS DE GEOLOCALIZACIÓN
+    if (oldVersion < 6) {
+      try {
+        await db.execute('ALTER TABLE visitas ADD COLUMN latitud REAL');
+        await db.execute('ALTER TABLE visitas ADD COLUMN longitud REAL');
+        debugPrint('✅ Columnas latitud y longitud agregadas a tabla visitas');
+      } catch (e) {
+        debugPrint('⚠️ Error al agregar columnas de geolocalización (puede que ya existan): $e');
+      }
+    }
   }
   
 
@@ -250,14 +263,14 @@ class DatabaseHelper {
     );
   }
 
-  Future<List<Paciente>> getUnsyncedPacientes() async {
-    final db = await database;
-    final result = await db.query(
-      'pacientes',
-      where: 'sync_status = 0',
-    );
-    return result.map((json) => Paciente.fromJson(json)).toList();
-  }
+Future<List<Paciente>> getUnsyncedPacientes() async {
+  final db = await database;
+  final result = await db.query(
+    'pacientes', 
+    where: 'sync_status = 0 AND (latitud IS NOT NULL OR longitud IS NOT NULL)',
+  );
+  return result.map((json) => Paciente.fromJson(json)).toList();
+}
 
   Future<void> markPacientesAsSynced(List<String> pacienteIds) async {
     final db = await database;
@@ -508,20 +521,27 @@ class DatabaseHelper {
     
     debugPrint('Usuario $userId actualizado (is_logged_in: $isLoggedIn), filas afectadas: $rowsUpdated');
   }
-    Future<int> updatePacienteGeolocalizacion(String pacienteId, double latitud, double longitud) async {
+  Future<int> updatePacienteGeolocalizacion(String pacienteId, double latitud, double longitud) async {
     final db = await database;
-    return await db.update(
-      'pacientes',
-      {
-        'latitud': latitud,
-        'longitud': longitud,
-        'sync_status': 0, // Marcar como no sincronizado
-      },
-      where: 'id = ?',
-      whereArgs: [pacienteId],
-    );
+    try {
+      final result = await db.update(
+        'pacientes',
+        {
+          'latitud': latitud,
+          'longitud': longitud,
+          'sync_status': 0, // Marcar como no sincronizado
+        },
+        where: 'id = ?',
+        whereArgs: [pacienteId],
+      );
+      
+      debugPrint('✅ Coordenadas actualizadas para paciente $pacienteId: $latitud, $longitud');
+      return result;
+    } catch (e) {
+      debugPrint('❌ Error al actualizar coordenadas: $e');
+      return 0;
+    }
   }
-
 
   Future<Map<String, dynamic>?> getLoggedInUser() async {
     final db = await instance.database;
