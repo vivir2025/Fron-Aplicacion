@@ -1,10 +1,435 @@
+import 'dart:async';
+import 'dart:io';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:fnpv_app/api/api_service.dart';
 import 'package:fnpv_app/database/database_helper.dart';
 import 'package:fnpv_app/models/visita_model.dart';
+import 'package:fnpv_app/services/medicamento_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'file_service.dart'; // Importar el nuevo servicio
 
 class SincronizacionService {
+  // Singleton para evitar múltiples instancias
+  static final SincronizacionService _instance = SincronizacionService._internal();
+  factory SincronizacionService() => _instance;
+  SincronizacionService._internal();
+
+  // Variables para controlar el estado de la sincronización
+  StreamSubscription<ConnectivityResult>? _connectivitySubscription;
+  bool _isListening = false;
+  bool _isSyncInProgress = false;
+  Timer? _retryTimer;
+
+
   
+  // 🆕 MÉTODO PARA SINCRONIZAR MEDICAMENTOS (DENTRO DE LA CLASE)
+  static Future<Map<String, dynamic>> sincronizarMedicamentos(String token) async {
+    try {
+      debugPrint('💊 Sincronizando medicamentos desde servidor...');
+      
+      final success = await MedicamentoService.loadMedicamentosFromServer(token);
+      
+      if (success) {
+        final dbHelper = DatabaseHelper.instance;
+        final count = await dbHelper.countMedicamentos();
+        
+        debugPrint('✅ $count medicamentos sincronizados desde servidor');
+        
+        return {
+          'exitosas': count,
+          'fallidas': 0,
+          'errores': [],
+          'total': count,
+        };
+      } else {
+        debugPrint('⚠️ No se pudieron cargar medicamentos desde el servidor');
+        return {
+          'exitosas': 0,
+          'fallidas': 1,
+          'errores': ['No se pudieron cargar medicamentos desde el servidor'],
+          'total': 1,
+        };
+      }
+    } catch (e) {
+      debugPrint('❌ Error sincronizando medicamentos: $e');
+      return {
+        'exitosas': 0,
+        'fallidas': 1,
+        'errores': ['Error: $e'],
+        'total': 1,
+      };
+    }
+  }
+
+  // 🆕 MÉTODO ACTUALIZADO PARA SINCRONIZACIÓN COMPLETA
+  static Future<Map<String, dynamic>> sincronizacionCompleta(String token) async {
+    debugPrint('🔄 Iniciando sincronización completa...');
+    
+    final Map<String, dynamic> resultado = {
+      'medicamentos': {'exitosas': 0, 'fallidas': 0, 'errores': []}, // 🆕
+      'visitas': {'exitosas': 0, 'fallidas': 0, 'errores': []},
+      'pacientes': {'exitosas': 0, 'fallidas': 0, 'errores': []},
+      'archivos': {'exitosas': 0, 'fallidas': 0, 'errores': []},
+      'tiempo_total': 0,
+      'exito_general': false,
+    };
+    
+    final stopwatch = Stopwatch()..start();
+    
+    try {
+      // 🆕 1. Sincronizar medicamentos primero
+      debugPrint('💊 Sincronizando medicamentos...');
+      resultado['medicamentos'] = await sincronizarMedicamentos(token);
+      
+      final medicamentosExitosos = resultado['medicamentos']['exitosas'] ?? 0;
+      if (medicamentosExitosos > 0) {
+        debugPrint('✅ $medicamentosExitosos medicamentos sincronizados exitosamente');
+      }
+      
+      // 2. Sincronizar visitas pendientes
+      debugPrint('1️⃣ Sincronizando visitas pendientes...');
+      resultado['visitas'] = await sincronizarVisitasPendientes(token);
+      
+      final visitasExitosas = resultado['visitas']['exitosas'] ?? 0;
+      if (visitasExitosas > 0) {
+        debugPrint('✅ $visitasExitosas visitas sincronizadas exitosamente');
+      }
+      
+      // 3. Sincronizar pacientes pendientes
+      debugPrint('2️⃣ Sincronizando pacientes pendientes...');
+      resultado['pacientes'] = await sincronizarPacientesPendientes(token);
+      
+      final pacientesExitosos = resultado['pacientes']['exitosas'] ?? 0;
+      if (pacientesExitosos > 0) {
+        debugPrint('✅ $pacientesExitosos pacientes sincronizados exitosamente');
+      }
+      
+      // 4. Sincronizar archivos pendientes
+      debugPrint('3️⃣ Sincronizando archivos pendientes...');
+      resultado['archivos'] = await sincronizarArchivosPendientes(token);
+      
+      final archivosExitosos = resultado['archivos']['exitosas'] ?? 0;
+      if (archivosExitosos > 0) {
+        debugPrint('✅ $archivosExitosos archivos sincronizados exitosamente');
+      }
+      
+      // 5. Limpiar archivos antiguos
+      debugPrint('4️⃣ Limpiando archivos antiguos...');
+      await limpiarArchivosLocales();
+      
+      stopwatch.stop();
+      resultado['tiempo_total'] = stopwatch.elapsedMilliseconds;
+      
+      // Determinar éxito general
+      final totalExitosas = medicamentosExitosos + visitasExitosas + pacientesExitosos + archivosExitosos;
+      
+      resultado['exito_general'] = totalExitosas > 0;
+      
+      if (resultado['exito_general']) {
+        debugPrint('🎉 Sincronización completa finalizada exitosamente en ${stopwatch.elapsedMilliseconds}ms');
+        debugPrint('📊 Resumen: $medicamentosExitosos medicamentos, $visitasExitosas visitas, $pacientesExitosos pacientes, $archivosExitosos archivos sincronizados');
+      } else {
+        debugPrint('⚠️ Sincronización completa finalizada sin elementos para sincronizar en ${stopwatch.elapsedMilliseconds}ms');
+      }
+      
+    } catch (e) {
+      stopwatch.stop();
+      resultado['tiempo_total'] = stopwatch.elapsedMilliseconds;
+      resultado['error_general'] = e.toString();
+      debugPrint('💥 Error en sincronización completa: $e');
+    }
+    
+    return resultado;
+  }
+
+
+  // ✅ MÉTODO MEJORADO PARA PROGRAMAR SINCRONIZACIÓN
+ // ✅ MÉTODO CORREGIDO PARA connectivity_plus ^6.1.4
+Future<void> scheduleSync() async {
+  debugPrint('🔄 Programando sincronización automática...');
+  
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('pendingSyncTasks', true);
+    await prefs.setString('lastSyncRequest', DateTime.now().toIso8601String());
+    debugPrint('✅ Marcado como pendiente de sincronización');
+  } catch (e) {
+    debugPrint('⚠️ Error al guardar estado de sincronización: $e');
+  }
+
+  if (_isListening) {
+    debugPrint('ℹ️ Ya estamos escuchando cambios de conectividad');
+    return;
+  }
+
+  try {
+    _isListening = true;
+    
+    // ✅ CORRECTO PARA connectivity_plus ^6.1.4
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen(
+      (List<ConnectivityResult> results) async {
+        // Tomar el primer resultado (el más relevante)
+        final result = results.isNotEmpty ? results.first : ConnectivityResult.none;
+        
+        debugPrint('📶 Cambio de conectividad detectado: $result');
+        debugPrint('📶 Todos los resultados: $results');
+        
+        if (result == ConnectivityResult.wifi || result == ConnectivityResult.mobile) {
+          debugPrint('🌐 Detectada conexión a internet. Verificando conexión real...');
+          
+          try {
+            final hasRealConnection = await _checkRealConnection();
+            if (hasRealConnection) {
+              debugPrint('✅ Conexión real confirmada. Iniciando sincronización automática...');
+              await _startSyncProcess();
+            } else {
+              debugPrint('⚠️ Sin conexión real a pesar del cambio detectado');
+            }
+          } catch (e) {
+            debugPrint('❌ Error al verificar conexión real: $e');
+          }
+        } else {
+          debugPrint('📵 Sin conexión de red detectada');
+        }
+      },
+      onError: (error) {
+        debugPrint('❌ Error en listener de conectividad: $error');
+      },
+    ) as StreamSubscription<ConnectivityResult>?;
+    
+    // ✅ VERIFICAR CONEXIÓN INICIAL - CORRECTO PARA ^6.1.4
+    try {
+      final List<ConnectivityResult> currentConnectivity = await Connectivity().checkConnectivity();
+      final ConnectivityResult firstResult = currentConnectivity.isNotEmpty 
+          ? currentConnectivity.first 
+          : ConnectivityResult.none;
+      
+      debugPrint('📶 Conectividad inicial: $firstResult');
+      debugPrint('📶 Todas las conexiones iniciales: $currentConnectivity');
+      
+      if (firstResult == ConnectivityResult.wifi || firstResult == ConnectivityResult.mobile) {
+        debugPrint('🌐 Ya hay conexión disponible. Verificando conexión real...');
+        
+        try {
+          final hasRealConnection = await _checkRealConnection();
+          if (hasRealConnection) {
+            debugPrint('✅ Conexión real confirmada. Iniciando sincronización inmediata...');
+            await _startSyncProcess();
+          } else {
+            debugPrint('⚠️ Sin conexión real detectada inicialmente');
+          }
+        } catch (connectionError) {
+          debugPrint('❌ Error verificando conexión real inicial: $connectionError');
+        }
+      } else {
+        debugPrint('📵 Sin conexión detectada actualmente');
+      }
+    } catch (connectivityError) {
+      debugPrint('⚠️ Error al verificar conectividad inicial: $connectivityError');
+    }
+    
+    debugPrint('👂 Escuchando cambios de conectividad correctamente');
+  } catch (e) {
+    _isListening = false;
+    debugPrint('❌ Error al programar sincronización: $e');
+    debugPrint('❌ Stack trace: ${e.toString()}');
+  }
+}
+
+  // Método para verificar conexión real (no solo estado del adaptador)
+  Future<bool> _checkRealConnection() async {
+    try {
+      final result = await InternetAddress.lookup('google.com');
+      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Método para iniciar el proceso de sincronización
+  Future<void> _startSyncProcess() async {
+    // Evitar múltiples sincronizaciones simultáneas
+    if (_isSyncInProgress) {
+      debugPrint('⚠️ Ya hay una sincronización en progreso. Ignorando...');
+      return;
+    }
+
+    _isSyncInProgress = true;
+    
+    try {
+      // Verificar si realmente hay tareas pendientes
+      final prefs = await SharedPreferences.getInstance();
+      final hasPendingTasks = prefs.getBool('pendingSyncTasks') ?? false;
+      
+      if (!hasPendingTasks) {
+        debugPrint('ℹ️ No hay tareas pendientes de sincronización');
+        _cleanupAfterSync();
+        return;
+      }
+      
+      debugPrint('🔄 Iniciando proceso de sincronización automática...');
+      
+      // Obtener token para la sincronización
+      final token = await _getAuthToken();
+      
+      if (token == null) {
+        debugPrint('⚠️ No hay token disponible. No se puede sincronizar.');
+        // Programar reintento después
+        _scheduleRetry();
+        return;
+      }
+      
+      // Ejecutar sincronización completa
+      final resultado = await sincronizacionCompleta(token);
+      
+if (resultado['exito_general'] == true) {
+  debugPrint('✅ Sincronización automática completada exitosamente');
+  
+  // Mostrar resumen de lo sincronizado
+  final visitasSync = resultado['visitas']['exitosas'] ?? 0;
+  final pacientesSync = resultado['pacientes']['exitosas'] ?? 0;
+  final archivosSync = resultado['archivos']['exitosas'] ?? 0;
+  final medicamentosSync = resultado['medicamentos']['exitosas'] ?? 0; // 🆕 Nueva línea
+  
+  if (medicamentosSync > 0) { // 🆕 Nuevo bloque
+    debugPrint('💊 $medicamentosSync medicamentos sincronizados exitosamente');
+  }
+  if (visitasSync > 0) {
+    debugPrint('📋 $visitasSync visitas sincronizadas exitosamente');
+  }
+  if (pacientesSync > 0) {
+    debugPrint('👥 $pacientesSync pacientes sincronizados exitosamente');
+  }
+  if (archivosSync > 0) {
+    debugPrint('📁 $archivosSync archivos sincronizados exitosamente');
+  }
+  
+  // Limpiar estado de sincronización pendiente
+  await prefs.setBool('pendingSyncTasks', false);
+  await prefs.setString('lastSuccessfulSync', DateTime.now().toIso8601String());
+  
+  // Verificar si aún hay pendientes
+  final estadoActual = await obtenerEstadoSincronizacion();
+  final pendientesRestantes = estadoActual['pendientes'] ?? 0;
+  
+  if (pendientesRestantes > 0) {
+    debugPrint('⚠️ Aún quedan $pendientesRestantes elementos por sincronizar');
+    await prefs.setBool('pendingSyncTasks', true);
+  } else {
+    debugPrint('🎉 ¡Toda la información ha sido sincronizada exitosamente!');
+    // Todo sincronizado, limpiar listeners
+    _cleanupAfterSync();
+  }
+} else {
+  debugPrint('⚠️ Sincronización completada con algunos problemas');
+  _scheduleRetry();
+}
+      
+    } catch (e) {
+      debugPrint('❌ Error durante sincronización automática: $e');
+      _scheduleRetry();
+    } finally {
+      _isSyncInProgress = false;
+    }
+  }
+
+  // Obtener token de autenticación
+  Future<String?> _getAuthToken() async {
+    try {
+      // Intenta obtener token de SharedPreferences primero
+      final prefs = await SharedPreferences.getInstance();
+      final savedToken = prefs.getString('auth_token');
+      
+      if (savedToken != null && savedToken.isNotEmpty) {
+        return savedToken;
+      }
+      
+      // Si no hay token guardado, devolver null
+      return null;
+    } catch (e) {
+      debugPrint('❌ Error al obtener token: $e');
+      return null;
+    }
+  }
+
+  // Programar reintento
+  void _scheduleRetry() {
+    _retryTimer?.cancel();
+    _retryTimer = Timer(const Duration(minutes: 15), () {
+      debugPrint('⏰ Reintentando sincronización programada...');
+      _startSyncProcess();
+    });
+    debugPrint('⏰ Sincronización programada para reintentar en 15 minutos');
+  }
+
+  // Limpiar recursos después de sincronización
+  void _cleanupAfterSync() {
+    if (_connectivitySubscription != null) {
+      _connectivitySubscription!.cancel();
+      _connectivitySubscription = null;
+    }
+    _retryTimer?.cancel();
+    _isListening = false;
+    debugPrint('🧹 Limpieza de recursos de sincronización completada');
+  }
+
+  // Método para forzar una sincronización manual
+  Future<Map<String, dynamic>> syncNow(String token) async {
+    _isSyncInProgress = true;
+    try {
+      debugPrint('🔄 Iniciando sincronización manual...');
+      
+      final resultado = await sincronizacionCompleta(token);
+      
+      // Mostrar resumen de la sincronización manual
+      final visitasSync = resultado['visitas']['exitosas'] ?? 0;
+      final pacientesSync = resultado['pacientes']['exitosas'] ?? 0;
+      final archivosSync = resultado['archivos']['exitosas'] ?? 0;
+      
+      if (resultado['exito_general'] == true) {
+        debugPrint('✅ Sincronización manual completada exitosamente');
+        
+        if (visitasSync > 0) {
+          debugPrint('📋 $visitasSync visitas sincronizadas manualmente');
+        }
+        if (pacientesSync > 0) {
+          debugPrint('👥 $pacientesSync pacientes sincronizados manualmente');
+        }
+        if (archivosSync > 0) {
+          debugPrint('📁 $archivosSync archivos sincronizados manualmente');
+        }
+        
+        if (visitasSync == 0 && pacientesSync == 0 && archivosSync == 0) {
+          debugPrint('ℹ️ No había elementos pendientes por sincronizar');
+        }
+      } else {
+        debugPrint('⚠️ Sincronización manual completada con problemas');
+      }
+      
+      // Actualizar estado en SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      final estadoActual = await obtenerEstadoSincronizacion();
+      final pendientesRestantes = estadoActual['pendientes'] ?? 0;
+      
+      if (pendientesRestantes > 0) {
+        await prefs.setBool('pendingSyncTasks', true);
+        debugPrint('⚠️ Quedan $pendientesRestantes elementos por sincronizar');
+      } else {
+        await prefs.setBool('pendingSyncTasks', false);
+        debugPrint('🎉 ¡Toda la información está sincronizada!');
+      }
+      
+      await prefs.setString('lastManualSync', DateTime.now().toIso8601String());
+      
+      return resultado;
+    } finally {
+      _isSyncInProgress = false;
+    }
+  }
+
+  // ==================== MÉTODOS ESTÁTICOS EXISTENTES ====================
+
   static Future<bool> guardarVisita(Visita visita, String? token) async {
     try {
       // 1. Guardar siempre en SQLite primero
@@ -12,7 +437,7 @@ class SincronizacionService {
       final savedLocally = await dbHelper.createVisita(visita);
       
       if (!savedLocally) {
-        debugPrint('❌ No se pudo guardar localmente');
+        debugPrint('❌ No se pudo guardar visita localmente');
         return false;
       }
       
@@ -25,32 +450,37 @@ class SincronizacionService {
           final hasConnection = await ApiService.verificarConectividad();
           
           if (hasConnection) {
+            // 🆕 Subir archivos mejorado con múltiples fotos y archivos
+            final visitaConUrls = await _subirArchivosDeVisita(visita, token);
+            
+            // Actualizar en base de datos local con URLs
+            await dbHelper.updateVisita(visitaConUrls);
+            
             // Usar toServerJson() para el formato correcto
             final serverData = await ApiService.guardarVisita(
-              visita.toServerJson(),
+              visitaConUrls.toServerJson(),
               token
             );
             
             if (serverData != null) {
               // Marcar como sincronizada
               await dbHelper.marcarVisitaComoSincronizada(visita.id);
-              debugPrint('✅ Visita sincronizada con servidor. Ahora intentando sincronizar geolocalización del paciente...');
-              // --- AÑADIR ESTA LÍNEA ---
-              // Después de sincronizar la visita, intenta sincronizar los datos pendientes del paciente.
+              debugPrint('✅ Visita sincronizada exitosamente con el servidor');
+              
+              // Sincronizar pacientes pendientes
               await sincronizarPacientesPendientes(token);
-
-              debugPrint('✅ Visita sincronizada con servidor');
+              
               return true;
             }
           } else {
-            debugPrint('📵 Sin conexión a internet - Visita quedará pendiente');
+            debugPrint('📵 Sin conexión a internet - Visita quedará pendiente de sincronización');
           }
         } catch (e) {
           debugPrint('⚠️ Error al subir al servidor: $e');
           // La visita ya está guardada localmente, no es un error crítico
         }
       } else {
-        debugPrint('🔑 No hay token de autenticación - Visita quedará pendiente');
+        debugPrint('🔑 No hay token de autenticación - Visita quedará pendiente de sincronización');
       }
       
       return true; // Éxito si al menos se guardó localmente
@@ -60,8 +490,126 @@ class SincronizacionService {
     }
   }
 
-  
-  
+  // 🆕 MÉTODO MEJORADO PARA SUBIR ARCHIVOS MÚLTIPLES
+  static Future<Visita> _subirArchivosDeVisita(Visita visita, String token) async {
+    debugPrint('📁 Iniciando subida de archivos para visita ${visita.id}');
+
+    // URLs que se actualizarán
+    String? riesgoFotograficoUrl = visita.riesgoFotograficoUrl;
+    String? firmaUrl = visita.firmaUrl;
+    String? firmaPathUrl;
+    List<String> fotosPathsUrls = [];
+    List<String> archivosAdjuntosUrls = [];
+
+    try {
+      // 1. Subir foto de riesgo (LEGACY)
+      if (visita.riesgoFotografico != null && 
+          visita.riesgoFotografico!.isNotEmpty &&
+          riesgoFotograficoUrl == null) {
+        riesgoFotograficoUrl = await FileService.uploadRiskPhoto(
+          visita.riesgoFotografico!,
+          token
+        );
+        if (riesgoFotograficoUrl != null) {
+          debugPrint('📸 Foto de riesgo sincronizada exitosamente');
+        }
+      }
+
+      // 2. Subir firma (LEGACY)
+      if (visita.firma != null && 
+          visita.firma!.isNotEmpty &&
+          firmaUrl == null) {
+        firmaUrl = await FileService.uploadSignature(
+          visita.firma!,
+          token
+        );
+        if (firmaUrl != null) {
+          debugPrint('✍️ Firma legacy sincronizada exitosamente');
+        }
+      }
+
+      // 3. 🆕 Subir nueva firma (firmaPath)
+      if (visita.firmaPath != null && 
+          visita.firmaPath!.isNotEmpty) {
+        firmaPathUrl = await FileService.uploadSignature(
+          visita.firmaPath!,
+          token
+        );
+        if (firmaPathUrl != null) {
+          debugPrint('✍️ Nueva firma sincronizada exitosamente');
+        }
+      }
+
+      // 4. 🆕 Subir múltiples fotos (fotosPaths)
+      if (visita.fotosPaths != null && visita.fotosPaths!.isNotEmpty) {
+        int fotosSubidas = 0;
+        for (int i = 0; i < visita.fotosPaths!.length; i++) {
+          final fotoPath = visita.fotosPaths![i];
+          if (fotoPath.isNotEmpty && !fotoPath.startsWith('http')) {
+            try {
+              final fotoUrl = await FileService.uploadPhoto(fotoPath, token);
+              if (fotoUrl != null) {
+                fotosPathsUrls.add(fotoUrl);
+                fotosSubidas++;
+                debugPrint('📸 Foto ${i + 1} sincronizada exitosamente');
+              } else {
+                fotosPathsUrls.add(fotoPath); // Mantener path local si falla
+              }
+            } catch (e) {
+              debugPrint('❌ Error sincronizando foto ${i + 1}: $e');
+              fotosPathsUrls.add(fotoPath); // Mantener path local si falla
+            }
+          } else {
+            fotosPathsUrls.add(fotoPath); // Ya es URL o está vacío
+          }
+        }
+        if (fotosSubidas > 0) {
+          debugPrint('📸 $fotosSubidas fotos sincronizadas exitosamente');
+        }
+      }
+
+      // 5. 🆕 Subir archivos adjuntos
+      if (visita.archivosAdjuntos != null && visita.archivosAdjuntos!.isNotEmpty) {
+        int archivosSubidos = 0;
+        for (int i = 0; i < visita.archivosAdjuntos!.length; i++) {
+          final archivoPath = visita.archivosAdjuntos![i];
+          if (archivoPath.isNotEmpty && !archivoPath.startsWith('http')) {
+            try {
+              final archivoUrl = await FileService.uploadFileByType(archivoPath, token);
+              if (archivoUrl != null) {
+                archivosAdjuntosUrls.add(archivoUrl as String);
+                archivosSubidos++;
+                debugPrint('📎 Archivo adjunto ${i + 1} sincronizado exitosamente');
+              } else {
+                archivosAdjuntosUrls.add(archivoPath); // Mantener path local si falla
+              }
+            } catch (e) {
+              debugPrint('❌ Error sincronizando archivo adjunto ${i + 1}: $e');
+              archivosAdjuntosUrls.add(archivoPath); // Mantener path local si falla
+            }
+          } else {
+            archivosAdjuntosUrls.add(archivoPath); // Ya es URL o está vacío
+          }
+        }
+        if (archivosSubidos > 0) {
+          debugPrint('📎 $archivosSubidos archivos adjuntos sincronizados exitosamente');
+        }
+      }
+
+    } catch (e) {
+      debugPrint('❌ Error general sincronizando archivos: $e');
+    }
+
+    // Crear visita actualizada con todas las URLs
+    return visita.copyWith(
+      riesgoFotograficoUrl: riesgoFotograficoUrl,
+      firmaUrl: firmaUrl,
+      firmaPath: firmaPathUrl ?? visita.firmaPath,
+      fotosPaths: fotosPathsUrls.isNotEmpty ? fotosPathsUrls : visita.fotosPaths,
+      archivosAdjuntos: archivosAdjuntosUrls.isNotEmpty ? archivosAdjuntosUrls : visita.archivosAdjuntos,
+    );
+  }
+
   static Future<Map<String, dynamic>> sincronizarVisitasPendientes(String token) async {
     final dbHelper = DatabaseHelper.instance;
     final visitasPendientes = await dbHelper.getVisitasNoSincronizadas();
@@ -81,20 +629,26 @@ class SincronizacionService {
       
       for (final visita in visitasPendientes) {
         try {
+          // 🆕 Usar método mejorado para subir archivos
+          final visitaConUrls = await _subirArchivosDeVisita(visita, token);
+          
+          // Actualizar en base de datos local con URLs
+          await dbHelper.updateVisita(visitaConUrls);
+          
           // Usar toServerJson() para el formato correcto
           final serverData = await ApiService.guardarVisita(
-            visita.toServerJson(),
+            visitaConUrls.toServerJson(),
             token
           );
           
           if (serverData != null) {
             await dbHelper.marcarVisitaComoSincronizada(visita.id);
             exitosas++;
-            debugPrint('✅ Visita ${visita.id} sincronizada');
+            debugPrint('✅ Visita ${visita.id} sincronizada exitosamente');
           } else {
             fallidas++;
             errores.add('Servidor respondió con error para visita ${visita.id}');
-            debugPrint('❌ Falló visita ${visita.id}');
+            debugPrint('❌ Falló sincronización de visita ${visita.id}');
           }
           
           // Pequeña pausa entre sincronizaciones para no saturar
@@ -105,6 +659,14 @@ class SincronizacionService {
           debugPrint('💥 Error sincronizando visita ${visita.id}: $e');
         }
       }
+      
+      if (exitosas > 0) {
+        debugPrint('🎉 $exitosas visitas sincronizadas exitosamente');
+      }
+      if (fallidas > 0) {
+        debugPrint('⚠️ $fallidas visitas fallaron en la sincronización');
+      }
+      
     } catch (e) {
       errores.add('Error general de conexión: $e');
       debugPrint('💥 Error general en sincronización: $e');
@@ -117,7 +679,7 @@ class SincronizacionService {
       'total': visitasPendientes.length
     };
   }
-  
+
   static Future<Map<String, int>> obtenerEstadoSincronizacion() async {
     final dbHelper = DatabaseHelper.instance;
     final todasLasVisitas = await dbHelper.getAllVisitas();
@@ -152,7 +714,7 @@ class SincronizacionService {
 
     for (final paciente in pacientesPendientes) {
       try {
-        debugPrint('📡 Sincronizando geolocalización del paciente ${paciente.id}: latitud=${paciente.latitud}, longitud=${paciente.longitud}');
+        debugPrint('📡 Sincronizando geolocalización del paciente ${paciente.id}...');
         
         final serverData = await ApiService.updatePaciente(
           token, 
@@ -166,13 +728,11 @@ class SincronizacionService {
         if (serverData != null) {
           await dbHelper.markPacientesAsSynced([paciente.id]);
           exitosas++;
-          debugPrint('✅ Geolocalización del paciente ${paciente.id} sincronizada exitosamente');
-          // Add a specific log message for successful geolocalization update
-          debugPrint('🌍 Geolocalización del paciente ${paciente.id} actualizada en el backend.');
+          debugPrint('✅ Paciente ${paciente.id} sincronizado exitosamente');
         } else {
           fallidas++;
           errores.add('Servidor respondió con error para paciente ${paciente.id}');
-          debugPrint('❌ Falló paciente ${paciente.id}');
+          debugPrint('❌ Falló sincronización de paciente ${paciente.id}');
         }
       } catch (e) {
         fallidas++;
@@ -181,10 +741,459 @@ class SincronizacionService {
       }
     }
 
+    if (exitosas > 0) {
+      debugPrint('🎉 $exitosas pacientes sincronizados exitosamente');
+    }
+    if (fallidas > 0) {
+      debugPrint('⚠️ $fallidas pacientes fallaron en la sincronización');
+    }
+
     return {
       'exitosas': exitosas,
       'fallidas': fallidas,
       'errores': errores,
+      'total': pacientesPendientes.length,
     };
   }
+
+  // 🆕 MÉTODO MEJORADO PARA SINCRONIZAR ARCHIVOS PENDIENTES
+  static Future<Map<String, dynamic>> sincronizarArchivosPendientes(String token) async {
+    final dbHelper = DatabaseHelper.instance;
+    final visitasPendientes = await dbHelper.getVisitasNoSincronizadas();
+    
+    int exitosas = 0;
+    int fallidas = 0;
+    List<String> errores = [];
+    
+    debugPrint('📁 Sincronizando archivos de ${visitasPendientes.length} visitas...');
+    
+    try {
+      final hasConnection = await ApiService.verificarConectividad();
+      if (!hasConnection) {
+        throw Exception('No hay conexión a internet');
+      }
+      
+      for (final visita in visitasPendientes) {
+        try {
+          bool needsUpdate = false;
+          
+          // Verificar si hay archivos locales que necesitan subirse
+          final tieneArchivosLocales = _verificarArchivosLocalesPendientes(visita);
+          
+          if (tieneArchivosLocales) {
+            // Subir archivos y obtener visita actualizada
+            final visitaConUrls = await _subirArchivosDeVisita(visita, token);
+            
+            // Verificar si hubo cambios
+            if (_compararUrls(visita, visitaConUrls)) {
+              await dbHelper.updateVisita(visitaConUrls);
+              needsUpdate = true;
+              exitosas++;
+              debugPrint('📁 Archivos sincronizados exitosamente para visita ${visita.id}');
+            }
+          }
+          
+          if (!needsUpdate) {
+            debugPrint('ℹ️ No hay archivos pendientes para visita ${visita.id}');
+          }
+          
+        } catch (e) {
+          fallidas++;
+          errores.add('Error en archivos de visita ${visita.id}: $e');
+          debugPrint('💥 Error sincronizando archivos de visita ${visita.id}: $e');
+        }
+      }
+      
+      if (exitosas > 0) {
+        debugPrint('🎉 Archivos de $exitosas visitas sincronizados exitosamente');
+      }
+      
+    } catch (e) {
+      errores.add('Error general de conexión: $e');
+      debugPrint('💥 Error general en sincronización de archivos: $e');
+    }
+    
+    return {
+      'exitosas': exitosas,
+      'fallidas': fallidas,
+      'errores': errores,
+      'total': visitasPendientes.length
+    };
+  }
+
+  // 🆕 MÉTODO AUXILIAR PARA VERIFICAR ARCHIVOS LOCALES PENDIENTES
+  static bool _verificarArchivosLocalesPendientes(Visita visita) {
+    // Verificar foto de riesgo legacy
+    if (visita.riesgoFotografico != null && 
+        visita.riesgoFotografico!.isNotEmpty && 
+        !visita.riesgoFotografico!.startsWith('http') &&
+        visita.riesgoFotograficoUrl == null) {
+      return true;
+    }
+    
+    // Verificar firma legacy
+    if (visita.firma != null && 
+        visita.firma!.isNotEmpty && 
+        !visita.firma!.startsWith('http') &&
+        visita.firmaUrl == null) {
+      return true;
+    }
+    
+    // Verificar nueva firma
+    if (visita.firmaPath != null && 
+        visita.firmaPath!.isNotEmpty && 
+        !visita.firmaPath!.startsWith('http')) {
+      return true;
+    }
+    
+    // Verificar fotos múltiples
+    if (visita.fotosPaths != null && visita.fotosPaths!.isNotEmpty) {
+      for (final fotoPath in visita.fotosPaths!) {
+        if (fotoPath.isNotEmpty && !fotoPath.startsWith('http')) {
+          return true;
+        }
+      }
+    }
+    
+    // Verificar archivos adjuntos
+    if (visita.archivosAdjuntos != null && visita.archivosAdjuntos!.isNotEmpty) {
+      for (final archivoPath in visita.archivosAdjuntos!) {
+        if (archivoPath.isNotEmpty && !archivoPath.startsWith('http')) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  }
+    // 🆕 MÉTODO AUXILIAR PARA COMPARAR URLs
+  static bool _compararUrls(Visita visitaOriginal, Visita visitaActualizada) {
+    return visitaOriginal.riesgoFotograficoUrl != visitaActualizada.riesgoFotograficoUrl ||
+           visitaOriginal.firmaUrl != visitaActualizada.firmaUrl ||
+           visitaOriginal.firmaPath != visitaActualizada.firmaPath ||
+           _compararListas(visitaOriginal.fotosPaths, visitaActualizada.fotosPaths) ||
+           _compararListas(visitaOriginal.archivosAdjuntos, visitaActualizada.archivosAdjuntos);
+  }
+
+  static bool _compararListas(List<String>? lista1, List<String>? lista2) {
+    if (lista1 == null && lista2 == null) return false;
+    if (lista1 == null || lista2 == null) return true;
+    if (lista1.length != lista2.length) return true;
+    
+    for (int i = 0; i < lista1.length; i++) {
+      if (lista1[i] != lista2[i]) return true;
+    }
+    
+    return false;
+  }
+
+  // 🆕 MÉTODO MEJORADO PARA LIMPIAR ARCHIVOS LOCALES
+  static Future<void> limpiarArchivosLocales({int diasAntiguos = 7}) async {
+    try {
+      final dbHelper = DatabaseHelper.instance;
+      final visitasSincronizadas = await dbHelper.getAllVisitas();
+      
+      int archivosEliminados = 0;
+      
+      debugPrint('🧹 Iniciando limpieza de archivos locales...');
+      
+      for (final visita in visitasSincronizadas) {
+        if (visita.syncStatus == 1) { // Solo visitas sincronizadas
+          final fechaVisita = visita.fecha;
+          final diasTranscurridos = DateTime.now().difference(fechaVisita).inDays;
+          
+          if (diasTranscurridos > diasAntiguos) {
+            // Eliminar foto de riesgo local si existe URL
+            if (visita.riesgoFotograficoUrl != null && 
+                visita.riesgoFotografico != null &&
+                !visita.riesgoFotografico!.startsWith('http')) {
+              final eliminado = await FileService.deleteLocalFile(visita.riesgoFotografico!);
+              if (eliminado) {
+                archivosEliminados++;
+                debugPrint('🗑️ Archivo local eliminado: ${visita.riesgoFotografico}');
+              }
+            }
+            
+            // Eliminar firma legacy local si existe URL
+            if (visita.firmaUrl != null && 
+                visita.firma != null &&
+                !visita.firma!.startsWith('http')) {
+              final eliminado = await FileService.deleteLocalFile(visita.firma!);
+              if (eliminado) {
+                archivosEliminados++;
+                debugPrint('🗑️ Firma local eliminada: ${visita.firma}');
+              }
+            }
+            
+            // 🆕 Eliminar nueva firma local
+            if (visita.firmaPath != null &&
+                !visita.firmaPath!.startsWith('http')) {
+              final eliminado = await FileService.deleteLocalFile(visita.firmaPath!);
+              if (eliminado) {
+                archivosEliminados++;
+                debugPrint('🗑️ Nueva firma local eliminada: ${visita.firmaPath}');
+              }
+            }
+            
+            // 🆕 Eliminar fotos múltiples locales
+            if (visita.fotosPaths != null && visita.fotosPaths!.isNotEmpty) {
+              for (final fotoPath in visita.fotosPaths!) {
+                if (fotoPath.isNotEmpty && !fotoPath.startsWith('http')) {
+                  final eliminado = await FileService.deleteLocalFile(fotoPath);
+                  if (eliminado) {
+                    archivosEliminados++;
+                    debugPrint('🗑️ Foto local eliminada: $fotoPath');
+                  }
+                }
+              }
+            }
+            
+            // 🆕 Eliminar archivos adjuntos locales
+            if (visita.archivosAdjuntos != null && visita.archivosAdjuntos!.isNotEmpty) {
+              for (final archivoPath in visita.archivosAdjuntos!) {
+                if (archivoPath.isNotEmpty && !archivoPath.startsWith('http')) {
+                  final eliminado = await FileService.deleteLocalFile(archivoPath);
+                  if (eliminado) {
+                    archivosEliminados++;
+                    debugPrint('🗑️ Archivo adjunto local eliminado: $archivoPath');
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      // Limpiar archivos huérfanos
+      await FileService.cleanOldFiles(daysOld: diasAntiguos);
+      
+      debugPrint('🧹 Limpieza completada exitosamente: $archivosEliminados archivos eliminados');
+    } catch (e) {
+      debugPrint('❌ Error en limpieza de archivos: $e');
+    }
+  }
+
+  // 🆕 MÉTODO MEJORADO PARA ESTADÍSTICAS DE ARCHIVOS
+  static Future<Map<String, dynamic>> obtenerEstadisticasArchivos() async {
+    try {
+      final dbHelper = DatabaseHelper.instance;
+      final estadisticas = await dbHelper.obtenerEstadisticasArchivos();
+      debugPrint('📊 Estadísticas de archivos obtenidas exitosamente');
+      return estadisticas;
+    } catch (e) {
+      debugPrint('❌ Error al obtener estadísticas de archivos: $e');
+      return {
+        'error': true,
+        'mensaje': 'Error al obtener estadísticas: ${e.toString()}',
+        'fotos': {
+          'locales': 0,
+          'servidor': 0,
+          'total': 0,
+          'porcentaje_locales': 0,
+          'porcentaje_servidor': 0,
+        },
+        'firmas': {
+          'locales': 0,
+          'servidor': 0,
+          'total': 0,
+          'porcentaje_locales': 0,
+          'porcentaje_servidor': 0,
+        },
+        'archivos_adjuntos': {
+          'total': 0,
+        },
+        'resumen': {
+          'total_archivos': 0,
+          'total_visitas': 0,
+          'archivos_por_visita': '0',
+        }
+      };
+    }
+  }
+  
+
+  // 🆕 MÉTODO PARA VERIFICAR ESTADO GENERAL
+  static Future<Map<String, dynamic>> obtenerEstadoGeneral() async {
+    try {
+      debugPrint('📊 Obteniendo estado general de sincronización...');
+      
+      final estadoSincronizacion = await obtenerEstadoSincronizacion();
+      final estadisticasArchivos = await obtenerEstadisticasArchivos();
+      
+      final pendientes = estadoSincronizacion['pendientes'] ?? 0;
+      final sincronizadas = estadoSincronizacion['sincronizadas'] ?? 0;
+      final total = estadoSincronizacion['total'] ?? 0;
+      
+      debugPrint('📈 Estado: $sincronizadas sincronizadas, $pendientes pendientes de $total total');
+      
+      return {
+        'sincronizacion': estadoSincronizacion,
+        'archivos': estadisticasArchivos,
+        'timestamp': DateTime.now().toIso8601String(),
+        'estado_resumen': {
+          'hay_pendientes': pendientes > 0,
+          'porcentaje_sincronizado': total > 0 ? ((sincronizadas / total) * 100).round() : 100,
+        }
+      };
+    } catch (e) {
+      debugPrint('❌ Error obteniendo estado general: $e');
+      return {
+        'error': true,
+        'mensaje': e.toString(),
+        'timestamp': DateTime.now().toIso8601String(),
+      };
+    }
+  }
+
+  // 🆕 MÉTODO PARA OBTENER RESUMEN DE SINCRONIZACIÓN
+  static Future<String> obtenerResumenSincronizacion() async {
+    try {
+      final estado = await obtenerEstadoSincronizacion();
+      final sincronizadas = estado['sincronizadas'] ?? 0;
+      final pendientes = estado['pendientes'] ?? 0;
+      final total = estado['total'] ?? 0;
+      
+      if (total == 0) {
+        return "No hay visitas registradas";
+      }
+      
+      if (pendientes == 0) {
+        return "✅ Todas las visitas están sincronizadas ($sincronizadas/$total)";
+      } else {
+        return "⚠️ $pendientes de $total visitas pendientes de sincronización";
+      }
+    } catch (e) {
+      return "❌ Error al obtener estado de sincronización";
+    }
+  }
+
+  // 🆕 MÉTODO PARA VERIFICAR SI HAY PENDIENTES
+  static Future<bool> hayElementosPendientes() async {
+    try {
+      final estado = await obtenerEstadoSincronizacion();
+      final pendientes = estado['pendientes'] ?? 0;
+      return pendientes > 0;
+    } catch (e) {
+      debugPrint('❌ Error verificando elementos pendientes: $e');
+      return false;
+    }
+  }
+
+  // 🆕 MÉTODO PARA CANCELAR SINCRONIZACIÓN AUTOMÁTICA
+  void cancelarSincronizacionAutomatica() {
+    debugPrint('🛑 Cancelando sincronización automática...');
+    _cleanupAfterSync();
+    debugPrint('✅ Sincronización automática cancelada');
+  }
+
+  // 🆕 MÉTODO PARA VERIFICAR ESTADO DE SINCRONIZACIÓN AUTOMÁTICA
+  bool get isSyncInProgress => _isSyncInProgress;
+  bool get isListeningForConnectivity => _isListening;
+
+  // 🆕 MÉTODO PARA OBTENER INFORMACIÓN DE DEBUG
+  Future<Map<String, dynamic>> obtenerInfoDebug() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      return {
+        'sync_in_progress': _isSyncInProgress,
+        'listening_connectivity': _isListening,
+        'pending_tasks': prefs.getBool('pendingSyncTasks') ?? false,
+        'last_sync_request': prefs.getString('lastSyncRequest'),
+        'last_successful_sync': prefs.getString('lastSuccessfulSync'),
+        'last_manual_sync': prefs.getString('lastManualSync'),
+        'has_connectivity_subscription': _connectivitySubscription != null,
+        'has_retry_timer': _retryTimer != null,
+      };
+    } catch (e) {
+      debugPrint('❌ Error obteniendo info de debug: $e');
+      return {'error': e.toString()};
+    }
+  }
+}
+
+  class SharedPreferences {
+    static SharedPreferences? _instance;
+    final Map<String, dynamic> _prefs = {};
+
+    SharedPreferences._();
+
+    static Future<SharedPreferences> getInstance() async {
+      _instance ??= SharedPreferences._();
+      return _instance!;
+    }
+  // Métodos para String
+    Future<bool> setString(String key, String value) async {
+      _prefs[key] = value;
+      return true;
+    }
+
+    String? getString(String key) {
+      return _prefs[key] as String?;
+    }
+
+    // Métodos para bool
+    Future<bool> setBool(String key, bool value) async {
+      _prefs[key] = value;
+      return true;
+    }
+
+    bool? getBool(String key) {
+      return _prefs[key] as bool?;
+    }
+
+    // Métodos para int
+    Future<bool> setInt(String key, int value) async {
+      _prefs[key] = value;
+      return true;
+    }
+
+    int? getInt(String key) {
+      return _prefs[key] as int?;
+    }
+
+    // Métodos para double
+    Future<bool> setDouble(String key, double value) async {
+      _prefs[key] = value;
+      return true;
+    }
+
+    double? getDouble(String key) {
+      return _prefs[key] as double?;
+    }
+
+    // Métodos para List<String>
+    Future<bool> setStringList(String key, List<String> value) async {
+      _prefs[key] = value;
+      return true;
+    }
+
+    List<String>? getStringList(String key) {
+      return _prefs[key] as List<String>?;
+    }
+
+    // Método para remover
+    Future<bool> remove(String key) async {
+      _prefs.remove(key);
+      return true;
+    }
+
+    // Método para limpiar todo
+    Future<bool> clear() async {
+      _prefs.clear();
+      return true;
+    }
+
+    // Verificar si existe una key
+    bool containsKey(String key) {
+      return _prefs.containsKey(key);
+    }
+
+    // Obtener todas las keys
+    Set<String> getKeys() {
+      return _prefs.keys.toSet();
+  }
+
+  // En tu SincronizacionService, agregar este método:
+
 }

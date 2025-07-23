@@ -10,6 +10,7 @@ class PacienteProvider with ChangeNotifier {
   List<Map<String, dynamic>> _sedes = [];
   bool _isLoading = false;
   bool _isLoadingSedes = false;
+  bool _isLoaded = false; // ✅ NUEVO: Flag para controlar si ya se cargaron los pacientes
   final AuthProvider _authProvider;
 
   PacienteProvider(this._authProvider);
@@ -18,8 +19,9 @@ class PacienteProvider with ChangeNotifier {
   List<Map<String, dynamic>> get sedes => _sedes;
   bool get isLoading => _isLoading;
   bool get isLoadingSedes => _isLoadingSedes;
+  bool get isLoaded => _isLoaded; // ✅ NUEVO: Getter para verificar si ya se cargaron los datos
   
-  // Método para cargar sedes (CORREGIDO)
+  // Método para cargar sedes
   Future<void> loadSedes() async {
     _isLoadingSedes = true;
     notifyListeners();
@@ -96,7 +98,14 @@ class PacienteProvider with ChangeNotifier {
     }
   }
 
+  // ✅ MÉTODO ACTUALIZADO: Controla si ya se cargaron los pacientes
   Future<void> loadPacientes() async {
+    // ✅ NUEVO: Si ya están cargados, no volver a cargar
+    if (_isLoaded && !_isLoading) {
+      debugPrint('Pacientes ya cargados, omitiendo carga duplicada');
+      return;
+    }
+    
     _isLoading = true;
     notifyListeners();
 
@@ -134,6 +143,9 @@ class PacienteProvider with ChangeNotifier {
       _pacientes = _removeDuplicates(_pacientes);
       
       debugPrint('Pacientes cargados: ${_pacientes.length}');
+      
+      // ✅ NUEVO: Marcar como cargados
+      _isLoaded = true;
     } catch (e) {
       debugPrint('Error loading pacientes: $e');
       _pacientes = [];
@@ -558,19 +570,24 @@ class PacienteProvider with ChangeNotifier {
     }
   }
 
-  // MÉTODO CORREGIDO: Cargar sedes antes que pacientes
+  // ✅ MÉTODO ACTUALIZADO: Sincronizar datos con control de estado
   Future<void> syncData() async {
     if (_authProvider.isAuthenticated) {
       await loadSedes(); // Cargar sedes PRIMERO
+      
+      // ✅ NUEVO: Resetear estado para forzar recarga
+      _isLoaded = false;
       await loadPacientes(); // Luego cargar pacientes
     }
   }
 
+  // ✅ MÉTODO ACTUALIZADO: Limpiar datos y resetear estado
   void clearData() {
     _pacientes = [];
     _sedes = [];
     _isLoading = false;
     _isLoadingSedes = false;
+    _isLoaded = false; // ✅ NUEVO: Resetear estado de carga
     notifyListeners();
   }
 
@@ -601,6 +618,7 @@ class PacienteProvider with ChangeNotifier {
       }
       
       // Recargar la lista
+      _isLoaded = false; // ✅ NUEVO: Forzar recarga
       await loadPacientes();
       debugPrint('Limpieza de duplicados completada');
     } catch (e) {
@@ -629,18 +647,20 @@ class PacienteProvider with ChangeNotifier {
     await loadSedes();
   }
 
-  // MÉTODO NUEVO: Forzar recarga completa de sedes
-  Future<void> forceReloadSedes() async {
+  // ✅ MÉTODO ACTUALIZADO: Forzar recarga completa de datos
+  Future<void> forceReloadAll() async {
+    _isLoading = true;
     _isLoadingSedes = true;
+    _isLoaded = false; // ✅ NUEVO: Resetear estado de carga
     notifyListeners();
     
     try {
-      final db = DatabaseHelper.instance;
-      await db.ensureSedesTableExists();
       await loadSedes();
+      await loadPacientes();
     } catch (e) {
-      debugPrint('Error en forceReloadSedes: $e');
+      debugPrint('Error en forceReloadAll: $e');
     } finally {
+      _isLoading = false;
       _isLoadingSedes = false;
       notifyListeners();
     }
@@ -700,6 +720,11 @@ class PacienteProvider with ChangeNotifier {
       );
     }
   }
+  
+  // ✅ NUEVO: Método para resetear el estado de carga
+  void resetLoadState() {
+    _isLoaded = false;
+  }
 }
 
 // Clase auxiliar para el resultado de verificación de duplicados
@@ -725,4 +750,6 @@ class DuplicateStats {
     required this.totalDuplicates,
     required this.offlineCount,
   });
+
+  
 }

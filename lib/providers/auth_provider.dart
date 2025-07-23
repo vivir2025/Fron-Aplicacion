@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fnpv_app/services/medicamento_service.dart';
 import '../api/api_service.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../database/database_helper.dart';
@@ -32,6 +33,8 @@ class AuthProvider with ChangeNotifier {
         await _offlineLogin(usuario, contrasena);
       }
 
+      await _loadInitialMedicamentos();
+
       WidgetsBinding.instance.addPostFrameCallback((_) {
         notifyListeners();
       });
@@ -41,12 +44,45 @@ class AuthProvider with ChangeNotifier {
       if (e.toString().contains('SocketException') || 
           e.toString().contains('Failed host lookup')) {
         await _tryOfflineFallback(usuario, contrasena);
+         await _loadInitialMedicamentos();
       } else {
         _resetAuthState();
         rethrow;
       }
     }
   }
+  
+  // 🆕 Método para cargar medicamentos iniciales
+  Future<void> _loadInitialMedicamentos() async {
+    try {
+      if (_token != null) {
+        debugPrint('🔄 Cargando medicamentos iniciales después del login...');
+        
+        // Verificar si ya hay medicamentos locales
+        final dbHelper = DatabaseHelper.instance;
+        final hasMedicamentos = await dbHelper.hasMedicamentos();
+        
+        if (!hasMedicamentos) {
+          // Cargar en segundo plano sin bloquear la UI
+          MedicamentoService.loadMedicamentosFromServer(_token!).then((success) {
+            if (success) {
+              debugPrint('✅ Medicamentos iniciales cargados exitosamente');
+            } else {
+              debugPrint('⚠️ No se pudieron cargar medicamentos iniciales');
+            }
+          }).catchError((e) {
+            debugPrint('❌ Error cargando medicamentos iniciales: $e');
+          });
+        } else {
+          final count = await dbHelper.countMedicamentos();
+          debugPrint('ℹ️ Ya hay $count medicamentos disponibles localmente');
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Error en carga inicial de medicamentos: $e');
+    }
+  }
+
 
   Future<void> _tryOfflineFallback(String usuario, String contrasena) async {
     try {

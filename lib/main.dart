@@ -6,11 +6,11 @@ import 'package:provider/provider.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'providers/auth_provider.dart';
 import 'providers/paciente_provider.dart';
+import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/pacientes_screen.dart';
-import 'screens/pacientes_screen.dart';
-import 'screens/home_screen.dart'; // NUEVO IMPORT
+import 'screens/home_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -23,69 +23,118 @@ class MyApp extends StatefulWidget {
   _MyAppState createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver { // ✅ AGREGADO
   final AuthProvider _authProvider = AuthProvider();
   late Connectivity _connectivity;
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
   bool _isInitialized = false;
+  bool _showSplash = true;
+  bool _hasShownSplash = false; // ✅ NUEVO: Recordar si ya se mostró el splash
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this); // ✅ AGREGADO
     _connectivity = Connectivity();
     _setupConnectivityListener();
     _initializeApp();
   }
 
-  // MÉTODO NUEVO: Inicializar la aplicación
-Future<void> _initializeApp() async {
-  try {
-    // Limpiar sesiones anteriores
-    await _authProvider.clearOldSessions();
+  // ✅ NUEVO: Detectar cuando la app vuelve del background
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
     
-    // Intentar auto-login
-    await _authProvider.autoLogin();
-    
-    // Si está autenticado, cargar datos iniciales
-    if (_authProvider.isAuthenticated) {
-      // Verificar conexión
-      final connectivity = await Connectivity().checkConnectivity();
-      final isOnline = connectivity != ConnectivityResult.none;
+    if (state == AppLifecycleState.resumed) {
+      // La app volvió del background (ej: después de tomar foto)
+      debugPrint('App resumed - No reiniciar splash');
       
-      if (isOnline) {
-        // Sincronizar datos
-        await _authProvider.syncUserData();
+      // Si ya se había inicializado antes, no mostrar splash de nuevo
+      if (_hasShownSplash && _isInitialized) {
+        setState(() {
+          _showSplash = false;
+        });
+      }
+    }
+  }
+
+  // ✅ MÉTODO MEJORADO: Inicializar la aplicación
+  Future<void> _initializeApp() async {
+    // Si ya se inicializó antes, no hacerlo de nuevo
+    if (_hasShownSplash && _isInitialized) {
+      setState(() {
+        _showSplash = false;
+      });
+      return;
+    }
+
+    try {
+      // Solo mostrar splash la primera vez
+      final splashTimer = _hasShownSplash 
+          ? Future.value() // No esperar si ya se mostró
+          : Future.delayed(Duration(seconds: 3)); // ✅ Reducido a 3 segundos
+      
+      // Limpiar sesiones anteriores solo la primera vez
+      if (!_hasShownSplash) {
+        await _authProvider.clearOldSessions();
+      }
+      
+      // Intentar auto-login
+      await _authProvider.autoLogin();
+      
+      // Si está autenticado, cargar datos iniciales
+      if (_authProvider.isAuthenticated) {
+        final connectivity = await Connectivity().checkConnectivity();
+        final isOnline = connectivity != ConnectivityResult.none;
         
-        // Cargar y guardar sedes
-        try {
-          final sedes = await ApiService.getSedes(_authProvider.token!);
-          await DatabaseHelper.instance.saveSedes(sedes);
-        } catch (e) {
-          debugPrint('Error al cargar sedes: $e');
+        if (isOnline) {
+          try {
+            final sedes = await ApiService.getSedes(_authProvider.token!);
+            await DatabaseHelper.instance.saveSedes(sedes);
+          } catch (e) {
+            debugPrint('Error al cargar sedes: $e');
+          }
         }
       }
       
-      // Cargar pacientes (usará los locales si está offline)
-      final pacienteProvider = Provider.of<PacienteProvider>(
-        navigatorKey.currentContext!,
-        listen: false,
-      );
-      await pacienteProvider.loadPacientes();
+      // Debug solo la primera vez
+      if (!_hasShownSplash) {
+        await _authProvider.debugListUsers();
+      }
+      
+      // Esperar splash solo si es necesario
+      await splashTimer;
+      
+      setState(() {
+        _isInitialized = true;
+        _showSplash = false;
+        _hasShownSplash = true; // ✅ Marcar que ya se mostró
+      });
+      
+      // Cargar pacientes después del splash
+      if (_authProvider.isAuthenticated && navigatorKey.currentContext != null) {
+        final pacienteProvider = Provider.of<PacienteProvider>(
+          navigatorKey.currentContext!,
+          listen: false,
+        );
+        await pacienteProvider.loadPacientes();
+      }
+      
+    } catch (e) {
+      debugPrint('Error al inicializar app: $e');
+      
+      // Esperar solo si es la primera vez
+      if (!_hasShownSplash) {
+        await Future.delayed(Duration(seconds: 3));
+      }
+      
+      setState(() {
+        _isInitialized = true;
+        _showSplash = false;
+        _hasShownSplash = true;
+      });
     }
-    
-    // Debug: Mostrar usuarios en la base de datos
-    await _authProvider.debugListUsers();
-    
-    setState(() {
-      _isInitialized = true;
-    });
-  } catch (e) {
-    debugPrint('Error al inicializar app: $e');
-    setState(() {
-      _isInitialized = true;
-    });
   }
-}
 
   void _setupConnectivityListener() {
     _connectivity.onConnectivityChanged.listen((result) async {
@@ -113,38 +162,58 @@ Future<void> _initializeApp() async {
         ChangeNotifierProvider(create: (_) => PacienteProvider(_authProvider)),
       ],
       child: MaterialApp(
-        title: 'FNPVI App',
+        title: 'Anavie 1.0',
         theme: ThemeData(
           primarySwatch: Colors.blue,
           visualDensity: VisualDensity.adaptivePlatformDensity,
         ),
         navigatorKey: navigatorKey,
-        home: _isInitialized 
-            ? Consumer<AuthProvider>(
-                builder: (context, auth, child) {
-                  if (auth.isAuthenticated) {
-                    // Si está autenticado, cargar pacientes y mostrar HomeScreen
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      Provider.of<PacienteProvider>(context, listen: false).loadPacientes();
-                    });
-                    return HomeScreen( // CAMBIO: Usar HomeScreen en lugar de PacientesScreen
-                      onLogout: () {
-                        auth.logout();
-                        // No necesitamos navegar porque el Consumer reconstruirá la UI
-                      },
-                    );
-                  } else {
-                    // Si no está autenticado, mostrar LoginScreen
-                    return LoginScreen(
-                      authProvider: _authProvider,
-                      onLoginSuccess: () {
-                        // El Consumer ya manejará el cambio de estado
-                      },
-                    );
-                  }
-                },
-              )
-            : const Center(child: CircularProgressIndicator()), // Mostrar loading mientras inicializa
+        // ✅ LÓGICA MEJORADA PARA MOSTRAR SCREENS
+        home: Builder(
+          builder: (context) {
+            // Si debe mostrar splash Y no se ha mostrado antes
+            if (_showSplash && !_hasShownSplash) {
+              return SplashScreen();
+            }
+            
+            // Si no está inicializado, mostrar loading
+            if (!_isInitialized) {
+              return const Scaffold(
+                body: Center(
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            }
+            
+            // Si ya está todo listo, mostrar la app normal
+            return Consumer<AuthProvider>(
+              builder: (context, auth, child) {
+                if (auth.isAuthenticated) {
+                  // Cargar pacientes solo una vez
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    final pacienteProvider = Provider.of<PacienteProvider>(context, listen: false);
+                    if (!pacienteProvider.isLoaded) { // ✅ Solo si no están cargados
+                      pacienteProvider.loadPacientes();
+                    }
+                  });
+                  
+                  return HomeScreen(
+                    onLogout: () {
+                      auth.logout();
+                    },
+                  );
+                } else {
+                  return LoginScreen(
+                    authProvider: _authProvider,
+                    onLoginSuccess: () {
+                      // El Consumer manejará el cambio
+                    },
+                  );
+                }
+              },
+            );
+          },
+        ),
         routes: {
           '/profile': (context) => ProfileScreen(
                 authProvider: _authProvider,
@@ -152,7 +221,7 @@ Future<void> _initializeApp() async {
                   Provider.of<AuthProvider>(context, listen: false).logout();
                 },
               ),
-              '/visitas': (context) => VisitasScreen(onLogout: () {  },), // <-- Agrega esta línea
+          '/visitas': (context) => VisitasScreen(onLogout: () {}),
         },
       ),
     );
@@ -160,6 +229,7 @@ Future<void> _initializeApp() async {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this); // ✅ AGREGADO
     _connectivity.onConnectivityChanged.drain();
     super.dispose();
   }

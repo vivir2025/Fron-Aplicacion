@@ -44,6 +44,10 @@ dependencies:
   connectivity_plus: ^6.1.4
   flutter_launcher_icons: ^0.13.1
   flutter_native_splash: ^2.3.7
+  image_picker: ^1.0.4
+  signature: ^5.4.0
+  shared_preferences: ^2.2.0
+ 
 
 dev_dependencies:
   flutter_test:
@@ -104,7 +108,7 @@ flutter_icons:
 
 flutter_native_splash:
   color: "#FFFFFF"  # Blanco en HEX
-  image: assets/splash/logo2.png
+  image: assets/splash/icon.png
   android: true
   ios: true
   android_gravity: fill  # Para que cubra todo el fondo
