@@ -21,58 +21,69 @@ class AuthProvider with ChangeNotifier {
     _userId = id;
     notifyListeners();
   }
-  Future<void> login(String usuario, String contrasena) async {
+ Future<bool> login(String usuario, String contrasena) async {
+    bool needsInitialSync = false; // Flag para saber si se necesita la carga inicial
+
     try {
       _resetAuthState();
       final connectivity = await _connectivity.checkConnectivity();
       final isOnline = connectivity != ConnectivityResult.none;
 
       if (isOnline) {
+        // Antes de hacer login online, verificamos si ya hay datos locales.
+        // Si no hay pacientes, es muy probable que sea el primer login.
+        final hasLocalData = await _dbHelper.hasPacientes();
+        
         await _onlineLogin(usuario, contrasena);
+
+        // Si el login fue exitoso y no había datos, marcamos para sincronizar
+        if (!hasLocalData) {
+          needsInitialSync = true;
+        }
+
       } else {
         await _offlineLogin(usuario, contrasena);
       }
-
-      await _loadInitialMedicamentos();
+      
+      // 👇 CAMBIO 2: YA NO llamamos a _loadInitialMedicamentos aquí.
+      // Se llamará desde la pantalla de sincronización.
+      // await _loadInitialMedicamentos();
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
         notifyListeners();
       });
+
+      // Devolvemos el flag
+      return needsInitialSync;
+
     } catch (e) {
       debugPrint('Error en login: $e');
-      // Intenta fallback a offline si el error es de conexión
-      if (e.toString().contains('SocketException') || 
+      if (e.toString().contains('SocketException') ||
           e.toString().contains('Failed host lookup')) {
         await _tryOfflineFallback(usuario, contrasena);
-         await _loadInitialMedicamentos();
+        return false; // El modo offline no necesita sincronización inicial
       } else {
         _resetAuthState();
         rethrow;
       }
     }
   }
-  
-  // 🆕 Método para cargar medicamentos iniciales
-  Future<void> _loadInitialMedicamentos() async {
+ // 👇 CAMBIO 3: Renombramos y hacemos público el método de cargar medicamentos
+  Future<void> loadInitialMedicamentos() async {
     try {
       if (_token != null) {
-        debugPrint('🔄 Cargando medicamentos iniciales después del login...');
+        debugPrint('🔄 Cargando medicamentos iniciales...');
         
-        // Verificar si ya hay medicamentos locales
         final dbHelper = DatabaseHelper.instance;
         final hasMedicamentos = await dbHelper.hasMedicamentos();
         
         if (!hasMedicamentos) {
-          // Cargar en segundo plano sin bloquear la UI
-          MedicamentoService.loadMedicamentosFromServer(_token!).then((success) {
-            if (success) {
-              debugPrint('✅ Medicamentos iniciales cargados exitosamente');
-            } else {
-              debugPrint('⚠️ No se pudieron cargar medicamentos iniciales');
-            }
-          }).catchError((e) {
-            debugPrint('❌ Error cargando medicamentos iniciales: $e');
-          });
+          final success = await MedicamentoService.loadMedicamentosFromServer(_token!);
+          if (success) {
+            debugPrint('✅ Medicamentos iniciales cargados exitosamente');
+          } else {
+            debugPrint('⚠️ No se pudieron cargar medicamentos iniciales');
+          }
         } else {
           final count = await dbHelper.countMedicamentos();
           debugPrint('ℹ️ Ya hay $count medicamentos disponibles localmente');
@@ -80,6 +91,8 @@ class AuthProvider with ChangeNotifier {
       }
     } catch (e) {
       debugPrint('❌ Error en carga inicial de medicamentos: $e');
+      // Es importante relanzar el error para que la pantalla de sync lo capture
+      rethrow;
     }
   }
 

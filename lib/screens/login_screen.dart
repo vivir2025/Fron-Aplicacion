@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../providers/auth_provider.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:provider/provider.dart';
+import 'initial_sync_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   final AuthProvider authProvider;
@@ -43,12 +45,22 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await widget.authProvider.login(
+      // Captura el resultado del login que indica si necesita sincronización
+      final bool needsSync = await widget.authProvider.login(
         _usuarioController.text.trim(),
         _contrasenaController.text.trim(),
       );
 
-      if (widget.authProvider.isAuthenticated) {
+      // Es importante verificar si el widget sigue "montado" antes de navegar
+      if (!mounted) return;
+
+      if (needsSync) {
+        // Si necesita sincronización, vamos a la nueva pantalla
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const InitialSyncScreen()),
+        );
+      } else {
+        // Si no necesita sincronización, usamos el callback para ir a la pantalla principal
         WidgetsBinding.instance.addPostFrameCallback((_) {
           widget.onLoginSuccess();
         });
@@ -260,6 +272,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     color: primaryGreen,
                                   ),
                                   onPressed: () {
+                                    
                                     setState(() {
                                       _obscurePassword = !_obscurePassword;
                                     });

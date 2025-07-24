@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
@@ -431,254 +432,359 @@ if (resultado['exito_general'] == true) {
   // ==================== MÉTODOS ESTÁTICOS EXISTENTES ====================
 
   static Future<bool> guardarVisita(Visita visita, String? token) async {
-    try {
-      // 1. Guardar siempre en SQLite primero
-      final dbHelper = DatabaseHelper.instance;
-      final savedLocally = await dbHelper.createVisita(visita);
-      
-      if (!savedLocally) {
-        debugPrint('❌ No se pudo guardar visita localmente');
-        return false;
-      }
-      
-      debugPrint('✅ Visita guardada localmente');
-      
-      // 2. Intentar subir al servidor si hay token
-      if (token != null) {
-        try {
-          // Verificar conectividad antes de intentar sincronizar
-          final hasConnection = await ApiService.verificarConectividad();
-          
-          if (hasConnection) {
-            // 🆕 Subir archivos mejorado con múltiples fotos y archivos
-            final visitaConUrls = await _subirArchivosDeVisita(visita, token);
-            
-            // Actualizar en base de datos local con URLs
-            await dbHelper.updateVisita(visitaConUrls);
-            
-            // Usar toServerJson() para el formato correcto
-            final serverData = await ApiService.guardarVisita(
-              visitaConUrls.toServerJson(),
-              token
-            );
-            
-            if (serverData != null) {
-              // Marcar como sincronizada
-              await dbHelper.marcarVisitaComoSincronizada(visita.id);
-              debugPrint('✅ Visita sincronizada exitosamente con el servidor');
-              
-              // Sincronizar pacientes pendientes
-              await sincronizarPacientesPendientes(token);
-              
-              return true;
-            }
-          } else {
-            debugPrint('📵 Sin conexión a internet - Visita quedará pendiente de sincronización');
-          }
-        } catch (e) {
-          debugPrint('⚠️ Error al subir al servidor: $e');
-          // La visita ya está guardada localmente, no es un error crítico
-        }
-      } else {
-        debugPrint('🔑 No hay token de autenticación - Visita quedará pendiente de sincronización');
-      }
-      
-      return true; // Éxito si al menos se guardó localmente
-    } catch (e) {
-      debugPrint('💥 Error completo al guardar visita: $e');
+  try {
+    // 1. Guardar siempre en SQLite primero
+    final dbHelper = DatabaseHelper.instance;
+    final savedLocally = await dbHelper.createVisita(visita);
+    
+    if (!savedLocally) {
+      debugPrint('❌ No se pudo guardar visita localmente');
       return false;
     }
-  }
-
-  // 🆕 MÉTODO MEJORADO PARA SUBIR ARCHIVOS MÚLTIPLES
-  static Future<Visita> _subirArchivosDeVisita(Visita visita, String token) async {
-    debugPrint('📁 Iniciando subida de archivos para visita ${visita.id}');
-
-    // URLs que se actualizarán
-    String? riesgoFotograficoUrl = visita.riesgoFotograficoUrl;
-    String? firmaUrl = visita.firmaUrl;
-    String? firmaPathUrl;
-    List<String> fotosPathsUrls = [];
-    List<String> archivosAdjuntosUrls = [];
-
-    try {
-      // 1. Subir foto de riesgo (LEGACY)
-      if (visita.riesgoFotografico != null && 
-          visita.riesgoFotografico!.isNotEmpty &&
-          riesgoFotograficoUrl == null) {
-        riesgoFotograficoUrl = await FileService.uploadRiskPhoto(
-          visita.riesgoFotografico!,
-          token
-        );
-        if (riesgoFotograficoUrl != null) {
-          debugPrint('📸 Foto de riesgo sincronizada exitosamente');
-        }
-      }
-
-      // 2. Subir firma (LEGACY)
-      if (visita.firma != null && 
-          visita.firma!.isNotEmpty &&
-          firmaUrl == null) {
-        firmaUrl = await FileService.uploadSignature(
-          visita.firma!,
-          token
-        );
-        if (firmaUrl != null) {
-          debugPrint('✍️ Firma legacy sincronizada exitosamente');
-        }
-      }
-
-      // 3. 🆕 Subir nueva firma (firmaPath)
-      if (visita.firmaPath != null && 
-          visita.firmaPath!.isNotEmpty) {
-        firmaPathUrl = await FileService.uploadSignature(
-          visita.firmaPath!,
-          token
-        );
-        if (firmaPathUrl != null) {
-          debugPrint('✍️ Nueva firma sincronizada exitosamente');
-        }
-      }
-
-      // 4. 🆕 Subir múltiples fotos (fotosPaths)
-      if (visita.fotosPaths != null && visita.fotosPaths!.isNotEmpty) {
-        int fotosSubidas = 0;
-        for (int i = 0; i < visita.fotosPaths!.length; i++) {
-          final fotoPath = visita.fotosPaths![i];
-          if (fotoPath.isNotEmpty && !fotoPath.startsWith('http')) {
-            try {
-              final fotoUrl = await FileService.uploadPhoto(fotoPath, token);
-              if (fotoUrl != null) {
-                fotosPathsUrls.add(fotoUrl);
-                fotosSubidas++;
-                debugPrint('📸 Foto ${i + 1} sincronizada exitosamente');
-              } else {
-                fotosPathsUrls.add(fotoPath); // Mantener path local si falla
-              }
-            } catch (e) {
-              debugPrint('❌ Error sincronizando foto ${i + 1}: $e');
-              fotosPathsUrls.add(fotoPath); // Mantener path local si falla
-            }
-          } else {
-            fotosPathsUrls.add(fotoPath); // Ya es URL o está vacío
-          }
-        }
-        if (fotosSubidas > 0) {
-          debugPrint('📸 $fotosSubidas fotos sincronizadas exitosamente');
-        }
-      }
-
-      // 5. 🆕 Subir archivos adjuntos
-      if (visita.archivosAdjuntos != null && visita.archivosAdjuntos!.isNotEmpty) {
-        int archivosSubidos = 0;
-        for (int i = 0; i < visita.archivosAdjuntos!.length; i++) {
-          final archivoPath = visita.archivosAdjuntos![i];
-          if (archivoPath.isNotEmpty && !archivoPath.startsWith('http')) {
-            try {
-              final archivoUrl = await FileService.uploadFileByType(archivoPath, token);
-              if (archivoUrl != null) {
-                archivosAdjuntosUrls.add(archivoUrl as String);
-                archivosSubidos++;
-                debugPrint('📎 Archivo adjunto ${i + 1} sincronizado exitosamente');
-              } else {
-                archivosAdjuntosUrls.add(archivoPath); // Mantener path local si falla
-              }
-            } catch (e) {
-              debugPrint('❌ Error sincronizando archivo adjunto ${i + 1}: $e');
-              archivosAdjuntosUrls.add(archivoPath); // Mantener path local si falla
-            }
-          } else {
-            archivosAdjuntosUrls.add(archivoPath); // Ya es URL o está vacío
-          }
-        }
-        if (archivosSubidos > 0) {
-          debugPrint('📎 $archivosSubidos archivos adjuntos sincronizados exitosamente');
-        }
-      }
-
-    } catch (e) {
-      debugPrint('❌ Error general sincronizando archivos: $e');
-    }
-
-    // Crear visita actualizada con todas las URLs
-    return visita.copyWith(
-      riesgoFotograficoUrl: riesgoFotograficoUrl,
-      firmaUrl: firmaUrl,
-      firmaPath: firmaPathUrl ?? visita.firmaPath,
-      fotosPaths: fotosPathsUrls.isNotEmpty ? fotosPathsUrls : visita.fotosPaths,
-      archivosAdjuntos: archivosAdjuntosUrls.isNotEmpty ? archivosAdjuntosUrls : visita.archivosAdjuntos,
-    );
-  }
-
-  static Future<Map<String, dynamic>> sincronizarVisitasPendientes(String token) async {
-    final dbHelper = DatabaseHelper.instance;
-    final visitasPendientes = await dbHelper.getVisitasNoSincronizadas();
     
-    int exitosas = 0;
-    int fallidas = 0;
-    List<String> errores = [];
+    debugPrint('✅ Visita guardada localmente');
     
-    debugPrint('📊 Sincronizando ${visitasPendientes.length} visitas pendientes...');
-    
-    // Verificar conectividad primero
-    try {
-      final hasConnection = await ApiService.verificarConectividad();
-      if (!hasConnection) {
-        throw Exception('No hay conexión a internet');
-      }
-      
-      for (final visita in visitasPendientes) {
-        try {
-          // 🆕 Usar método mejorado para subir archivos
+    // 2. Intentar subir al servidor si hay token
+    if (token != null) {
+      try {
+        // Verificar conectividad antes de intentar sincronizar
+        final hasConnection = await ApiService.verificarConectividad();
+        
+        if (hasConnection) {
+          // 🆕 Subir archivos mejorado con múltiples fotos y archivos
           final visitaConUrls = await _subirArchivosDeVisita(visita, token);
           
           // Actualizar en base de datos local con URLs
           await dbHelper.updateVisita(visitaConUrls);
           
-          // Usar toServerJson() para el formato correcto
-          final serverData = await ApiService.guardarVisita(
-            visitaConUrls.toServerJson(),
-            token
-          );
+          // Preparar datos para el servidor
+          Map<String, dynamic> visitaData = visitaConUrls.toServerJson();
           
-          if (serverData != null) {
-            await dbHelper.marcarVisitaComoSincronizada(visita.id);
-            exitosas++;
-            debugPrint('✅ Visita ${visita.id} sincronizada exitosamente');
-          } else {
-            fallidas++;
-            errores.add('Servidor respondió con error para visita ${visita.id}');
-            debugPrint('❌ Falló sincronización de visita ${visita.id}');
+          // Verificar si medicamentos es un array y convertirlo a string
+          if (visitaData['medicamentos'] != null && visitaData['medicamentos'] is! String) {
+            visitaData['medicamentos'] = jsonEncode(visitaData['medicamentos']);
           }
           
-          // Pequeña pausa entre sincronizaciones para no saturar
-          await Future.delayed(const Duration(milliseconds: 300));
-        } catch (e) {
-          fallidas++;
-          errores.add('Error en visita ${visita.id}: $e');
-          debugPrint('💥 Error sincronizando visita ${visita.id}: $e');
+          // Usar toServerJson() para el formato correcto
+          final serverData = await ApiService.guardarVisita(visitaData, token);
+          
+          if (serverData != null) {
+            // Marcar como sincronizada
+            await dbHelper.marcarVisitaComoSincronizada(visita.id);
+            debugPrint('✅ Visita sincronizada exitosamente con el servidor');
+            
+            // Sincronizar pacientes pendientes
+            await sincronizarPacientesPendientes(token);
+            
+            return true;
+          }
+        } else {
+          debugPrint('📵 Sin conexión a internet - Visita quedará pendiente de sincronización');
         }
+      } catch (e) {
+        debugPrint('⚠️ Error al subir al servidor: $e');
+        // La visita ya está guardada localmente, no es un error crítico
       }
-      
-      if (exitosas > 0) {
-        debugPrint('🎉 $exitosas visitas sincronizadas exitosamente');
-      }
-      if (fallidas > 0) {
-        debugPrint('⚠️ $fallidas visitas fallaron en la sincronización');
-      }
-      
-    } catch (e) {
-      errores.add('Error general de conexión: $e');
-      debugPrint('💥 Error general en sincronización: $e');
+    } else {
+      debugPrint('🔑 No hay token de autenticación - Visita quedará pendiente de sincronización');
     }
     
-    return {
-      'exitosas': exitosas,
-      'fallidas': fallidas,
-      'errores': errores,
-      'total': visitasPendientes.length
-    };
+    return true; // Éxito si al menos se guardó localmente
+  } catch (e) {
+    debugPrint('💥 Error completo al guardar visita: $e');
+    return false;
   }
+}
+
+
+ static Future<Visita> _subirArchivosDeVisita(Visita visita, String token) async {
+  debugPrint('📁 Iniciando subida de archivos para visita ${visita.id}');
+
+  // URLs que se actualizarán
+  String? riesgoFotograficoUrl = visita.riesgoFotograficoUrl;
+  String? firmaUrl = visita.firmaUrl;
+  String? firmaPathUrl = visita.firmaPath != null && visita.firmaPath!.startsWith('http') 
+      ? visita.firmaPath 
+      : null;
+  List<String> fotosPathsUrls = [];
+  List<String> archivosAdjuntosUrls = [];
+
+  try {
+    // 1. Verificar y subir foto de riesgo (LEGACY)
+    if (visita.riesgoFotografico != null && 
+        visita.riesgoFotografico!.isNotEmpty &&
+        !visita.riesgoFotografico!.startsWith('http') &&
+        riesgoFotograficoUrl == null) {
+      
+      // Verificar que el archivo exista antes de intentar subirlo
+      final file = File(visita.riesgoFotografico!);
+      if (await file.exists()) {
+        debugPrint('📸 Subiendo foto de riesgo: ${visita.riesgoFotografico}');
+        try {
+          riesgoFotograficoUrl = await FileService.uploadRiskPhoto(
+            visita.riesgoFotografico!,
+            token
+          );
+          if (riesgoFotograficoUrl != null) {
+            debugPrint('✅ Foto de riesgo sincronizada exitosamente: $riesgoFotograficoUrl');
+          } else {
+            debugPrint('⚠️ No se pudo subir la foto de riesgo');
+          }
+        } catch (e) {
+          debugPrint('❌ Error al subir foto de riesgo: $e');
+        }
+      } else {
+        debugPrint('⚠️ El archivo de foto de riesgo no existe: ${visita.riesgoFotografico}');
+      }
+    }
+
+    // 2. Verificar y subir firma (LEGACY)
+    if (visita.firma != null && 
+        visita.firma!.isNotEmpty &&
+        !visita.firma!.startsWith('http') &&
+        firmaUrl == null) {
+      
+      // Verificar que el archivo exista antes de intentar subirlo
+      final file = File(visita.firma!);
+      if (await file.exists()) {
+        debugPrint('✍️ Subiendo firma legacy: ${visita.firma}');
+        try {
+          firmaUrl = await FileService.uploadSignature(
+            visita.firma!,
+            token
+          );
+          if (firmaUrl != null) {
+            debugPrint('✅ Firma legacy sincronizada exitosamente: $firmaUrl');
+          } else {
+            debugPrint('⚠️ No se pudo subir la firma legacy');
+          }
+        } catch (e) {
+          debugPrint('❌ Error al subir firma legacy: $e');
+        }
+      } else {
+        debugPrint('⚠️ El archivo de firma legacy no existe: ${visita.firma}');
+      }
+    }
+
+    // 3. Verificar y subir nueva firma (firmaPath)
+    if (visita.firmaPath != null && 
+        visita.firmaPath!.isNotEmpty &&
+        !visita.firmaPath!.startsWith('http')) {
+      
+      // Verificar que el archivo exista antes de intentar subirlo
+      final file = File(visita.firmaPath!);
+      if (await file.exists()) {
+        debugPrint('✍️ Subiendo nueva firma: ${visita.firmaPath}');
+        try {
+          firmaPathUrl = await FileService.uploadSignature(
+            visita.firmaPath!,
+            token
+          );
+          if (firmaPathUrl != null) {
+            debugPrint('✅ Nueva firma sincronizada exitosamente: $firmaPathUrl');
+          } else {
+            debugPrint('⚠️ No se pudo subir la nueva firma');
+          }
+        } catch (e) {
+          debugPrint('❌ Error al subir nueva firma: $e');
+        }
+      } else {
+        debugPrint('⚠️ El archivo de nueva firma no existe: ${visita.firmaPath}');
+      }
+    }
+
+    // 4. Verificar y subir múltiples fotos (fotosPaths)
+    if (visita.fotosPaths != null && visita.fotosPaths!.isNotEmpty) {
+      int fotosSubidas = 0;
+      for (int i = 0; i < visita.fotosPaths!.length; i++) {
+        final fotoPath = visita.fotosPaths![i];
+        if (fotoPath.isNotEmpty && !fotoPath.startsWith('http')) {
+          try {
+            // Verificar que el archivo exista antes de intentar subirlo
+            final file = File(fotoPath);
+            if (await file.exists()) {
+              debugPrint('📸 Subiendo foto ${i + 1}: $fotoPath');
+              final fotoUrl = await FileService.uploadPhoto(fotoPath, token);
+              if (fotoUrl != null) {
+                fotosPathsUrls.add(fotoUrl);
+                fotosSubidas++;
+                debugPrint('✅ Foto ${i + 1} sincronizada exitosamente: $fotoUrl');
+              } else {
+                debugPrint('⚠️ No se pudo subir la foto ${i + 1}');
+                fotosPathsUrls.add(fotoPath); // Mantener path local si falla
+              }
+            } else {
+              debugPrint('⚠️ El archivo de foto ${i + 1} no existe: $fotoPath');
+              fotosPathsUrls.add(fotoPath); // Mantener path local si no existe
+            }
+          } catch (e) {
+            debugPrint('❌ Error sincronizando foto ${i + 1}: $e');
+            fotosPathsUrls.add(fotoPath); // Mantener path local si falla
+          }
+        } else {
+          fotosPathsUrls.add(fotoPath); // Ya es URL o está vacío
+        }
+      }
+      if (fotosSubidas > 0) {
+        debugPrint('📸 $fotosSubidas fotos sincronizadas exitosamente');
+      }
+    } else if (visita.fotosPaths != null) {
+      fotosPathsUrls = visita.fotosPaths!;
+    }
+
+    // 5. Verificar y subir archivos adjuntos
+    if (visita.archivosAdjuntos != null && visita.archivosAdjuntos!.isNotEmpty) {
+      int archivosSubidos = 0;
+      for (int i = 0; i < visita.archivosAdjuntos!.length; i++) {
+        final archivoPath = visita.archivosAdjuntos![i];
+        if (archivoPath.isNotEmpty && !archivoPath.startsWith('http')) {
+          try {
+            // Verificar que el archivo exista antes de intentar subirlo
+            final file = File(archivoPath);
+            if (await file.exists()) {
+              debugPrint('📎 Subiendo archivo adjunto ${i + 1}: $archivoPath');
+              final archivoUrl = await FileService.uploadFileByType(archivoPath, token);
+              if (archivoUrl != null) {
+                // Asegurar que archivoUrl es un string
+                archivosAdjuntosUrls.add(archivoUrl.toString());
+                archivosSubidos++;
+                debugPrint('✅ Archivo adjunto ${i + 1} sincronizado exitosamente: $archivoUrl');
+              } else {
+                debugPrint('⚠️ No se pudo subir el archivo adjunto ${i + 1}');
+                archivosAdjuntosUrls.add(archivoPath); // Mantener path local si falla
+              }
+            } else {
+              debugPrint('⚠️ El archivo adjunto ${i + 1} no existe: $archivoPath');
+              archivosAdjuntosUrls.add(archivoPath); // Mantener path local si no existe
+            }
+          } catch (e) {
+            debugPrint('❌ Error sincronizando archivo adjunto ${i + 1}: $e');
+            archivosAdjuntosUrls.add(archivoPath); // Mantener path local si falla
+          }
+        } else {
+          archivosAdjuntosUrls.add(archivoPath); // Ya es URL o está vacío
+        }
+      }
+      if (archivosSubidos > 0) {
+        debugPrint('📎 $archivosSubidos archivos adjuntos sincronizados exitosamente');
+      }
+    } else if (visita.archivosAdjuntos != null) {
+      archivosAdjuntosUrls = visita.archivosAdjuntos!;
+    }
+
+  } catch (e) {
+    debugPrint('❌ Error general sincronizando archivos: $e');
+  }
+
+  // Crear visita actualizada con todas las URLs
+  return visita.copyWith(
+    riesgoFotograficoUrl: riesgoFotograficoUrl,
+    firmaUrl: firmaUrl,
+    firmaPath: firmaPathUrl ?? visita.firmaPath,
+    fotosPaths: fotosPathsUrls.isNotEmpty ? fotosPathsUrls : visita.fotosPaths,
+    archivosAdjuntos: archivosAdjuntosUrls.isNotEmpty ? archivosAdjuntosUrls : visita.archivosAdjuntos,
+  );
+}
+
+
+ 
+  static Future<Map<String, dynamic>> sincronizarVisitasPendientes(String token) async {
+  final dbHelper = DatabaseHelper.instance;
+  final visitasPendientes = await dbHelper.getVisitasNoSincronizadas();
+  
+  int exitosas = 0;
+  int fallidas = 0;
+  List<String> errores = [];
+  
+  debugPrint('📊 Sincronizando ${visitasPendientes.length} visitas pendientes...');
+  
+  // Verificar conectividad primero
+  try {
+    final hasConnection = await ApiService.verificarConectividad();
+    if (!hasConnection) {
+      throw Exception('No hay conexión a internet');
+    }
+    
+    for (final visita in visitasPendientes) {
+      try {
+        debugPrint('🔄 Sincronizando visita ${visita.id}...');
+        
+        // 1. Obtener medicamentos asociados a esta visita
+        final medicamentos = await dbHelper.getMedicamentosDeVisita(visita.id);
+        debugPrint('💊 Encontrados ${medicamentos.length} medicamentos para visita ${visita.id}');
+        
+        // 2. Preparar medicamentos para envío - CONVERTIR A STRING JSON
+        List<Map<String, dynamic>> medicamentosData = [];
+        for (var medicamentoConIndicaciones in medicamentos) {
+          if (medicamentoConIndicaciones.isSelected) {
+            medicamentosData.add({
+              'id': medicamentoConIndicaciones.medicamento.id.toString(),
+              'nombre': medicamentoConIndicaciones.medicamento.nombmedicamento.toString(),
+              'indicaciones': (medicamentoConIndicaciones.indicaciones ?? '').toString(),
+            });
+          }
+        }
+        
+        // 3. Subir archivos y obtener visita actualizada con URLs
+        final visitaConUrls = await _subirArchivosDeVisita(visita, token);
+        
+        // 4. Actualizar en base de datos local con URLs
+        await dbHelper.updateVisita(visitaConUrls);
+        
+        // 5. Preparar datos para enviar al servidor, incluyendo medicamentos como STRING
+        Map<String, dynamic> visitaData = visitaConUrls.toServerJson();
+        
+        // IMPORTANTE: Convertir el array de medicamentos a string JSON
+        visitaData['medicamentos'] = jsonEncode(medicamentosData);
+        
+        debugPrint('📤 Enviando visita ${visita.id} al servidor con ${medicamentosData.length} medicamentos...');
+        debugPrint('📄 Formato de medicamentos: ${visitaData['medicamentos']}');
+        
+        // 6. Enviar al servidor
+        final serverData = await ApiService.guardarVisita(visitaData, token);
+        
+        if (serverData != null) {
+          // 7. Marcar como sincronizada
+          await dbHelper.marcarVisitaComoSincronizada(visita.id);
+          exitosas++;
+          debugPrint('✅ Visita ${visita.id} sincronizada exitosamente con medicamentos');
+        } else {
+          fallidas++;
+          errores.add('Servidor respondió con error para visita ${visita.id}');
+          debugPrint('❌ Falló sincronización de visita ${visita.id}');
+        }
+        
+        // Pequeña pausa entre sincronizaciones para no saturar
+        await Future.delayed(const Duration(milliseconds: 300));
+      } catch (e) {
+        fallidas++;
+        errores.add('Error en visita ${visita.id}: $e');
+        debugPrint('💥 Error sincronizando visita ${visita.id}: $e');
+      }
+    }
+    
+    if (exitosas > 0) {
+      debugPrint('🎉 $exitosas visitas sincronizadas exitosamente');
+    }
+    if (fallidas > 0) {
+      debugPrint('⚠️ $fallidas visitas fallaron en la sincronización');
+    }
+    
+  } catch (e) {
+    errores.add('Error general de conexión: $e');
+    debugPrint('💥 Error general en sincronización: $e');
+  }
+  
+  return {
+    'exitosas': exitosas,
+    'fallidas': fallidas,
+    'errores': errores,
+    'total': visitasPendientes.length
+  };
+}
+
+
+
 
   static Future<Map<String, int>> obtenerEstadoSincronizacion() async {
     final dbHelper = DatabaseHelper.instance;
@@ -756,116 +862,118 @@ if (resultado['exito_general'] == true) {
     };
   }
 
-  // 🆕 MÉTODO MEJORADO PARA SINCRONIZAR ARCHIVOS PENDIENTES
   static Future<Map<String, dynamic>> sincronizarArchivosPendientes(String token) async {
-    final dbHelper = DatabaseHelper.instance;
-    final visitasPendientes = await dbHelper.getVisitasNoSincronizadas();
-    
-    int exitosas = 0;
-    int fallidas = 0;
-    List<String> errores = [];
-    
-    debugPrint('📁 Sincronizando archivos de ${visitasPendientes.length} visitas...');
-    
-    try {
-      final hasConnection = await ApiService.verificarConectividad();
-      if (!hasConnection) {
-        throw Exception('No hay conexión a internet');
-      }
-      
-      for (final visita in visitasPendientes) {
-        try {
-          bool needsUpdate = false;
-          
-          // Verificar si hay archivos locales que necesitan subirse
-          final tieneArchivosLocales = _verificarArchivosLocalesPendientes(visita);
-          
-          if (tieneArchivosLocales) {
-            // Subir archivos y obtener visita actualizada
-            final visitaConUrls = await _subirArchivosDeVisita(visita, token);
-            
-            // Verificar si hubo cambios
-            if (_compararUrls(visita, visitaConUrls)) {
-              await dbHelper.updateVisita(visitaConUrls);
-              needsUpdate = true;
-              exitosas++;
-              debugPrint('📁 Archivos sincronizados exitosamente para visita ${visita.id}');
-            }
-          }
-          
-          if (!needsUpdate) {
-            debugPrint('ℹ️ No hay archivos pendientes para visita ${visita.id}');
-          }
-          
-        } catch (e) {
-          fallidas++;
-          errores.add('Error en archivos de visita ${visita.id}: $e');
-          debugPrint('💥 Error sincronizando archivos de visita ${visita.id}: $e');
-        }
-      }
-      
-      if (exitosas > 0) {
-        debugPrint('🎉 Archivos de $exitosas visitas sincronizados exitosamente');
-      }
-      
-    } catch (e) {
-      errores.add('Error general de conexión: $e');
-      debugPrint('💥 Error general en sincronización de archivos: $e');
+  final dbHelper = DatabaseHelper.instance;
+  final visitasPendientes = await dbHelper.getVisitasNoSincronizadas();
+  
+  int exitosas = 0;
+  int fallidas = 0;
+  List<String> errores = [];
+  
+  debugPrint('📁 Sincronizando archivos de ${visitasPendientes.length} visitas...');
+  
+  try {
+    final hasConnection = await ApiService.verificarConectividad();
+    if (!hasConnection) {
+      throw Exception('No hay conexión a internet');
     }
     
-    return {
-      'exitosas': exitosas,
-      'fallidas': fallidas,
-      'errores': errores,
-      'total': visitasPendientes.length
-    };
+    for (final visita in visitasPendientes) {
+      try {
+        bool needsUpdate = false;
+        debugPrint('📁 Iniciando subida de archivos para visita ${visita.id}');
+        
+        // Verificar si hay archivos locales que necesitan subirse
+        final tieneArchivosLocales = _verificarArchivosLocalesPendientes(visita);
+        
+        if (tieneArchivosLocales) {
+          // Subir archivos y obtener visita actualizada
+          final visitaConUrls = await _subirArchivosDeVisita(visita, token);
+          
+          // Verificar si hubo cambios
+          if (_compararUrls(visita, visitaConUrls)) {
+            await dbHelper.updateVisita(visitaConUrls);
+            needsUpdate = true;
+            exitosas++;
+            debugPrint('📁 Archivos sincronizados exitosamente para visita ${visita.id}');
+          }
+        }
+        
+        if (!needsUpdate) {
+          debugPrint('ℹ️ No hay archivos pendientes para visita ${visita.id}');
+        }
+        
+      } catch (e, stackTrace) {
+        fallidas++;
+        errores.add('Error en archivos de visita ${visita.id}: $e');
+        debugPrint('💥 Error sincronizando archivos de visita ${visita.id}: $e');
+        debugPrint('📚 Stack trace: $stackTrace');
+      }
+    }
+    
+    if (exitosas > 0) {
+      debugPrint('🎉 Archivos de $exitosas visitas sincronizados exitosamente');
+    }
+    
+  } catch (e) {
+    errores.add('Error general de conexión: $e');
+    debugPrint('💥 Error general en sincronización de archivos: $e');
   }
+  
+  return {
+    'exitosas': exitosas,
+    'fallidas': fallidas,
+    'errores': errores,
+    'total': visitasPendientes.length
+  };
+}
 
-  // 🆕 MÉTODO AUXILIAR PARA VERIFICAR ARCHIVOS LOCALES PENDIENTES
-  static bool _verificarArchivosLocalesPendientes(Visita visita) {
-    // Verificar foto de riesgo legacy
-    if (visita.riesgoFotografico != null && 
-        visita.riesgoFotografico!.isNotEmpty && 
-        !visita.riesgoFotografico!.startsWith('http') &&
-        visita.riesgoFotograficoUrl == null) {
-      return true;
-    }
-    
-    // Verificar firma legacy
-    if (visita.firma != null && 
-        visita.firma!.isNotEmpty && 
-        !visita.firma!.startsWith('http') &&
-        visita.firmaUrl == null) {
-      return true;
-    }
-    
-    // Verificar nueva firma
-    if (visita.firmaPath != null && 
-        visita.firmaPath!.isNotEmpty && 
-        !visita.firmaPath!.startsWith('http')) {
-      return true;
-    }
-    
-    // Verificar fotos múltiples
-    if (visita.fotosPaths != null && visita.fotosPaths!.isNotEmpty) {
-      for (final fotoPath in visita.fotosPaths!) {
-        if (fotoPath.isNotEmpty && !fotoPath.startsWith('http')) {
-          return true;
-        }
-      }
-    }
-    
-    // Verificar archivos adjuntos
-    if (visita.archivosAdjuntos != null && visita.archivosAdjuntos!.isNotEmpty) {
-      for (final archivoPath in visita.archivosAdjuntos!) {
-        if (archivoPath.isNotEmpty && !archivoPath.startsWith('http')) {
-          return true;
-        }
-      }
-    }
-    
-    return false;
+
+ static bool _verificarArchivosLocalesPendientes(Visita visita) {
+  // Verificar foto de riesgo legacy
+  if (visita.riesgoFotografico != null && 
+      visita.riesgoFotografico!.isNotEmpty && 
+      !visita.riesgoFotografico!.startsWith('http') &&
+      visita.riesgoFotograficoUrl == null) {
+    return true;
   }
+  
+  // Verificar firma legacy
+  if (visita.firma != null && 
+      visita.firma!.isNotEmpty && 
+      !visita.firma!.startsWith('http') &&
+      visita.firmaUrl == null) {
+    return true;
+  }
+  
+  // Verificar nueva firma - CORREGIDO
+  if (visita.firmaPath != null && 
+      visita.firmaPath!.isNotEmpty && 
+      !visita.firmaPath!.startsWith('http')) {
+    return true;
+  }
+  
+  // Verificar fotos múltiples
+  if (visita.fotosPaths != null && visita.fotosPaths!.isNotEmpty) {
+    for (final fotoPath in visita.fotosPaths!) {
+      if (fotoPath.isNotEmpty && !fotoPath.startsWith('http')) {
+        return true;
+      }
+    }
+  }
+  
+  // Verificar archivos adjuntos
+  if (visita.archivosAdjuntos != null && visita.archivosAdjuntos!.isNotEmpty) {
+    for (final archivoPath in visita.archivosAdjuntos!) {
+      if (archivoPath.isNotEmpty && !archivoPath.startsWith('http')) {
+        return true;
+      }
+    }
+  }
+  
+  return false;
+}
+
     // 🆕 MÉTODO AUXILIAR PARA COMPARAR URLs
   static bool _compararUrls(Visita visitaOriginal, Visita visitaActualizada) {
     return visitaOriginal.riesgoFotograficoUrl != visitaActualizada.riesgoFotograficoUrl ||

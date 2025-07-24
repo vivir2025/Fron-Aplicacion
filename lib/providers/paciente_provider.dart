@@ -10,7 +10,7 @@ class PacienteProvider with ChangeNotifier {
   List<Map<String, dynamic>> _sedes = [];
   bool _isLoading = false;
   bool _isLoadingSedes = false;
-  bool _isLoaded = false; // ✅ NUEVO: Flag para controlar si ya se cargaron los pacientes
+  bool _isLoaded = false;
   final AuthProvider _authProvider;
 
   PacienteProvider(this._authProvider);
@@ -19,9 +19,8 @@ class PacienteProvider with ChangeNotifier {
   List<Map<String, dynamic>> get sedes => _sedes;
   bool get isLoading => _isLoading;
   bool get isLoadingSedes => _isLoadingSedes;
-  bool get isLoaded => _isLoaded; // ✅ NUEVO: Getter para verificar si ya se cargaron los datos
+  bool get isLoaded => _isLoaded;
   
-  // Método para cargar sedes
   Future<void> loadSedes() async {
     _isLoadingSedes = true;
     notifyListeners();
@@ -30,12 +29,10 @@ class PacienteProvider with ChangeNotifier {
       final db = DatabaseHelper.instance;
       final connectivity = await Connectivity().checkConnectivity();
       
-      // Asegurar que la tabla existe
       await db.ensureSedesTableExists();
       
       if (connectivity != ConnectivityResult.none && _authProvider.isAuthenticated) {
         try {
-          // Online: traer sedes desde API
           debugPrint('Cargando sedes desde API...');
           final response = await ApiService.getSedes(_authProvider.token!);
           
@@ -46,28 +43,23 @@ class PacienteProvider with ChangeNotifier {
               'direccion': sede['direccion']?.toString() ?? '',
             }).toList();
 
-            // Guardar sedes en SQLite
             await db.saveSedes(_sedes);
             debugPrint('Sedes cargadas desde API y guardadas: ${_sedes.length}');
           } else {
             debugPrint('Respuesta de API de sedes vacía o inválida');
-            // Fallback a datos locales
             _sedes = await db.getSedes();
           }
         } catch (e) {
           debugPrint('Error al cargar sedes desde API: $e');
-          // Fallback a datos locales
           _sedes = await db.getSedes();
           debugPrint('Cargando sedes desde base de datos local: ${_sedes.length}');
         }
       } else {
-        // Offline: cargar desde SQLite
         debugPrint('Modo offline, cargando sedes desde base de datos local...');
         _sedes = await db.getSedes();
         debugPrint('Sedes cargadas desde DB local: ${_sedes.length}');
       }
 
-      // Si no hay sedes, insertar algunas por defecto
       if (_sedes.isEmpty) {
         debugPrint('No hay sedes disponibles, insertando por defecto');
         await db.insertDefaultSedes();
@@ -76,13 +68,12 @@ class PacienteProvider with ChangeNotifier {
       }
 
       debugPrint('Sedes finalmente cargadas: ${_sedes.length}');
-      await db.debugListSedes(); // Debug
+      await db.debugListSedes();
 
     } catch (e) {
       debugPrint('Error crítico en loadSedes: $e');
       _sedes = [];
       
-      // Intentar crear tabla y sedes por defecto como último recurso
       try {
         final db = DatabaseHelper.instance;
         await db.ensureSedesTableExists();
@@ -98,9 +89,7 @@ class PacienteProvider with ChangeNotifier {
     }
   }
 
-  // ✅ MÉTODO ACTUALIZADO: Controla si ya se cargaron los pacientes
   Future<void> loadPacientes() async {
-    // ✅ NUEVO: Si ya están cargados, no volver a cargar
     if (_isLoaded && !_isLoading) {
       debugPrint('Pacientes ya cargados, omitiendo carga duplicada');
       return;
@@ -115,36 +104,28 @@ class PacienteProvider with ChangeNotifier {
       
       if (connectivity != ConnectivityResult.none && _authProvider.isAuthenticated) {
         try {
-          // Online: traer desde API
           final response = await ApiService.getPacientes(_authProvider.token!);
           final serverPacientes = response.map<Paciente>((json) => Paciente.fromJson(json)).toList();
 
-          // Guardar pacientes del servidor en SQLite
           for (final paciente in serverPacientes) {
             await db.upsertPaciente(paciente);
           }
 
-          // Sincronizar cambios locales antes de cargar
           await syncPacientes();
           
-          // Cargar todos los pacientes desde la base de datos local
           _pacientes = await db.readAllPacientes();
         } catch (e) {
           debugPrint('Error al cargar pacientes online: $e');
-          // Fallback a datos locales
           _pacientes = await db.readAllPacientes();
         }
       } else {
-        // Offline: cargar desde SQLite
         _pacientes = await db.readAllPacientes();
       }
 
-      // Filtrar duplicados de manera más robusta
       _pacientes = _removeDuplicates(_pacientes);
       
       debugPrint('Pacientes cargados: ${_pacientes.length}');
       
-      // ✅ NUEVO: Marcar como cargados
       _isLoaded = true;
     } catch (e) {
       debugPrint('Error loading pacientes: $e');
@@ -155,24 +136,19 @@ class PacienteProvider with ChangeNotifier {
     }
   }
 
-  // MÉTODO MEJORADO: Eliminar duplicados de manera más robusta
   List<Paciente> _removeDuplicates(List<Paciente> pacientes) {
     final Map<String, Paciente> pacienteMap = {};
     
-    // Primero procesar todos los pacientes y mantener el mejor de cada identificación
     for (final paciente in pacientes) {
       final identificacion = paciente.identificacion;
       
       if (!pacienteMap.containsKey(identificacion)) {
-        // Primera vez que vemos esta identificación
         pacienteMap[identificacion] = paciente;
       } else {
-        // Ya existe un paciente con esta identificación, determinar cuál mantener
         final existing = pacienteMap[identificacion]!;
         final betterPaciente = _selectBetterPaciente(existing, paciente);
         pacienteMap[identificacion] = betterPaciente;
         
-        // Si hay duplicados, limpiar el peor de la base de datos
         if (betterPaciente.id != existing.id) {
           _markForDeletion(existing.id);
         }
@@ -185,9 +161,7 @@ class PacienteProvider with ChangeNotifier {
     return pacienteMap.values.toList();
   }
 
-  // MÉTODO NUEVO: Seleccionar el mejor paciente entre duplicados
   Paciente _selectBetterPaciente(Paciente existing, Paciente candidate) {
-    // Prioridad 1: Paciente sincronizado (syncStatus = 1) sobre no sincronizado
     if (existing.syncStatus == 1 && candidate.syncStatus != 1) {
       return existing;
     }
@@ -195,7 +169,6 @@ class PacienteProvider with ChangeNotifier {
       return candidate;
     }
     
-    // Prioridad 2: Paciente con ID real sobre ID temporal (offline)
     final existingIsOffline = existing.id.startsWith('offline_');
     final candidateIsOffline = candidate.id.startsWith('offline_');
     
@@ -206,18 +179,15 @@ class PacienteProvider with ChangeNotifier {
       return candidate;
     }
     
-    // Prioridad 3: Paciente más reciente (por timestamp en ID offline o fecha de modificación)
     if (existingIsOffline && candidateIsOffline) {
       final existingTimestamp = _extractTimestampFromOfflineId(existing.id);
       final candidateTimestamp = _extractTimestampFromOfflineId(candidate.id);
       return candidateTimestamp > existingTimestamp ? candidate : existing;
     }
     
-    // Por defecto, mantener el existente
     return existing;
   }
 
-  // MÉTODO AUXILIAR: Extraer timestamp del ID offline
   int _extractTimestampFromOfflineId(String offlineId) {
     try {
       final parts = offlineId.split('_');
@@ -230,9 +200,7 @@ class PacienteProvider with ChangeNotifier {
     return 0;
   }
 
-  // MÉTODO AUXILIAR: Marcar paciente para eliminación
   void _markForDeletion(String id) {
-    // Eliminar de la base de datos de manera asíncrona
     Future.microtask(() async {
       try {
         await DatabaseHelper.instance.deletePaciente(id);
@@ -250,7 +218,6 @@ class PacienteProvider with ChangeNotifier {
         return;
       }
 
-      // Sincronizar pacientes creados offline
       final unsyncedPacientes = await DatabaseHelper.instance.getUnsyncedPacientes();
       if (unsyncedPacientes.isEmpty) return;
 
@@ -258,31 +225,26 @@ class PacienteProvider with ChangeNotifier {
       
       for (final paciente in unsyncedPacientes) {
         try {
-          // Verificar si ya existe un paciente con la misma identificación en el servidor
           final existingOnServer = await _checkPacienteExistsOnServer(paciente.identificacion);
           
           if (existingOnServer != null) {
-            // Ya existe en servidor, eliminar el local y mantener el del servidor
             debugPrint('Paciente ya existe en servidor, eliminando local: ${paciente.id}');
             await DatabaseHelper.instance.deletePaciente(paciente.id);
             await DatabaseHelper.instance.upsertPaciente(existingOnServer);
             continue;
           }
           
-          // Si es un paciente offline (ID temporal), crear en servidor
           if (paciente.id.startsWith('offline_')) {
             final createdPaciente = await ApiService.createPaciente(
               _authProvider.token!, 
               paciente.toJson()
             );
-            syncedIds.add(paciente.id); // ID temporal a reemplazar
-            // Eliminar el temporal y guardar el real
+            syncedIds.add(paciente.id);
             await DatabaseHelper.instance.deletePaciente(paciente.id);
             await DatabaseHelper.instance.upsertPaciente(
               Paciente.fromJson(createdPaciente)
             );
           } else {
-            // Si ya tiene ID real pero no estaba sincronizado, actualizar
             await ApiService.updatePaciente(
               _authProvider.token!,
               paciente.id,
@@ -295,21 +257,17 @@ class PacienteProvider with ChangeNotifier {
         }
       }
 
-      // Marcar como sincronizados
       if (syncedIds.isNotEmpty) {
         await DatabaseHelper.instance.markPacientesAsSynced(syncedIds);
-        await loadPacientes(); // Refrescar la lista
+        await loadPacientes();
       }
     } catch (e) {
       debugPrint('Error en syncPacientes: $e');
     }
   }
 
-  // MÉTODO NUEVO: Verificar si un paciente existe en el servidor
   Future<Paciente?> _checkPacienteExistsOnServer(String identificacion) async {
     try {
-      // Asumiendo que tienes un endpoint para buscar por identificación
-      // Si no existe, puedes usar getPacientes y filtrar localmente
       final response = await ApiService.getPacientes(_authProvider.token!);
       final serverPacientes = response.map<Paciente>((json) => Paciente.fromJson(json)).toList();
       
@@ -323,7 +281,6 @@ class PacienteProvider with ChangeNotifier {
     }
   }
 
-  // MÉTODO CORREGIDO: Mejor validación de duplicados
   Future<void> addPaciente(Paciente paciente) async {
     _isLoading = true;
     notifyListeners();
@@ -331,45 +288,52 @@ class PacienteProvider with ChangeNotifier {
     try {
       final db = DatabaseHelper.instance;
       
-      // Verificar duplicados de manera más exhaustiva
       final duplicateCheck = await _checkForDuplicates(paciente.identificacion);
       if (duplicateCheck.hasLocal || duplicateCheck.hasServer) {
         throw Exception('Ya existe un paciente con esta identificación');
       }
 
-      // Verificar conectividad
+      // Siempre crear primero localmente para respuesta instantánea
+      debugPrint('Creando paciente localmente primero...');
+      final offlinePaciente = await _createPacienteOffline(paciente, db);
+      
+      // Verificar conectividad para sincronización en segundo plano
       final connectivity = await Connectivity().checkConnectivity();
       final isOnline = connectivity != ConnectivityResult.none;
 
       if (isOnline && _authProvider.isAuthenticated) {
-        try {
-          // Online: enviar al servidor primero
-          debugPrint('Creando paciente online...');
-          final createdPaciente = await ApiService.createPaciente(
-            _authProvider.token!, 
-            paciente.toJson()
-          );
-          // Guardar la respuesta del servidor (con ID real)
-          final newPaciente = Paciente.fromJson(createdPaciente);
-          await db.upsertPaciente(newPaciente);
-          
-          // Agregar a la lista en memoria inmediatamente
-          _pacientes.add(newPaciente);
-          debugPrint('Paciente creado online exitosamente');
-        } catch (apiError) {
-          debugPrint('Error al crear paciente online: $apiError');
-          // Si falla la API, crear offline como fallback
-          await _createPacienteOffline(paciente, db);
-        }
-      } else {
-        // Offline: crear paciente con ID temporal
-        debugPrint('Creando paciente offline...');
-        await _createPacienteOffline(paciente, db);
+        // No esperar la respuesta del servidor (usar Future.microtask)
+        Future.microtask(() async {
+          try {
+            debugPrint('Sincronizando paciente con el servidor en segundo plano...');
+            final createdPaciente = await ApiService.createPaciente(
+              _authProvider.token!, 
+              paciente.toJson()
+            );
+            
+            // Reemplazar la versión local con la del servidor
+            final newPaciente = Paciente.fromJson(createdPaciente);
+            await db.deletePaciente(offlinePaciente.id); // Eliminar versión temporal
+            await db.upsertPaciente(newPaciente); // Guardar versión del servidor
+            
+            // Actualizar la lista en memoria
+            final index = _pacientes.indexWhere((p) => p.id == offlinePaciente.id);
+            if (index != -1) {
+              _pacientes[index] = newPaciente;
+            } else {
+              _pacientes.add(newPaciente);
+            }
+            
+            debugPrint('Paciente sincronizado exitosamente con el servidor');
+            notifyListeners(); // Notificar cambios después de sincronizar
+          } catch (apiError) {
+            debugPrint('Error al sincronizar paciente con servidor: $apiError');
+            // El paciente ya está guardado localmente, así que no hay problema
+          }
+        });
       }
       
-      // Recargar y limpiar duplicados
-      await loadPacientes();
-      debugPrint('Paciente agregado exitosamente');
+      debugPrint('Paciente agregado exitosamente (versión local)');
       
     } catch (e) {
       debugPrint('Error adding paciente: $e');
@@ -380,21 +344,17 @@ class PacienteProvider with ChangeNotifier {
     }
   }
 
-  // MÉTODO NUEVO: Verificación exhaustiva de duplicados
   Future<DuplicateCheckResult> _checkForDuplicates(String identificacion) async {
     final db = DatabaseHelper.instance;
     bool hasLocal = false;
     bool hasServer = false;
     
-    // Verificar en base de datos local
     final localPaciente = await db.getPacienteByIdentificacion(identificacion);
     hasLocal = localPaciente != null;
     
-    // Verificar en memoria
     final inMemory = _pacientes.any((p) => p.identificacion == identificacion);
     hasLocal = hasLocal || inMemory;
     
-    // Verificar en servidor si hay conexión
     if (await isConnected() && _authProvider.isAuthenticated) {
       try {
         final serverPaciente = await _checkPacienteExistsOnServer(identificacion);
@@ -407,24 +367,22 @@ class PacienteProvider with ChangeNotifier {
     return DuplicateCheckResult(hasLocal: hasLocal, hasServer: hasServer);
   }
 
-  // Método auxiliar para crear paciente offline
-  Future<void> _createPacienteOffline(Paciente paciente, DatabaseHelper db) async {
+  Future<Paciente> _createPacienteOffline(Paciente paciente, DatabaseHelper db) async {
     try {
-      // Generar un ID temporal único con timestamp más preciso
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final randomSuffix = timestamp.toString().substring(8); // Últimos dígitos para unicidad
+      final randomSuffix = timestamp.toString().substring(8);
       final offlineId = 'offline_${timestamp}_${paciente.identificacion.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')}_$randomSuffix';
       
       final offlinePaciente = paciente.copyWith(
         id: offlineId,
-        syncStatus: 0, // Marcar como no sincronizado
+        syncStatus: 0,
       );
       
       await db.upsertPaciente(offlinePaciente);
       
-      // Agregar a la lista en memoria inmediatamente
       _pacientes.add(offlinePaciente);
       debugPrint('Paciente creado offline con ID: $offlineId');
+      return offlinePaciente; // Devolver el paciente creado
     } catch (e) {
       debugPrint('Error al crear paciente offline: $e');
       throw Exception('Error al guardar paciente offline: $e');
@@ -440,7 +398,6 @@ class PacienteProvider with ChangeNotifier {
       final connectivity = await Connectivity().checkConnectivity();
       final isOnline = connectivity != ConnectivityResult.none;
 
-      // Verificar duplicados al actualizar (excluyendo el paciente actual)
       final duplicateCheck = await _checkForDuplicatesExcluding(
         paciente.identificacion, 
         paciente.id
@@ -449,34 +406,40 @@ class PacienteProvider with ChangeNotifier {
         throw Exception('Ya existe otro paciente con esta identificación');
       }
 
+      // Primero actualizar localmente para respuesta instantánea
+      await _updatePacienteOffline(paciente, db);
+
       if (isOnline && _authProvider.isAuthenticated) {
-        try {
-          // Online: actualizar en servidor
-          final updatedPaciente = await ApiService.updatePaciente(
-            _authProvider.token!,
-            paciente.id,
-            paciente.toJson(),
-          );
-          // Guardar los cambios en local
-          await db.upsertPaciente(Paciente.fromJson(updatedPaciente));
-          
-          // Actualizar en memoria
-          final index = _pacientes.indexWhere((p) => p.id == paciente.id);
-          if (index != -1) {
-            _pacientes[index] = Paciente.fromJson(updatedPaciente);
+        // Sincronizar en segundo plano
+        Future.microtask(() async {
+          try {
+            debugPrint('Sincronizando actualización con el servidor en segundo plano...');
+            final updatedPaciente = await ApiService.updatePaciente(
+              _authProvider.token!,
+              paciente.id,
+              paciente.toJson(),
+            );
+            
+            // Actualizar en local con la respuesta del servidor
+            final serverPaciente = Paciente.fromJson(updatedPaciente);
+            await db.upsertPaciente(serverPaciente);
+            
+            // Actualizar en memoria
+            final index = _pacientes.indexWhere((p) => p.id == paciente.id);
+            if (index != -1) {
+              _pacientes[index] = serverPaciente;
+            }
+            
+            debugPrint('Actualización sincronizada con el servidor');
+            notifyListeners();
+          } catch (apiError) {
+            debugPrint('Error al sincronizar actualización: $apiError');
+            // Ya se actualizó localmente, así que no hay problema
           }
-        } catch (apiError) {
-          debugPrint('Error al actualizar paciente online: $apiError');
-          // Si falla la API, actualizar offline
-          await _updatePacienteOffline(paciente, db);
-        }
-      } else {
-        // Offline: actualizar localmente
-        await _updatePacienteOffline(paciente, db);
+        });
       }
       
-      // Limpiar duplicados después de actualizar
-      await loadPacientes();
+      debugPrint('Paciente actualizado localmente');
     } catch (e) {
       debugPrint('Error updating paciente: $e');
       rethrow;
@@ -486,7 +449,6 @@ class PacienteProvider with ChangeNotifier {
     }
   }
 
-  // MÉTODO NUEVO: Verificar duplicados excluyendo un ID específico
   Future<DuplicateCheckResult> _checkForDuplicatesExcluding(
     String identificacion, 
     String excludeId
@@ -495,17 +457,14 @@ class PacienteProvider with ChangeNotifier {
     bool hasLocal = false;
     bool hasServer = false;
     
-    // Verificar en base de datos local
     final localPaciente = await db.getPacienteByIdentificacion(identificacion);
     hasLocal = localPaciente != null && localPaciente.id != excludeId;
     
-    // Verificar en memoria
     final inMemory = _pacientes.any((p) => 
       p.identificacion == identificacion && p.id != excludeId
     );
     hasLocal = hasLocal || inMemory;
     
-    // Verificar en servidor si hay conexión
     if (await isConnected() && _authProvider.isAuthenticated) {
       try {
         final serverPaciente = await _checkPacienteExistsOnServer(identificacion);
@@ -518,16 +477,13 @@ class PacienteProvider with ChangeNotifier {
     return DuplicateCheckResult(hasLocal: hasLocal, hasServer: hasServer);
   }
 
-  // Método auxiliar para actualizar paciente offline
   Future<void> _updatePacienteOffline(Paciente paciente, DatabaseHelper db) async {
-    // Offline: marcar como no sincronizado si ya estaba sincronizado
     final updatedPaciente = paciente.syncStatus == 1 
       ? paciente.copyWith(syncStatus: 0) 
       : paciente;
     
     await db.upsertPaciente(updatedPaciente);
     
-    // Actualizar en memoria
     final index = _pacientes.indexWhere((p) => p.id == paciente.id);
     if (index != -1) {
       _pacientes[index] = updatedPaciente;
@@ -542,25 +498,29 @@ class PacienteProvider with ChangeNotifier {
 
     try {
       final db = DatabaseHelper.instance;
+      
+      // Primero eliminar localmente para respuesta instantánea
+      await db.deletePaciente(id);
+      _pacientes.removeWhere((p) => p.id == id);
+      debugPrint('Paciente eliminado localmente');
+      
+      // Verificar conectividad para sincronización en segundo plano
       final connectivity = await Connectivity().checkConnectivity();
       final isOnline = connectivity != ConnectivityResult.none;
 
       if (isOnline && _authProvider.isAuthenticated) {
-        try {
-          await ApiService.deletePaciente(_authProvider.token!, id);
-          debugPrint('Paciente eliminado del servidor');
-        } catch (apiError) {
-          debugPrint('Error al eliminar paciente del servidor: $apiError');
-          // Continuar con eliminación local aunque falle la API
-        }
+        // Sincronizar eliminación en segundo plano
+        Future.microtask(() async {
+          try {
+            await ApiService.deletePaciente(_authProvider.token!, id);
+            debugPrint('Paciente eliminado del servidor');
+          } catch (apiError) {
+            debugPrint('Error al eliminar paciente del servidor: $apiError');
+            // Ya se eliminó localmente, así que no hay problema
+          }
+        });
       }
       
-      // Eliminar tanto en local como en memoria
-      await db.deletePaciente(id);
-      _pacientes.removeWhere((p) => p.id == id);
-      
-      debugPrint('Paciente eliminado localmente');
-      notifyListeners();
     } catch (e) {
       debugPrint('Error deleting paciente: $e');
       rethrow;
@@ -570,43 +530,36 @@ class PacienteProvider with ChangeNotifier {
     }
   }
 
-  // ✅ MÉTODO ACTUALIZADO: Sincronizar datos con control de estado
   Future<void> syncData() async {
     if (_authProvider.isAuthenticated) {
-      await loadSedes(); // Cargar sedes PRIMERO
+      await loadSedes();
       
-      // ✅ NUEVO: Resetear estado para forzar recarga
       _isLoaded = false;
-      await loadPacientes(); // Luego cargar pacientes
+      await loadPacientes();
     }
   }
 
-  // ✅ MÉTODO ACTUALIZADO: Limpiar datos y resetear estado
   void clearData() {
     _pacientes = [];
     _sedes = [];
     _isLoading = false;
     _isLoadingSedes = false;
-    _isLoaded = false; // ✅ NUEVO: Resetear estado de carga
+    _isLoaded = false;
     notifyListeners();
   }
 
-  // MÉTODO NUEVO: Limpiar duplicados manualmente
   Future<void> cleanDuplicates() async {
     try {
       final db = DatabaseHelper.instance;
       final allPacientes = await db.readAllPacientes();
       
-      // Agrupar por identificación
       final groups = <String, List<Paciente>>{};
       for (final paciente in allPacientes) {
         groups.putIfAbsent(paciente.identificacion, () => []).add(paciente);
       }
       
-      // Procesar cada grupo de duplicados
       for (final group in groups.values) {
         if (group.length > 1) {
-          // Seleccionar el mejor y eliminar el resto
           final best = group.reduce((a, b) => _selectBetterPaciente(a, b));
           for (final paciente in group) {
             if (paciente.id != best.id) {
@@ -617,8 +570,7 @@ class PacienteProvider with ChangeNotifier {
         }
       }
       
-      // Recargar la lista
-      _isLoaded = false; // ✅ NUEVO: Forzar recarga
+      _isLoaded = false;
       await loadPacientes();
       debugPrint('Limpieza de duplicados completada');
     } catch (e) {
@@ -626,13 +578,11 @@ class PacienteProvider with ChangeNotifier {
     }
   }
 
-  // Método auxiliar para buscar paciente por identificación
   Future<Paciente?> getPacienteByIdentificacion(String identificacion) async {
     final db = DatabaseHelper.instance;
     return await db.getPacienteByIdentificacion(identificacion);
   }
 
-  // Método para obtener una sede por ID
   Map<String, dynamic>? getSedeById(String sedeId) {
     try {
       return _sedes.firstWhere((sede) => sede['id'] == sedeId);
@@ -642,16 +592,14 @@ class PacienteProvider with ChangeNotifier {
     }
   }
 
-  // Método para refrescar sedes manualmente
   Future<void> refreshSedes() async {
     await loadSedes();
   }
 
-  // ✅ MÉTODO ACTUALIZADO: Forzar recarga completa de datos
   Future<void> forceReloadAll() async {
     _isLoading = true;
     _isLoadingSedes = true;
-    _isLoaded = false; // ✅ NUEVO: Resetear estado de carga
+    _isLoaded = false;
     notifyListeners();
     
     try {
@@ -666,13 +614,11 @@ class PacienteProvider with ChangeNotifier {
     }
   }
 
-  // MÉTODO NUEVO: Verificar estado de conectividad
   Future<bool> isConnected() async {
     final connectivity = await Connectivity().checkConnectivity();
     return connectivity != ConnectivityResult.none;
   }
 
-  // MÉTODO NUEVO: Obtener cantidad de pacientes pendientes de sincronización
   Future<int> getUnsyncedPacientesCount() async {
     try {
       final unsyncedPacientes = await DatabaseHelper.instance.getUnsyncedPacientes();
@@ -683,7 +629,6 @@ class PacienteProvider with ChangeNotifier {
     }
   }
 
-  // MÉTODO NUEVO: Obtener estadísticas de duplicados
   Future<DuplicateStats> getDuplicateStats() async {
     try {
       final db = DatabaseHelper.instance;
@@ -721,13 +666,11 @@ class PacienteProvider with ChangeNotifier {
     }
   }
   
-  // ✅ NUEVO: Método para resetear el estado de carga
   void resetLoadState() {
     _isLoaded = false;
   }
 }
 
-// Clase auxiliar para el resultado de verificación de duplicados
 class DuplicateCheckResult {
   final bool hasLocal;
   final bool hasServer;
@@ -737,7 +680,6 @@ class DuplicateCheckResult {
   bool get hasDuplicate => hasLocal || hasServer;
 }
 
-// Clase auxiliar para estadísticas de duplicados
 class DuplicateStats {
   final int totalPacientes;
   final int duplicateGroups;
@@ -750,6 +692,4 @@ class DuplicateStats {
     required this.totalDuplicates,
     required this.offlineCount,
   });
-
-  
 }

@@ -514,6 +514,11 @@ try {
 }
 }
 
+Future<bool> hasPacientes() async {
+    final db = await instance.database;
+    final count = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM pacientes'));
+    return count != null && count > 0;
+  }
 // MÉTODOS PARA SEDES
 Future<void> saveSedes(List<dynamic> sedes) async {
 final db = await database;
@@ -1634,4 +1639,6 @@ Future<void> insertMedicamentoVisita({
     rethrow;
   }
 }
+
+
 } // Fin de la clase DatabaseHelper

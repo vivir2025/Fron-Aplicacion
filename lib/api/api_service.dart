@@ -117,66 +117,60 @@ class ApiService {
   }
 // Modificar en ApiService
 
-static Future<Map<String, dynamic>?> guardarVisita(
-  Map<String, dynamic> visitaData, 
-  String? token
-) async {
+static Future<Map<String, dynamic>?> guardarVisita(Map<String, dynamic> visitaData, String token) async {
   try {
     debugPrint('📤 Enviando visita al servidor...');
-    debugPrint('🔑 Token presente: ${token != null}');
+    debugPrint('🔑 Token presente: ${token.isNotEmpty}');
     debugPrint('📊 Datos de visita: ${visitaData['id']}');
-    debugPrint('🌐 URL completa: $baseUrl/visitas');
     
-    // Limpiar datos nulos para evitar problemas
-    final cleanedData = <String, dynamic>{};
-    visitaData.forEach((key, value) {
-      if (value != null) {
-        cleanedData[key] = value;
-      }
-    });
+    // Asegurar que medicamentos sea un string
+    if (visitaData['medicamentos'] != null && visitaData['medicamentos'] is! String) {
+      visitaData['medicamentos'] = jsonEncode(visitaData['medicamentos']);
+    }
     
-    debugPrint('📋 Datos limpiados: ${cleanedData.keys.length} campos');
-    debugPrint('📄 Payload completo: ${jsonEncode(cleanedData)}'); // ← AGREGAR ESTO
+    // Limpiar datos innecesarios
+    final Map<String, dynamic> datosLimpiados = Map.from(visitaData);
     
-    final headers = token != null 
-      ? _buildHeaders(token) 
-      : {'Content-Type': 'application/json'};
+    // Eliminar campos que no necesita el servidor
+    datosLimpiados.remove('sync_status');
+    datosLimpiados.remove('created_at');
+    datosLimpiados.remove('updated_at');
+    
+    debugPrint('📋 Datos limpiados: ${datosLimpiados.length} campos');
+    debugPrint('📄 Payload completo: ${jsonEncode(datosLimpiados)}');
+    
+    final url = Uri.parse('${ApiService.baseUrl}/visitas');
+    
+    debugPrint('🌐 URL completa: $url');
     
     final response = await http.post(
-      Uri.parse('$baseUrl/visitas'),
-      headers: headers,
-      body: jsonEncode(cleanedData),
-    ).timeout(Duration(seconds: 30));
-
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(datosLimpiados),
+    );
+    
     debugPrint('📥 Respuesta del servidor: ${response.statusCode}');
     debugPrint('📄 Respuesta completa: ${response.body}');
     
     if (response.statusCode == 200 || response.statusCode == 201) {
-      debugPrint('✅ Visita guardada en servidor exitosamente');
-      return jsonDecode(response.body) as Map<String, dynamic>;
+      final responseData = jsonDecode(response.body);
+      return responseData;
     } else {
       debugPrint('❌ Error del servidor: ${response.statusCode}');
-      
-      // Intentar decodificar la respuesta de error
-      try {
-        final errorResponse = jsonDecode(response.body);
-        debugPrint('📄 Error detallado: $errorResponse');
-        
-        if (errorResponse['errors'] != null) {
-          throw Exception('Errores de validación: ${errorResponse['errors']}');
-        } else {
-          throw Exception('Error del servidor: ${errorResponse['message'] ?? 'Desconocido'}');
-        }
-      } catch (e) {
-        throw Exception('Error del servidor: ${response.statusCode} - ${response.body}');
-      }
+      debugPrint('📄 Error detallado: ${response.body}');
+      throw Exception('Error del servidor: ${response.statusCode} - ${response.body}');
     }
   } catch (e) {
     debugPrint('💥 Excepción al guardar visita: $e');
     debugPrint('🔍 Tipo de error: ${e.runtimeType}');
-    rethrow;
+    return null;
   }
 }
+
 
 // Corregir también el método de verificación
 static Future<bool> verificarSaludServidor() async {

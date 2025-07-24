@@ -9,8 +9,10 @@ import 'providers/paciente_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/profile_screen.dart';
-import 'screens/pacientes_screen.dart';
+// Removido ya que PacientesScreen no se usa directamente en las rutas
+// import 'screens/pacientes_screen.dart'; 
 import 'screens/home_screen.dart';
+import 'screens/initial_sync_screen.dart'; // ✅ IMPORT AÑADIDO
 
 void main() {
   runApp(const MyApp());
@@ -23,33 +25,29 @@ class MyApp extends StatefulWidget {
   _MyAppState createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> with WidgetsBindingObserver { // ✅ AGREGADO
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   final AuthProvider _authProvider = AuthProvider();
   late Connectivity _connectivity;
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
   bool _isInitialized = false;
   bool _showSplash = true;
-  bool _hasShownSplash = false; // ✅ NUEVO: Recordar si ya se mostró el splash
+  bool _hasShownSplash = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this); // ✅ AGREGADO
+    WidgetsBinding.instance.addObserver(this);
     _connectivity = Connectivity();
     _setupConnectivityListener();
     _initializeApp();
   }
 
-  // ✅ NUEVO: Detectar cuando la app vuelve del background
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    
+
     if (state == AppLifecycleState.resumed) {
-      // La app volvió del background (ej: después de tomar foto)
       debugPrint('App resumed - No reiniciar splash');
-      
-      // Si ya se había inicializado antes, no mostrar splash de nuevo
       if (_hasShownSplash && _isInitialized) {
         setState(() {
           _showSplash = false;
@@ -58,9 +56,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver { // ✅ AGRE
     }
   }
 
-  // ✅ MÉTODO MEJORADO: Inicializar la aplicación
   Future<void> _initializeApp() async {
-    // Si ya se inicializó antes, no hacerlo de nuevo
     if (_hasShownSplash && _isInitialized) {
       setState(() {
         _showSplash = false;
@@ -69,24 +65,20 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver { // ✅ AGRE
     }
 
     try {
-      // Solo mostrar splash la primera vez
-      final splashTimer = _hasShownSplash 
-          ? Future.value() // No esperar si ya se mostró
-          : Future.delayed(Duration(seconds: 3)); // ✅ Reducido a 3 segundos
-      
-      // Limpiar sesiones anteriores solo la primera vez
+      final splashTimer = _hasShownSplash
+          ? Future.value()
+          : Future.delayed(const Duration(seconds: 3));
+
       if (!_hasShownSplash) {
         await _authProvider.clearOldSessions();
       }
-      
-      // Intentar auto-login
+
       await _authProvider.autoLogin();
-      
-      // Si está autenticado, cargar datos iniciales
+
       if (_authProvider.isAuthenticated) {
         final connectivity = await Connectivity().checkConnectivity();
         final isOnline = connectivity != ConnectivityResult.none;
-        
+
         if (isOnline) {
           try {
             final sedes = await ApiService.getSedes(_authProvider.token!);
@@ -96,22 +88,19 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver { // ✅ AGRE
           }
         }
       }
-      
-      // Debug solo la primera vez
+
       if (!_hasShownSplash) {
         await _authProvider.debugListUsers();
       }
-      
-      // Esperar splash solo si es necesario
+
       await splashTimer;
-      
+
       setState(() {
         _isInitialized = true;
         _showSplash = false;
-        _hasShownSplash = true; // ✅ Marcar que ya se mostró
+        _hasShownSplash = true;
       });
-      
-      // Cargar pacientes después del splash
+
       if (_authProvider.isAuthenticated && navigatorKey.currentContext != null) {
         final pacienteProvider = Provider.of<PacienteProvider>(
           navigatorKey.currentContext!,
@@ -119,15 +108,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver { // ✅ AGRE
         );
         await pacienteProvider.loadPacientes();
       }
-      
     } catch (e) {
       debugPrint('Error al inicializar app: $e');
-      
-      // Esperar solo si es la primera vez
+
       if (!_hasShownSplash) {
-        await Future.delayed(Duration(seconds: 3));
+        await Future.delayed(const Duration(seconds: 3));
       }
-      
+
       setState(() {
         _isInitialized = true;
         _showSplash = false;
@@ -168,53 +155,32 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver { // ✅ AGRE
           visualDensity: VisualDensity.adaptivePlatformDensity,
         ),
         navigatorKey: navigatorKey,
-        // ✅ LÓGICA MEJORADA PARA MOSTRAR SCREENS
-        home: Builder(
-          builder: (context) {
-            // Si debe mostrar splash Y no se ha mostrado antes
-            if (_showSplash && !_hasShownSplash) {
-              return SplashScreen();
+        
+        // ✅ LÓGICA DE NAVEGACIÓN ACTUALIZADA
+        // Esta lógica es robusta para decidir la pantalla inicial.
+        home: Consumer<AuthProvider>(
+          builder: (context, auth, _) {
+            if (!_isInitialized || (_showSplash && !_hasShownSplash)) {
+              return SplashScreen(); // Muestra el splash mientras inicializa.
             }
-            
-            // Si no está inicializado, mostrar loading
-            if (!_isInitialized) {
-              return const Scaffold(
-                body: Center(
-                  child: CircularProgressIndicator(),
-                ),
-              );
+            if (auth.isAuthenticated) {
+              return HomeScreen(onLogout: () => auth.logout());
             }
-            
-            // Si ya está todo listo, mostrar la app normal
-            return Consumer<AuthProvider>(
-              builder: (context, auth, child) {
-                if (auth.isAuthenticated) {
-                  // Cargar pacientes solo una vez
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    final pacienteProvider = Provider.of<PacienteProvider>(context, listen: false);
-                    if (!pacienteProvider.isLoaded) { // ✅ Solo si no están cargados
-                      pacienteProvider.loadPacientes();
-                    }
-                  });
-                  
-                  return HomeScreen(
-                    onLogout: () {
-                      auth.logout();
-                    },
-                  );
-                } else {
-                  return LoginScreen(
-                    authProvider: _authProvider,
-                    onLoginSuccess: () {
-                      // El Consumer manejará el cambio
-                    },
-                  );
-                }
-              },
+            // Aquí pasamos `onLoginSuccess` como un callback vacío porque
+            // la navegación a la pantalla de sync o home ahora se maneja
+            // dentro de la propia LoginScreen.
+            return LoginScreen(
+              authProvider: _authProvider,
+              onLoginSuccess: () {},
             );
           },
         ),
+
+        // ✅ RUTAS DEFINIDAS CLARAMENTE PARA NAVEGACIÓN NOMBRADA
         routes: {
+          '/home': (context) => HomeScreen(onLogout: () {
+                Provider.of<AuthProvider>(context, listen: false).logout();
+              }),
           '/profile': (context) => ProfileScreen(
                 authProvider: _authProvider,
                 onLogout: () {
@@ -222,6 +188,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver { // ✅ AGRE
                 },
               ),
           '/visitas': (context) => VisitasScreen(onLogout: () {}),
+          '/initial-sync': (context) => const InitialSyncScreen(),
         },
       ),
     );
@@ -229,8 +196,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver { // ✅ AGRE
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this); // ✅ AGREGADO
-    _connectivity.onConnectivityChanged.drain();
+    WidgetsBinding.instance.removeObserver(this);
+    // No es necesario drenar el stream de esta manera, el `listen` se cancela solo.
+    // _connectivity.onConnectivityChanged.drain(); 
     super.dispose();
   }
 }
