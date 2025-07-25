@@ -5,6 +5,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:fnpv_app/api/api_service.dart';
 import 'package:fnpv_app/database/database_helper.dart';
+import 'package:fnpv_app/models/paciente_model.dart';
 import 'package:fnpv_app/models/visita_model.dart';
 import 'package:fnpv_app/services/medicamento_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -830,59 +831,104 @@ static Future<Map<String, dynamic>> sincronizarVisitasPendientes(String token) a
     };
   }
 
-  static Future<Map<String, dynamic>> sincronizarPacientesPendientes(String token) async {
-    final dbHelper = DatabaseHelper.instance;
-    final pacientesPendientes = await dbHelper.getUnsyncedPacientes();
+  // ✅ MÉTODO MEJORADO PARA SINCRONIZAR PACIENTES
+static Future<Map<String, dynamic>> sincronizarPacientesPendientes(String token) async {
+  final dbHelper = DatabaseHelper.instance;
+  final pacientesPendientes = await dbHelper.getUnsyncedPacientes();
 
-    int exitosas = 0;
-    int fallidas = 0;
-    List<String> errores = [];
+  int exitosas = 0;
+  int fallidas = 0;
+  List<String> errores = [];
 
-    debugPrint('📊 Sincronizando ${pacientesPendientes.length} pacientes pendientes...');
+  debugPrint('📊 Sincronizando ${pacientesPendientes.length} pacientes pendientes...');
+
+  // ✅ VERIFICAR CONECTIVIDAD PRIMERO
+  try {
+    final hasConnection = await ApiService.verificarConectividad();
+    if (!hasConnection) {
+      throw Exception('No hay conexión a internet');
+    }
 
     for (final paciente in pacientesPendientes) {
       try {
-        debugPrint('📡 Sincronizando geolocalización del paciente ${paciente.id}...');
+        debugPrint('📡 Sincronizando geolocalización del paciente ${paciente.identificacion}...');
+        debugPrint('📍 Coordenadas: ${paciente.latitud}, ${paciente.longitud}');
         
-        final serverData = await ApiService.updatePaciente(
-          token, 
-          paciente.id, 
-          {
-            'latitud': paciente.latitud, 
-            'longitud': paciente.longitud
+        // ✅ PREPARAR DATOS COMPLETOS DEL PACIENTE
+        final pacienteData = {
+          'id': paciente.id,
+          'identificacion': paciente.identificacion,
+          'nombre': paciente.nombre,
+          'apellido': paciente.apellido,
+          'fecnacimiento': paciente.fecnacimiento.toIso8601String().split('T')[0],
+          'genero': paciente.genero,
+          'idsede': paciente.idsede,
+          'latitud': paciente.latitud?.toString() ?? '',
+          'longitud': paciente.longitud?.toString() ?? '',
+        };
+        
+        Map<String, dynamic>? serverData;
+        
+        // ✅ VERIFICAR SI ES PACIENTE OFFLINE O EXISTENTE
+        if (paciente.id.startsWith('offline_')) {
+          // Crear nuevo paciente en servidor
+          serverData = await ApiService.createPaciente(token, pacienteData);
+          
+          if (serverData != null) {
+            // Eliminar versión offline y crear versión del servidor
+            await dbHelper.deletePaciente(paciente.id);
+            final nuevoPaciente = Paciente.fromJson(serverData);
+            await dbHelper.upsertPaciente(nuevoPaciente.copyWith(syncStatus: 1));
+            exitosas++;
+            debugPrint('✅ Paciente offline sincronizado: ${paciente.identificacion}');
           }
-        );
-        
-        if (serverData != null) {
-          await dbHelper.markPacientesAsSynced([paciente.id]);
-          exitosas++;
-          debugPrint('✅ Paciente ${paciente.id} sincronizado exitosamente');
         } else {
-          fallidas++;
-          errores.add('Servidor respondió con error para paciente ${paciente.id}');
-          debugPrint('❌ Falló sincronización de paciente ${paciente.id}');
+          // Actualizar paciente existente
+          serverData = await ApiService.actualizarPaciente(token, paciente.id, pacienteData);
+          
+          if (serverData != null) {
+            await dbHelper.markPacientesAsSynced([paciente.id]);
+            exitosas++;
+            debugPrint('✅ Paciente actualizado: ${paciente.identificacion}');
+          }
         }
+        
+        if (serverData == null) {
+          fallidas++;
+          errores.add('Servidor respondió con error para paciente ${paciente.identificacion}');
+          debugPrint('❌ Falló sincronización de paciente ${paciente.identificacion}');
+        }
+        
+        // Pausa entre sincronizaciones
+        await Future.delayed(const Duration(milliseconds: 500));
+        
       } catch (e) {
         fallidas++;
-        errores.add('Error en paciente ${paciente.id}: $e');
-        debugPrint('💥 Error sincronizando paciente ${paciente.id}: $e');
+        errores.add('Error en paciente ${paciente.identificacion}: $e');
+        debugPrint('💥 Error sincronizando paciente ${paciente.identificacion}: $e');
       }
     }
-
-    if (exitosas > 0) {
-      debugPrint('🎉 $exitosas pacientes sincronizados exitosamente');
-    }
-    if (fallidas > 0) {
-      debugPrint('⚠️ $fallidas pacientes fallaron en la sincronización');
-    }
-
-    return {
-      'exitosas': exitosas,
-      'fallidas': fallidas,
-      'errores': errores,
-      'total': pacientesPendientes.length,
-    };
+    
+  } catch (e) {
+    errores.add('Error general de conexión: $e');
+    debugPrint('💥 Error general en sincronización de pacientes: $e');
   }
+
+  if (exitosas > 0) {
+    debugPrint('🎉 $exitosas pacientes sincronizados exitosamente');
+  }
+  if (fallidas > 0) {
+    debugPrint('⚠️ $fallidas pacientes fallaron en la sincronización');
+  }
+
+  return {
+    'exitosas': exitosas,
+    'fallidas': fallidas,
+    'errores': errores,
+    'total': pacientesPendientes.length,
+  };
+}
+
 
   static Future<Map<String, dynamic>> sincronizarArchivosPendientes(String token) async {
   final dbHelper = DatabaseHelper.instance;

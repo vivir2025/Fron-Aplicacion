@@ -35,6 +35,27 @@ class _MedicamentosSelectorState extends State<MedicamentosSelector> {
     super.initState();
     _selectedMedicamentos = List.from(widget.selectedMedicamentos);
     _loadMedicamentos();
+    // 🆕 DEBUG
+    debugPrint('🔍 Medicamentos iniciales en MedicamentosSelector: ${_selectedMedicamentos.length}');
+  }
+
+  // 🆕 AGREGAR ESTE MÉTODO AQUÍ - DESPUÉS DE initState
+  @override
+  void didUpdateWidget(MedicamentosSelector oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    
+    // Si los medicamentos seleccionados cambiaron desde el padre, actualizar
+    if (oldWidget.selectedMedicamentos != widget.selectedMedicamentos) {
+      setState(() {
+        _selectedMedicamentos = List.from(widget.selectedMedicamentos);
+      });
+      debugPrint('🔄 Medicamentos actualizados desde el padre: ${_selectedMedicamentos.length}');
+      
+      // Debug adicional para ver qué medicamentos llegaron
+      for (var med in _selectedMedicamentos) {
+        debugPrint('💊 Medicamento desde padre: ${med.medicamento.nombmedicamento} - Selected: ${med.isSelected}');
+      }
+    }
   }
 
   @override

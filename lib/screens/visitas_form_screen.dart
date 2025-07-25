@@ -220,15 +220,33 @@ void _loadVisitaForEdit(Visita visita) async {
       _longitudController.text = visita.longitud?.toString() ?? '';
     });
 
-    // 🆕 Cargar medicamentos de la visita
+    // 🆕 CARGAR MEDICAMENTOS DE LA VISITA - CORREGIDO
     try {
+      debugPrint('🔄 Cargando medicamentos para edición de visita: ${visita.id}');
       final dbHelper = DatabaseHelper.instance;
-      _selectedMedicamentos = await dbHelper.getMedicamentosDeVisita(visita.id);
-      debugPrint('📋 ${_selectedMedicamentos.length} medicamentos cargados para edición');
+      final medicamentosDeVisita = await dbHelper.getMedicamentosDeVisita(visita.id);
+      
+      debugPrint('📋 ${medicamentosDeVisita.length} medicamentos encontrados para la visita');
+      
+      // 🔥 IMPORTANTE: Actualizar el estado con setState
+      setState(() {
+        _selectedMedicamentos = medicamentosDeVisita;
+      });
+      
+      // Debug: Mostrar medicamentos cargados
+      for (var med in medicamentosDeVisita) {
+        debugPrint('💊 Medicamento cargado: ${med.medicamento.nombmedicamento} - Indicaciones: ${med.indicaciones}');
+      }
+      
     } catch (e) {
       debugPrint('❌ Error cargando medicamentos de visita: $e');
+      // En caso de error, asegurar que la lista esté vacía
+      setState(() {
+        _selectedMedicamentos = [];
+      });
     }
 
+    // Cargar datos del paciente
     try {
       final dbHelper = DatabaseHelper.instance;
       final paciente = await dbHelper.getPacienteById(visita.idpaciente);
@@ -244,6 +262,7 @@ void _loadVisitaForEdit(Visita visita) async {
     }
     _calculateIMC();
   }
+
   // ✅ MÉTODO MEJORADO PARA TOMAR FOTO
   Future<void> _tomarFoto() async {
     try {
@@ -376,52 +395,74 @@ void _loadVisitaForEdit(Visita visita) async {
   }
 
   // Resto de métodos existentes (searchPaciente, updateEdad, calculateIMC, etc.)
-  Future<void> _searchPaciente() async {
-    final identificacion = _identificacionController.text.trim();
-    if (identificacion.isEmpty) return;
+ // ✅ MÉTODO MEJORADO
+Future<void> _searchPaciente() async {
+  final identificacion = _identificacionController.text.trim();
+  if (identificacion.isEmpty) return;
+  
+  setState(() => _isLoading = true);
+  try {
+    final dbHelper = DatabaseHelper.instance;
+    final paciente = await dbHelper.getPacienteByIdentificacion(identificacion);
     
-    setState(() => _isLoading = true);
-    try {
-      final dbHelper = DatabaseHelper.instance;
-      final paciente = await dbHelper.getPacienteByIdentificacion(identificacion);
-      
-      if (paciente != null) {
-        setState(() {
-          _currentPaciente = paciente;
-          _nombreApellidoController.text = paciente.nombreCompleto;
-          _fechaNacimientoController.text = DateFormat('yyyy-MM-dd').format(paciente.fecnacimiento);
-          
-          if (paciente.latitud != null && paciente.longitud != null) {
-            _latitudController.text = paciente.latitud!.toString();
-            _longitudController.text = paciente.longitud!.toString();
-          } else {
-            _latitudController.clear();
-            _longitudController.clear();
-          }
-        });
-        _updateEdad();
+    if (paciente != null) {
+      setState(() {
+        _currentPaciente = paciente;
+        _nombreApellidoController.text = paciente.nombreCompleto;
+        _fechaNacimientoController.text = DateFormat('yyyy-MM-dd').format(paciente.fecnacimiento);
         
-        debugPrint('Paciente cargado - Lat: ${paciente.latitud}, Lng: ${paciente.longitud}');
-      } else {
-        if (mounted) {
+        // ✅ CARGAR COORDENADAS EXISTENTES
+        if (paciente.latitud != null && paciente.longitud != null) {
+          _latitudController.text = paciente.latitud!.toStringAsFixed(6);
+          _longitudController.text = paciente.longitud!.toStringAsFixed(6);
+          debugPrint('✅ Coordenadas cargadas: ${paciente.latitud}, ${paciente.longitud}');
+        } else {
+          _latitudController.clear();
+          _longitudController.clear();
+          debugPrint('⚠️ Paciente sin coordenadas registradas');
+        }
+      });
+      _updateEdad();
+      
+      // ✅ MOSTRAR ESTADO DE GEOLOCALIZACIÓN
+      if (mounted) {
+        if (paciente.latitud != null && paciente.longitud != null) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Paciente no encontrado')),
+            SnackBar(
+              content: Text('Paciente cargado con ubicación: ${paciente.latitud!.toStringAsFixed(4)}, ${paciente.longitud!.toStringAsFixed(4)}'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Paciente cargado sin ubicación registrada'),
+              backgroundColor: Colors.orange,
+            ),
           );
         }
       }
-    } catch (e) {
-      debugPrint('Error al buscar paciente: $e');
+    } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
+          const SnackBar(content: Text('Paciente no encontrado')),
         );
       }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+    }
+  } catch (e) {
+    debugPrint('Error al buscar paciente: $e');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString()}')),
+      );
+    }
+  } finally {
+    if (mounted) {
+      setState(() => _isLoading = false);
     }
   }
+}
+
 
   void _updateEdad() {
     if (_fechaNacimientoController.text.isEmpty) return;
@@ -515,70 +556,99 @@ void _loadVisitaForEdit(Visita visita) async {
     return true;
   }
 
-  Future<void> _getCurrentLocation() async {
-    setState(() => _isGettingLocation = true);
-    try {
-      final hasPermission = await _checkLocationPermission();
-      if (!hasPermission) {
-        setState(() => _isGettingLocation = false);
-        return;
-      }
+  // ✅ MÉTODO CORREGIDO
+// ✅ MÉTODO ACTUALIZADO CON VERIFICACIÓN DE COLUMNAS
+Future<void> _getCurrentLocation() async {
+  setState(() => _isGettingLocation = true);
+  
+  try {
+    final hasPermission = await _checkLocationPermission();
+    if (!hasPermission) {
+      setState(() => _isGettingLocation = false);
+      return;
+    }
 
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
+    debugPrint('🌍 Obteniendo ubicación actual...');
+    final position = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+      timeLimit: const Duration(seconds: 30),
+    );
 
-      setState(() {
-        _latitudController.text = position.latitude.toString();
-        _longitudController.text = position.longitude.toString();
-      });
+    debugPrint('📍 Posición obtenida: ${position.latitude}, ${position.longitude}');
 
-      if (_currentPaciente == null || _identificacionController.text.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Primero busque un paciente para guardar la ubicación')),
-          );
-        }
-        return;
-      }
+    // ✅ ACTUALIZAR CONTROLADORES PRIMERO
+    setState(() {
+      _latitudController.text = position.latitude.toStringAsFixed(7);
+      _longitudController.text = position.longitude.toStringAsFixed(7);
+    });
 
-      final updated = await DatabaseHelper.instance.updatePacienteGeolocalizacion(
-        _currentPaciente!.id,
-        position.latitude,
-        position.longitude,
-      );
-
-      if (updated > 0) {
-        _currentPaciente = _currentPaciente!.copyWith(
-          latitud: position.latitude,
-          longitud: position.longitude,
-        );
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Ubicación guardada para el paciente')),
-          );
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No se pudo guardar la ubicación')),
-          );
-        }
-      }
-    } catch (e) {
-      debugPrint('Error al obtener ubicación: $e');
+    // ✅ VERIFICAR QUE HAY UN PACIENTE SELECCIONADO
+    if (_currentPaciente == null) {
+      debugPrint('⚠️ No hay paciente seleccionado para guardar coordenadas');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
+          const SnackBar(
+            content: Text('Primero busque un paciente para guardar la ubicación'),
+            backgroundColor: Colors.orange,
+          ),
         );
       }
-    } finally {
+      setState(() => _isGettingLocation = false);
+      return;
+    }
+
+    // ✅ VERIFICAR Y AGREGAR COLUMNAS NECESARIAS ANTES DE ACTUALIZAR
+    await DatabaseHelper.instance.verificarYAgregarColumnasGeolocalizacion();
+
+    // ✅ ACTUALIZAR COORDENADAS EN BASE DE DATOS
+    debugPrint('💾 Guardando coordenadas para paciente ${_currentPaciente!.id}...');
+    
+    final updated = await DatabaseHelper.instance.updatePacienteGeolocalizacion(
+      _currentPaciente!.id,
+      position.latitude,
+      position.longitude,
+    );
+
+    if (updated > 0) {
+      debugPrint('🎉 Coordenadas guardadas exitosamente');
+      debugPrint('   - Paciente: ${_currentPaciente!.identificacion}');
+      debugPrint('   - Latitud: ${position.latitude}');
+      debugPrint('   - Longitud: ${position.longitude}');
+      
       if (mounted) {
-        setState(() => _isGettingLocation = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Ubicación guardada: ${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}'
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
       }
+      
+    } else {
+      debugPrint('❌ No se actualizó ninguna fila en la base de datos');
+      throw Exception('No se pudo actualizar las coordenadas del paciente');
+    }
+
+  } catch (e) {
+    debugPrint('💥 Error completo al obtener/guardar ubicación: $e');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error guardando ubicación: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  } finally {
+    if (mounted) {
+      setState(() => _isGettingLocation = false);
     }
   }
+}
+
+
 
   void _clearGeolocalizacion() {
     setState(() {
@@ -656,24 +726,32 @@ Future<void> _saveVisita() async {
       debugPrint('  - ${med['nombre']}: ${med['indicaciones']}');
     }
 
-    // ✅ 2. Actualizar geolocalización del paciente si es necesario
-    if (_latitudController.text.isNotEmpty && _longitudController.text.isNotEmpty) {
-      final lat = double.tryParse(_latitudController.text);
-      final lng = double.tryParse(_longitudController.text);
+
+if (_latitudController.text.isNotEmpty && _longitudController.text.isNotEmpty) {
+  final lat = double.tryParse(_latitudController.text);
+  final lng = double.tryParse(_longitudController.text);
+  
+  if (lat != null && lng != null && _currentPaciente != null) {
+    try {
+      await DatabaseHelper.instance.updatePacienteGeolocalizacion(
+        _currentPaciente!.id,
+        lat,
+        lng,
+      );
       
-      if (lat != null && lng != null) {
-        await DatabaseHelper.instance.updatePacienteGeolocalizacion(
-          _currentPaciente!.id,
-          lat,
-          lng,
-        );
-        
-        _currentPaciente = _currentPaciente!.copyWith(
-          latitud: lat,
-          longitud: lng,
-        );
-      }
+      _currentPaciente = _currentPaciente!.copyWith(
+        latitud: lat,
+        longitud: lng,
+        syncStatus: 0, // ✅ MARCAR COMO NO SINCRONIZADO
+      );
+      
+      debugPrint('✅ Coordenadas del paciente actualizadas antes de guardar visita');
+    } catch (e) {
+      debugPrint('⚠️ Error actualizando coordenadas del paciente: $e');
     }
+  }
+}
+
 
     // ✅ 3. Preparar ID de visita
     final visitaId = _currentVisitaId ?? VisitaService.generateId();
@@ -762,6 +840,8 @@ Future<void> _saveVisita() async {
           'conductas': _conductas.isEmpty ? '' : _conductas.join(', '),
           'novedades': _novedadesController.text.isEmpty ? '' : _novedadesController.text,
           'proximo_control': _proximoControlController.text.isEmpty ? '' : _proximoControlController.text,
+
+         
         };
         
         Map<String, dynamic>? resultado;
@@ -982,24 +1062,26 @@ Future<void> _saveVisita() async {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: widget.visitaToEdit != null
-          ? AppBar(
-              title: const Text('Editar Visita'),
-              backgroundColor: widget.theme.primaryColor,
-              foregroundColor: Colors.white,
-            )
-          : null,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Card(
-          elevation: 5,
-          child: Padding(
-            padding: const EdgeInsets.all(18.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
+Widget build(BuildContext context) {
+  return Scaffold(
+    // 🆕 EVITAR QUE EL SCAFFOLD SE REDIMENSIONE CON EL TECLADO
+    resizeToAvoidBottomInset: false,
+    appBar: widget.visitaToEdit != null
+        ? AppBar(
+            title: const Text('Editar Visita'),
+            backgroundColor: widget.theme.primaryColor,
+            foregroundColor: Colors.white,
+          )
+        : null,
+    body: SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Card(
+        elevation: 5,
+        child: Padding(
+          padding: const EdgeInsets.all(18.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Sección: Datos del Paciente
@@ -1381,146 +1463,158 @@ Future<void> _saveVisita() async {
     );
   }
 
-  // Widget para selección múltiple
-  Widget _buildMultipleSelectionField({
-    required String title,
-    required List<String> selectedItems,
-    required List<String> options,
-    required Function(List<String>) onChanged,
-    bool isRequired = false,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            if (isRequired)
-              const Text(
-                ' *',
-                style: TextStyle(color: Colors.red),
-              ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        
-        // Mostrar elementos seleccionados
-        if (selectedItems.isNotEmpty)
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.blue.shade200),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Seleccionados:',
-                  style: TextStyle(fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: 4),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 4,
-                  children: selectedItems.map((item) {
-                    return Chip(
-                      label: Text(item),
-                      onDeleted: () {
-                        final newList = List<String>.from(selectedItems);
-                        newList.remove(item);
-                        onChanged(newList);
-                      },
-                      deleteIcon: const Icon(Icons.close, size: 18),
-                    );
-                  }).toList(),
-                ),
-              ],
+  // Widget para selección múltiple - VERSIÓN FINAL
+Widget _buildMultipleSelectionField({
+  required String title,
+  required List<String> selectedItems,
+  required List<String> options,
+  required Function(List<String>) onChanged,
+  bool isRequired = false,
+}) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
             ),
           ),
-        
-        const SizedBox(height: 8),
-        
-        // Botón para abrir diálogo de selección
-        OutlinedButton.icon(
-          onPressed: () => _showMultipleSelectionDialog(
-            title: title,
-            options: options,
-            selectedItems: selectedItems,
-            onChanged: onChanged,
-          ),
-          icon: const Icon(Icons.add),
-          label: Text('Seleccionar $title'),
-        ),
-      ],
-    );
-  }
-
-  // Diálogo para selección múltiple
-  void _showMultipleSelectionDialog({
-    required String title,
-    required List<String> options,
-    required List<String> selectedItems,
-    required Function(List<String>) onChanged,
-  }) {
-    List<String> tempSelected = List.from(selectedItems);
-    
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: Text('Seleccionar $title'),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: ListView(
-              shrinkWrap: true,
-              children: options.map((option) {
-                return CheckboxListTile(
-                  title: Text(option),
-                  value: tempSelected.contains(option),
-                  onChanged: (bool? value) {
-                    setDialogState(() {
-                      if (value == true) {
-                        tempSelected.add(option);
-                      } else {
-                        tempSelected.remove(option);
-                      }
-                    });
-                  },
-                );
-              }).toList(),
+          if (isRequired)
+            const Text(
+              ' *',
+              style: TextStyle(color: Colors.red),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                setDialogState(() => tempSelected.clear());
-              },
-              child: const Text('Limpiar Todo'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                onChanged(tempSelected);
-                Navigator.of(context).pop();
-              },
-              child: const Text('Aceptar'),
-            ),
-          ],
-        ),
+        ],
       ),
-    );
-  }
+      const SizedBox(height: 8),
+      
+      // Mostrar elementos seleccionados
+      if (selectedItems.isNotEmpty)
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.blue.shade50,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.blue.shade200),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Seleccionados:',
+                style: TextStyle(fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 4),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: selectedItems.map((item) {
+                  return Chip(
+                    label: Text(item),
+                    onDeleted: () {
+                      final newList = List<String>.from(selectedItems);
+                      newList.remove(item);
+                      onChanged(newList);
+                    },
+                    deleteIcon: const Icon(Icons.close, size: 18),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+        ),
+      
+      const SizedBox(height: 8),
+      
+      // Botón para abrir diálogo de selección
+      OutlinedButton.icon(
+        onPressed: () {
+          // Desactivar foco y ocultar teclado
+          FocusScope.of(context).unfocus();
+          Future.delayed(const Duration(milliseconds: 100), () {
+            if (mounted) {
+              _showMultipleSelectionDialog(
+                title: title,
+                options: options,
+                selectedItems: selectedItems,
+                onChanged: onChanged,
+              );
+            }
+          });
+        },
+        icon: const Icon(Icons.add),
+        label: Text('Seleccionar $title'),
+      ),
+    ],
+  );
+}
+
+// Diálogo para selección múltiple - VERSIÓN FINAL
+void _showMultipleSelectionDialog({
+  required String title,
+  required List<String> options,
+  required List<String> selectedItems,
+  required Function(List<String>) onChanged,
+}) {
+  // Asegurar que no hay foco activo
+  FocusScope.of(context).unfocus();
+  
+  List<String> tempSelected = List.from(selectedItems);
+  
+  showDialog(
+    context: context,
+    barrierDismissible: true,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setDialogState) => AlertDialog(
+        title: Text('Seleccionar $title'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView(
+            shrinkWrap: true,
+            children: options.map((option) {
+              return CheckboxListTile(
+                title: Text(option),
+                value: tempSelected.contains(option),
+                onChanged: (bool? value) {
+                  setDialogState(() {
+                    if (value == true) {
+                      tempSelected.add(option);
+                    } else {
+                      tempSelected.remove(option);
+                    }
+                  });
+                },
+              );
+            }).toList(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              setDialogState(() => tempSelected.clear());
+            },
+            child: const Text('Limpiar Todo'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              onChanged(tempSelected);
+              Navigator.of(context).pop();
+            },
+            child: const Text('Aceptar'),
+          ),
+        ],
+      ),
+    ),
+  );
+}
 
   // Widget para sección de foto
   Widget _buildPhotoSection() {
@@ -1655,168 +1749,193 @@ Future<void> _saveVisita() async {
   }
 
   // Widget para geolocalización
-  Widget _buildGeolocationSection() {
-    return ExpansionTile(
-      title: const Text('Geolocalización'),
-      leading: Icon(
-        Icons.location_on,
-        color: widget.theme.primaryColor,
-      ),
-      trailing: Icon(
-        _showGeolocalizacion ? Icons.expand_less : Icons.expand_more,
-      ),
-      onExpansionChanged: (expanded) {
-        setState(() => _showGeolocalizacion = expanded);
-      },
-      initiallyExpanded: _showGeolocalizacion,
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              // Estado de ubicación
-              if (_currentPaciente != null && 
-                  _currentPaciente!.latitud != null && 
-                  _currentPaciente!.longitud != null)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.green.shade200),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.check_circle, color: Colors.green.shade600),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Ubicación registrada',
-                              style: TextStyle(fontWeight: FontWeight.w500),
+Widget _buildGeolocationSection() {
+  return ExpansionTile(
+    title: const Text('Geolocalización'),
+    leading: Icon(
+      Icons.location_on,
+      color: widget.theme.primaryColor,
+    ),
+    trailing: Icon(
+      _showGeolocalizacion ? Icons.expand_less : Icons.expand_more,
+    ),
+    onExpansionChanged: (expanded) {
+      setState(() => _showGeolocalizacion = expanded);
+    },
+    initiallyExpanded: _showGeolocalizacion,
+    children: [
+      Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            // ✅ ESTADO MEJORADO DE UBICACIÓN
+            if (_currentPaciente != null && 
+                _currentPaciente!.latitud != null && 
+                _currentPaciente!.longitud != null)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.green.shade600),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Ubicación registrada',
+                            style: TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                          Text(
+                            'Lat: ${_currentPaciente!.latitud!.toStringAsFixed(6)}\n'
+                            'Lng: ${_currentPaciente!.longitud!.toStringAsFixed(6)}',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          // ✅ MOSTRAR ESTADO DE SINCRONIZACIÓN
+                          Container(
+                            margin: const EdgeInsets.only(top: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: _currentPaciente!.syncStatus == 1 
+                                  ? Colors.green.shade100 
+                                  : Colors.orange.shade100,
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                            Text(
-                              'Lat: ${_currentPaciente!.latitud!.toStringAsFixed(6)}\n'
-                              'Lng: ${_currentPaciente!.longitud!.toStringAsFixed(6)}',
-                              style: const TextStyle(fontSize: 12),
+                            child: Text(
+                              _currentPaciente!.syncStatus == 1 
+                                  ? '✅ Sincronizado' 
+                                  : '⏳ Pendiente sync',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: _currentPaciente!.syncStatus == 1 
+                                    ? Colors.green.shade700 
+                                    : Colors.orange.shade700,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                )
-              else
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.orange.shade200),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.location_off, color: Colors.orange.shade600),
-                      const SizedBox(width: 8),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Sin ubicación registrada',
-                              style: TextStyle(fontWeight: FontWeight.w500),
-                            ),
-                            Text(
-                              'Presione el botón para obtener ubicación actual',
-                              style: TextStyle(fontSize: 12),
-                            ),
-                          ],
-                        ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.location_off, color: Colors.orange.shade600),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Sin ubicación registrada',
+                            style: TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                          Text(
+                            _currentPaciente == null 
+                                ? 'Primero busque un paciente'
+                                : 'Presione el botón para obtener ubicación actual',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
+                  ],
+                ),
+              ),
+
+            const SizedBox(height: 16),
+
+            // Campos de coordenadas
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _latitudController,
+                    decoration: const InputDecoration(
+                      labelText: 'Latitud',
+                      prefixIcon: Icon(Icons.location_pin),
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    readOnly: true,
                   ),
                 ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextFormField(
+                    controller: _longitudController,
+                    decoration: const InputDecoration(
+                      labelText: 'Longitud',
+                      prefixIcon: Icon(Icons.location_pin),
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    readOnly: true,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
 
-               const SizedBox(height: 16),
-
-              // Campos de coordenadas
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _latitudController,
-                      decoration: const InputDecoration(
-                        labelText: 'Latitud',
-                        prefixIcon: Icon(Icons.location_pin),
-                      ),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      readOnly: true,
+            // Botones de acción para geolocalización
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue[700],
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: _isGettingLocation ? null : _getCurrentLocation,
+                    icon: _isGettingLocation
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Icon(Icons.location_on),
+                    label: Text(
+                      _isGettingLocation 
+                          ? 'Obteniendo...' 
+                          : 'Obtener Ubicación',
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _longitudController,
-                      decoration: const InputDecoration(
-                        labelText: 'Longitud',
-                        prefixIcon: Icon(Icons.location_pin),
-                      ),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      readOnly: true,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      side: BorderSide(color: Colors.grey.shade400),
                     ),
+                    onPressed: _clearGeolocalizacion,
+                    icon: const Icon(Icons.clear),
+                    label: const Text('Limpiar'),
                   ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Botones de acción para geolocalización
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue[700],
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      onPressed: _isGettingLocation ? null : _getCurrentLocation,
-                      icon: _isGettingLocation
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : const Icon(Icons.location_on),
-                      label: Text(
-                        _isGettingLocation 
-                            ? 'Obteniendo...' 
-                            : 'Obtener Ubicación',
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        side: BorderSide(color: Colors.grey.shade400),
-                      ),
-                      onPressed: _clearGeolocalizacion,
-                      icon: const Icon(Icons.clear),
-                      label: const Text('Limpiar'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+                ),
+              ],
+            ),
+          ],
         ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
+}
 }

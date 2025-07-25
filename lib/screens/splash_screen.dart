@@ -14,11 +14,13 @@ class _SplashScreenState extends State<SplashScreen>
   
   late AnimationController _logoController;
   late AnimationController _linesController;
-  late AnimationController _waveController; // NUEVO: Para el efecto ondulante
+  late AnimationController _waveController;
+  late AnimationController _organicController; // NUEVO: Para movimiento orgánico tipo lombriz
   
   late Animation<double> _logoAnimation;
   late Animation<double> _linesAnimation;
-  late Animation<double> _waveAnimation; // NUEVO: Animación de onda
+  late Animation<double> _waveAnimation;
+  late Animation<double> _organicAnimation; // NUEVO: Animación orgánica
 
   // Colores más vibrantes y modernos
   final List<Color> lineColors = [
@@ -29,7 +31,7 @@ class _SplashScreenState extends State<SplashScreen>
     Color(0xFF0066CC), // Azul
     Color(0xFF7B68EE), // Púrpura moderno
     Color(0xFF00A651), // Verde
-    Color.fromARGB(255, 46, 168, 97), // Coral moderno
+    Color.fromARGB(255, 46, 168, 97), // Verde moderno
   ];
 
   @override
@@ -44,13 +46,19 @@ class _SplashScreenState extends State<SplashScreen>
     
     // Controlador para las líneas (más rápido)
     _linesController = AnimationController(
-      duration: Duration(milliseconds: 1800),
+      duration: Duration(milliseconds: 2500), // Más lento para efecto orgánico
       vsync: this,
     );
 
-    // NUEVO: Controlador para el efecto ondulante
+    // Controlador para el efecto ondulante
     _waveController = AnimationController(
       duration: Duration(milliseconds: 3000),
+      vsync: this,
+    );
+
+    // NUEVO: Controlador para movimiento orgánico tipo lombriz
+    _organicController = AnimationController(
+      duration: Duration(milliseconds: 4000), // Movimiento lento y orgánico
       vsync: this,
     );
 
@@ -60,25 +68,34 @@ class _SplashScreenState extends State<SplashScreen>
       end: 1.0,
     ).animate(CurvedAnimation(
       parent: _logoController,
-      curve: Curves.elasticOut, // Cambio: efecto más dinámico
+      curve: Curves.elasticOut,
     ));
 
     // Animación de las líneas
     _linesAnimation = Tween<double>(
-      begin: -1.2,
-      end: 1.2,
+      begin: -1.5,
+      end: 1.5,
     ).animate(CurvedAnimation(
       parent: _linesController,
-      curve: Curves.easeInOutCubic, // Cambio: curva más suave
+      curve: Curves.easeInOutSine, // Curva más suave para movimiento orgánico
     ));
 
-    // NUEVO: Animación de onda
+    // Animación de onda
     _waveAnimation = Tween<double>(
       begin: 0.0,
-      end: 4 * pi, // Dos ciclos completos
+      end: 4 * pi,
     ).animate(CurvedAnimation(
       parent: _waveController,
       curve: Curves.linear,
+    ));
+
+    // NUEVO: Animación orgánica tipo lombriz
+    _organicAnimation = Tween<double>(
+      begin: 0.0,
+      end: 6 * pi, // Más ciclos para efecto serpenteante
+    ).animate(CurvedAnimation(
+      parent: _organicController,
+      curve: Curves.easeInOutSine,
     ));
 
     _startAnimations();
@@ -89,62 +106,80 @@ class _SplashScreenState extends State<SplashScreen>
     await Future.delayed(Duration(milliseconds: 300));
     _logoController.forward();
     
-    // Luego empiezan las líneas y las ondas
+    // Luego empiezan las líneas y las animaciones orgánicas
     await Future.delayed(Duration(milliseconds: 400));
     _linesController.repeat();
     _waveController.repeat();
+    _organicController.repeat();
   }
 
   @override
   void dispose() {
     _logoController.dispose();
     _linesController.dispose();
-    _waveController.dispose(); // NUEVO: Dispose del controlador de onda
+    _waveController.dispose();
+    _organicController.dispose(); // NUEVO: Dispose del controlador orgánico
     super.dispose();
   }
 
-  // MÉTODO ACTUALIZADO: Líneas más gruesas con efecto ondulante
-  Widget _buildAnimatedLine(Color color, double delay, double baseHeight, double verticalOffset) {
+  // MÉTODO ACTUALIZADO: Líneas con movimiento orgánico tipo lombriz
+  Widget _buildOrganicLine(Color color, double delay, double baseHeight, int lineIndex) {
     return AnimatedBuilder(
-      animation: Listenable.merge([_linesAnimation, _waveAnimation]),
+      animation: Listenable.merge([_linesAnimation, _waveAnimation, _organicAnimation]),
       builder: (context, child) {
-        // Calcular la posición horizontal
-        double horizontalPosition = (MediaQuery.of(context).size.width + 300) * 
-            _linesAnimation.value - 150;
+        final screenWidth = MediaQuery.of(context).size.width;
+        final screenHeight = MediaQuery.of(context).size.height;
         
-        // NUEVO: Calcular el desplazamiento vertical ondulante
-        double waveOffset = sin(_waveAnimation.value + delay * 2) * 15; // Amplitud de 15px
+        // Posición horizontal base
+        double horizontalPosition = (screenWidth + 400) * _linesAnimation.value - 200;
         
-        // NUEVO: Calcular la altura dinámica (efecto de respiración)
-        double dynamicHeight = baseHeight + sin(_waveAnimation.value * 0.7 + delay) * 3;
+        // NUEVO: Movimiento vertical orgánico tipo serpiente/lombriz
+        double organicWave1 = sin(_organicAnimation.value + delay * 3) * 25;
+        double organicWave2 = sin(_organicAnimation.value * 0.7 + delay * 2) * 15;
+        double organicWave3 = cos(_organicAnimation.value * 1.3 + delay * 4) * 10;
+        
+        // Combinar ondas para movimiento más complejo y orgánico
+        double verticalOffset = organicWave1 + organicWave2 + organicWave3;
+        
+        // Movimiento horizontal adicional para simular serpenteado
+        double horizontalWave = cos(_organicAnimation.value * 0.5 + delay * 2.5) * 30;
+        horizontalPosition += horizontalWave;
+        
+        // Altura dinámica que cambia como respiración
+        double dynamicHeight = baseHeight + sin(_waveAnimation.value * 0.8 + delay * 1.5) * 4;
+        
+        // Rotación sutil para seguir el movimiento
+        double rotation = sin(_organicAnimation.value * 0.3 + delay) * 0.1;
         
         return Transform.translate(
-          offset: Offset(
-            horizontalPosition,
-            waveOffset, // Aplicar el desplazamiento ondulante
-          ),
-          child: Container(
-            width: 200, // CAMBIO: Líneas más largas
-            height: dynamicHeight, // CAMBIO: Altura dinámica
-            decoration: BoxDecoration(
-              // NUEVO: Gradiente para efecto más moderno
-              gradient: LinearGradient(
-                colors: [
-                  color.withOpacity(0.3),
-                  color.withOpacity(0.9),
-                  color.withOpacity(0.3),
-                ],
-                stops: [0.0, 0.5, 1.0],
-              ),
-              borderRadius: BorderRadius.circular(dynamicHeight / 2),
-              // NUEVO: Sombra sutil
-              boxShadow: [
-                BoxShadow(
-                  color: color.withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: Offset(0, 2),
+          offset: Offset(horizontalPosition, verticalOffset),
+          child: Transform.rotate(
+            angle: rotation,
+            child: Container(
+              width: 250, // Líneas más largas para efecto serpenteante
+              height: dynamicHeight,
+              decoration: BoxDecoration(
+                // Gradiente más suave para efecto orgánico
+                gradient: LinearGradient(
+                  colors: [
+                    color.withOpacity(0.1),
+                    color.withOpacity(0.8),
+                    color.withOpacity(0.4),
+                    color.withOpacity(0.1),
+                  ],
+                  stops: [0.0, 0.3, 0.7, 1.0],
                 ),
-              ],
+                borderRadius: BorderRadius.circular(dynamicHeight),
+                // Sombra que sigue el movimiento
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withOpacity(0.2),
+                    blurRadius: 12,
+                    offset: Offset(sin(_organicAnimation.value + delay) * 3, 
+                                 cos(_organicAnimation.value + delay) * 2),
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -155,7 +190,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // NUEVO: Gradiente de fondo más moderno
+      // Gradiente de fondo más suave
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -164,58 +199,69 @@ class _SplashScreenState extends State<SplashScreen>
             colors: [
               Colors.white,
               Color(0xFFF8F9FA),
+              Color(0xFFF0F2F5),
               Colors.white,
             ],
           ),
         ),
         child: Stack(
           children: [
-            // Líneas animadas con efecto ondulante
+            // Líneas animadas con movimiento orgánico
             Positioned.fill(
               child: Stack(
                 children: [
-                  // Líneas superiores (más gruesas)
+                  // Líneas superiores con movimiento orgánico
+                  Positioned(
+                    top: MediaQuery.of(context).size.height * 0.15,
+                    left: -200,
+                    child: _buildOrganicLine(lineColors[0], 0.0, 6, 0),
+                  ),
+                  Positioned(
+                    top: MediaQuery.of(context).size.height * 0.20,
+                    left: -200,
+                    child: _buildOrganicLine(lineColors[1], 0.8, 10, 1),
+                  ),
                   Positioned(
                     top: MediaQuery.of(context).size.height * 0.25,
-                    left: -150,
-                    child: _buildAnimatedLine(lineColors[0], 0.0, 8, 0), // Más gruesa
+                    left: -200,
+                    child: _buildOrganicLine(lineColors[2], 1.5, 4, 2),
                   ),
                   Positioned(
-                    top: MediaQuery.of(context).size.height * 0.28,
-                    left: -150,
-                    child: _buildAnimatedLine(lineColors[1], 0.5, 12, 0), // Más gruesa
+                    top: MediaQuery.of(context).size.height * 0.30,
+                    left: -200,
+                    child: _buildOrganicLine(lineColors[3], 2.2, 8, 3),
                   ),
                   Positioned(
-                    top: MediaQuery.of(context).size.height * 0.32,
-                    left: -150,
-                    child: _buildAnimatedLine(lineColors[2], 1.0, 6, 0), // Más gruesa
-                  ),
-                  Positioned(
-                    top: MediaQuery.of(context).size.height * 0.36,
-                    left: -150,
-                    child: _buildAnimatedLine(lineColors[3], 1.5, 10, 0), // Más gruesa
+                    top: MediaQuery.of(context).size.height * 0.35,
+                    left: -200,
+                    child: _buildOrganicLine(lineColors[4], 0.5, 12, 4),
                   ),
                   
-                  // Líneas inferiores (más gruesas)
+                  // Líneas inferiores con movimiento orgánico
                   Positioned(
-                    top: MediaQuery.of(context).size.height * 0.64,
-                    left: -150,
-                    child: _buildAnimatedLine(lineColors[4], 0.3, 9, 0), // Más gruesa
+                    top: MediaQuery.of(context).size.height * 0.65,
+                    left: -200,
+                    child: _buildOrganicLine(lineColors[5], 1.8, 7, 5),
                   ),
                   Positioned(
-                    top: MediaQuery.of(context).size.height * 0.68,
-                    left: -150,
-                    child: _buildAnimatedLine(lineColors[5], 0.8, 7, 0), // Más gruesa
+                    top: MediaQuery.of(context).size.height * 0.70,
+                    left: -200,
+                    child: _buildOrganicLine(lineColors[6], 2.5, 9, 6),
                   ),
                   Positioned(
-                    top: MediaQuery.of(context).size.height * 0.72,
-                    left: -150,
-                    child: _buildAnimatedLine(lineColors[6], 1.3, 11, 0), // Más gruesa
+                    top: MediaQuery.of(context).size.height * 0.75,
+                    left: -200,
+                    child: _buildOrganicLine(lineColors[7], 0.3, 5, 7),
                   ),
                   Positioned(
-                    top: MediaQuery.of(context).size.height * 0.76,
-                    left: -150,
-                    child: _buildAnimatedLine(lineColors[7], 1.8, 8, 0), // Más gruesa
+                    top: MediaQuery.of(context).size.height * 0.80,
+                    left: -200,
+                    child: _buildOrganicLine(lineColors[0], 1.2, 11, 8),
+                  ),
+                  Positioned(
+                    top: MediaQuery.of(context).size.height * 0.85,
+                    left: -200,
+                    child: _buildOrganicLine(lineColors[1], 2.8, 6, 9),
                   ),
                 ],
               ),
@@ -231,31 +277,58 @@ class _SplashScreenState extends State<SplashScreen>
                     child: ScaleTransition(
                       scale: _logoAnimation,
                       child: Container(
-                        width: 200, // CAMBIO: Logo más grande
-                        height: 200,
+                        width: 220, // Logo más grande
+                        height: 220,
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(25), // Más redondeado
+                          borderRadius: BorderRadius.circular(30),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.15), // Sombra más pronunciada
-                              spreadRadius: 8,
-                              blurRadius: 25,
-                              offset: Offset(0, 8),
+                              color: Colors.black.withOpacity(0.1),
+                              spreadRadius: 10,
+                              blurRadius: 30,
+                              offset: Offset(0, 10),
                             ),
-                            // NUEVO: Sombra interna sutil
+                            // Sombra interna sutil
                             BoxShadow(
-                              color: Colors.white.withOpacity(0.8),
-                              spreadRadius: -5,
-                              blurRadius: 15,
-                              offset: Offset(0, -5),
+                              color: Colors.white.withOpacity(0.9),
+                              spreadRadius: -8,
+                              blurRadius: 20,
+                              offset: Offset(0, -8),
                             ),
                           ],
                         ),
-                        padding: EdgeInsets.all(25), // Más padding
-                        child: Image.asset(
-                          'assets/splash/icon.png',
-                          fit: BoxFit.contain,
+                        padding: EdgeInsets.all(30),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(15),
+                          child: Image.network(
+                            'https://nacerparavivir.org/wp-content/uploads/2023/12/Logo_Section1home-8.png',
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) {
+                              // Fallback en caso de error de carga
+                              return Container(
+                                decoration: BoxDecoration(
+                                  color: Color(0xFF00A651),
+                                  borderRadius: BorderRadius.circular(15),
+                                ),
+                                child: Icon(
+                                  Icons.favorite_border,
+                                  size: 80,
+                                  color: Colors.white,
+                                ),
+                              );
+                            },
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return Center(
+                                child: CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Color(0xFF00A651),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
                         ),
                       ),
                     ),

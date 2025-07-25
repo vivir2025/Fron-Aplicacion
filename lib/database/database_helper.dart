@@ -708,27 +708,169 @@ final rowsUpdated = await db.update(
 debugPrint('Usuario $userId actualizado (is_logged_in: $isLoggedIn), filas afectadas: $rowsUpdated');
 }
 
+// ✅ MÉTODO CORREGIDO EN database_helper.dart
+// ✅ MÉTODO CORREGIDO SIN COLUMNAS PROBLEMÁTICAS
 Future<int> updatePacienteGeolocalizacion(String pacienteId, double latitud, double longitud) async {
-final db = await database;
-try {
-  final result = await db.update(
-    'pacientes',
-    {
+  final db = await database;
+  
+  try {
+    debugPrint('🔄 Iniciando actualización de geolocalización...');
+    debugPrint('📍 Paciente ID: $pacienteId');
+    debugPrint('📍 Latitud: $latitud');
+    debugPrint('📍 Longitud: $longitud');
+    
+    // ✅ VERIFICAR QUE EL PACIENTE EXISTE PRIMERO
+    final existingPaciente = await db.query(
+      'pacientes',
+      where: 'id = ?',
+      whereArgs: [pacienteId],
+    );
+    
+    if (existingPaciente.isEmpty) {
+      debugPrint('❌ Paciente no encontrado con ID: $pacienteId');
+      return 0;
+    }
+    
+    debugPrint('✅ Paciente encontrado, procediendo con actualización...');
+    
+    // ✅ VERIFICAR QUE COLUMNAS EXISTEN ANTES DE ACTUALIZAR
+    final tableInfo = await db.rawQuery("PRAGMA table_info(pacientes)");
+    final columnNames = tableInfo.map((col) => col['name'].toString()).toList();
+    
+    debugPrint('📋 Columnas disponibles en tabla pacientes: $columnNames');
+    
+    // ✅ CONSTRUIR UPDATE DINÁMICAMENTE SOLO CON COLUMNAS EXISTENTES
+    Map<String, dynamic> updateData = {
       'latitud': latitud,
       'longitud': longitud,
-      'sync_status': 0, // Marcar como no sincronizado
-    },
-    where: 'id = ?',
-    whereArgs: [pacienteId],
-  );
+    };
+    
+    // Solo agregar columnas si existen
+    if (columnNames.contains('sync_status')) {
+      updateData['sync_status'] = 0;
+      debugPrint('✅ Agregando sync_status al update');
+    } else {
+      debugPrint('⚠️ Columna sync_status no existe, omitiendo...');
+    }
+    
+    if (columnNames.contains('updated_at')) {
+      updateData['updated_at'] = DateTime.now().toIso8601String();
+      debugPrint('✅ Agregando updated_at al update');
+    } else {
+      debugPrint('⚠️ Columna updated_at no existe, omitiendo...');
+    }
+    
+    debugPrint('📝 Datos a actualizar: $updateData');
+    
+    // ✅ ACTUALIZAR CON TRANSACCIÓN EXPLÍCITA
+    final result = await db.transaction((txn) async {
+      final updateResult = await txn.update(
+        'pacientes',
+        updateData,
+        where: 'id = ?',
+        whereArgs: [pacienteId],
+      );
+      
+      debugPrint('🔄 Filas afectadas en actualización: $updateResult');
+      return updateResult;
+    });
+    
+    // ✅ VERIFICAR QUE LA ACTUALIZACIÓN FUE EXITOSA
+    if (result > 0) {
+      // Verificar que los datos se guardaron correctamente
+      final updatedPaciente = await db.query(
+        'pacientes',
+        where: 'id = ?',
+        whereArgs: [pacienteId],
+      );
+      
+      if (updatedPaciente.isNotEmpty) {
+        final paciente = updatedPaciente.first;
+        debugPrint('✅ Verificación post-actualización:');
+        debugPrint('   - ID: ${paciente['id']}');
+        debugPrint('   - Identificación: ${paciente['identificacion']}');
+        debugPrint('   - Latitud guardada: ${paciente['latitud']}');
+        debugPrint('   - Longitud guardada: ${paciente['longitud']}');
+        
+        if (columnNames.contains('sync_status')) {
+          debugPrint('   - Sync status: ${paciente['sync_status']}');
+        }
+        
+        // ✅ VERIFICAR QUE LOS VALORES COINCIDEN
+        if (paciente['latitud'] == latitud && paciente['longitud'] == longitud) {
+          debugPrint('🎉 Coordenadas guardadas correctamente en la base de datos');
+        } else {
+          debugPrint('⚠️ Las coordenadas no coinciden después de guardar');
+          debugPrint('   - Esperado: $latitud, $longitud');
+          debugPrint('   - Guardado: ${paciente['latitud']}, ${paciente['longitud']}');
+        }
+      }
+    } else {
+      debugPrint('❌ No se actualizó ninguna fila. Posibles causas:');
+      debugPrint('   - ID de paciente incorrecto');
+      debugPrint('   - Problema con la consulta SQL');
+      debugPrint('   - Restricciones de la base de datos');
+    }
+    
+    return result;
+    
+  } catch (e) {
+    debugPrint('💥 Error en updatePacienteGeolocalizacion: $e');
+    debugPrint('💥 Stack trace: ${StackTrace.current}');
+    rethrow;
+  }
+}
+// ✅ MÉTODO PARA VERIFICAR Y AGREGAR COLUMNAS NECESARIAS
+Future<void> verificarYAgregarColumnasGeolocalizacion() async {
+  final db = await database;
   
-  debugPrint('✅ Coordenadas actualizadas para paciente $pacienteId: $latitud, $longitud');
-  return result;
-} catch (e) {
-  debugPrint('❌ Error al actualizar coordenadas: $e');
-  return 0;
+  try {
+    debugPrint('🔍 Verificando estructura de tabla pacientes...');
+    
+    // Obtener información de la tabla
+    final tableInfo = await db.rawQuery("PRAGMA table_info(pacientes)");
+    final columnNames = tableInfo.map((col) => col['name'].toString()).toList();
+    
+    debugPrint('📋 Columnas actuales: $columnNames');
+    
+    // Verificar y agregar columnas necesarias
+    final columnasNecesarias = {
+      'latitud': 'REAL',
+      'longitud': 'REAL',
+      'sync_status': 'INTEGER DEFAULT 0',
+      'updated_at': 'TEXT',
+    };
+    
+    for (final entrada in columnasNecesarias.entries) {
+      final nombreColumna = entrada.key;
+      final tipoColumna = entrada.value;
+      
+      if (!columnNames.contains(nombreColumna)) {
+        try {
+          await db.execute('ALTER TABLE pacientes ADD COLUMN $nombreColumna $tipoColumna');
+          debugPrint('✅ Columna $nombreColumna agregada exitosamente');
+        } catch (e) {
+          if (e.toString().contains('duplicate column name')) {
+            debugPrint('ℹ️ Columna $nombreColumna ya existe');
+          } else {
+            debugPrint('❌ Error agregando columna $nombreColumna: $e');
+          }
+        }
+      } else {
+        debugPrint('✅ Columna $nombreColumna ya existe');
+      }
+    }
+    
+    // Verificar estructura final
+    final finalTableInfo = await db.rawQuery("PRAGMA table_info(pacientes)");
+    final finalColumnNames = finalTableInfo.map((col) => col['name'].toString()).toList();
+    debugPrint('📋 Estructura final de tabla pacientes: $finalColumnNames');
+    
+  } catch (e) {
+    debugPrint('💥 Error verificando/agregando columnas: $e');
+  }
 }
-}
+
 
 Future<Map<String, dynamic>?> getLoggedInUser() async {
 final db = await instance.database;
