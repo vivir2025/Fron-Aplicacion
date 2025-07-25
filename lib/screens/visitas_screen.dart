@@ -50,7 +50,8 @@ class _VisitasScreenState extends State<VisitasScreen> {
     ),
   );
 
-  Future<void> _sincronizarManualmente() async {
+  // screens/visitas_screen.dart - MÉTODO CORREGIDO PARA SINCRONIZAR SOLO VISITAS
+Future<void> _sincronizarManualmente() async {
   final authProvider = Provider.of<AuthProvider>(context, listen: false);
   final token = authProvider.token;
   
@@ -81,41 +82,62 @@ class _VisitasScreenState extends State<VisitasScreen> {
       return;
     }
 
-    debugPrint('🔄 Iniciando sincronización completa...');
-    final resultado = await SincronizacionService.sincronizacionCompleta(token)
-        .timeout(const Duration(seconds: 120)); // Más tiempo para medicamentos
+    // 🆕 SOLO SINCRONIZAR VISITAS (no todo)
+    debugPrint('🔄 Sincronizando solo visitas pendientes...');
+    final resultado = await SincronizacionService.sincronizarVisitasPendientes(token)
+        .timeout(const Duration(seconds: 60));
 
     if (mounted) {
-      final visitasSync = resultado['visitas']['exitosas'] ?? 0;
-      final pacientesSync = resultado['pacientes']['exitosas'] ?? 0;
-      final medicamentosSync = resultado['medicamentos']['exitosas'] ?? 0; // 🆕
-      final archivosSync = resultado['archivos']['exitosas'] ?? 0;
+      final visitasSync = resultado['exitosas'] ?? 0;
+      final visitasFallidas = resultado['fallidas'] ?? 0;
+      final totalVisitas = resultado['total'] ?? 0;
       
       String mensaje = '';
-      if (medicamentosSync > 0) {
-        mensaje += 'Medicamentos: $medicamentosSync OK | ';
-      }
+      Color backgroundColor = Colors.green;
+      
       if (visitasSync > 0) {
-        mensaje += 'Visitas: $visitasSync OK | ';
-      }
-      if (pacientesSync > 0) {
-        mensaje += 'Pacientes: $pacientesSync OK | ';
-      }
-      if (archivosSync > 0) {
-        mensaje += 'Archivos: $archivosSync OK';
+        mensaje = '✅ $visitasSync de $totalVisitas visitas sincronizadas';
+        backgroundColor = Colors.green;
+      } else if (totalVisitas == 0) {
+        mensaje = 'ℹ️ No hay visitas pendientes por sincronizar';
+        backgroundColor = Colors.blue;
+      } else {
+        mensaje = '⚠️ No se pudieron sincronizar las $totalVisitas visitas';
+        backgroundColor = Colors.orange;
       }
       
-      if (mensaje.isEmpty) {
-        mensaje = 'Todo está sincronizado';
-      } else {
-        mensaje = mensaje.replaceAll(RegExp(r' \| $'), ''); // Limpiar último separador
+      if (visitasFallidas > 0) {
+        mensaje += '\n❌ $visitasFallidas visitas fallaron';
+        backgroundColor = Colors.orange;
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(mensaje),
           duration: const Duration(seconds: 5),
-          backgroundColor: Colors.green,
+          backgroundColor: backgroundColor,
+          action: visitasFallidas > 0 ? SnackBarAction(
+            label: 'Ver errores',
+            textColor: Colors.white,
+            onPressed: () {
+              final errores = resultado['errores'] as List<String>? ?? [];
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Errores de sincronización'),
+                  content: SingleChildScrollView(
+                    child: Text(errores.join('\n\n')),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Cerrar'),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ) : null,
         ),
       );
     }
@@ -135,6 +157,7 @@ class _VisitasScreenState extends State<VisitasScreen> {
     }
   }
 }
+
 
   @override
   Widget build(BuildContext context) {

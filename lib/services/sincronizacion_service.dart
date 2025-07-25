@@ -688,7 +688,8 @@ if (resultado['exito_general'] == true) {
 
 
  
-  static Future<Map<String, dynamic>> sincronizarVisitasPendientes(String token) async {
+ // services/sincronizacion_service.dart - MÉTODO CORREGIDO
+static Future<Map<String, dynamic>> sincronizarVisitasPendientes(String token) async {
   final dbHelper = DatabaseHelper.instance;
   final visitasPendientes = await dbHelper.getVisitasNoSincronizadas();
   
@@ -713,7 +714,7 @@ if (resultado['exito_general'] == true) {
         final medicamentos = await dbHelper.getMedicamentosDeVisita(visita.id);
         debugPrint('💊 Encontrados ${medicamentos.length} medicamentos para visita ${visita.id}');
         
-        // 2. Preparar medicamentos para envío - CONVERTIR A STRING JSON
+        // 2. Preparar medicamentos para envío
         List<Map<String, dynamic>> medicamentosData = [];
         for (var medicamentoConIndicaciones in medicamentos) {
           if (medicamentoConIndicaciones.isSelected) {
@@ -725,29 +726,50 @@ if (resultado['exito_general'] == true) {
           }
         }
         
-        // 3. Subir archivos y obtener visita actualizada con URLs
-        final visitaConUrls = await _subirArchivosDeVisita(visita, token);
+        // 3. Preparar datos para enviar al servidor
+        Map<String, String> visitaData = {
+          'id': visita.id,
+          'nombre_apellido': visita.nombreApellido,
+          'identificacion': visita.identificacion,
+          'fecha': visita.fecha.toIso8601String().split('T')[0],
+          'idusuario': visita.idusuario,
+          'idpaciente': visita.idpaciente,
+          'hta': visita.hta ?? '',
+          'dm': visita.dm ?? '',
+          'telefono': visita.telefono ?? '',
+          'zona': visita.zona ?? '',
+          'peso': visita.peso?.toString() ?? '',
+          'talla': visita.talla?.toString() ?? '',
+          'imc': visita.imc?.toString() ?? '',
+          'perimetro_abdominal': visita.perimetroAbdominal?.toString() ?? '',
+          'frecuencia_cardiaca': visita.frecuenciaCardiaca?.toString() ?? '',
+          'frecuencia_respiratoria': visita.frecuenciaRespiratoria?.toString() ?? '',
+          'tension_arterial': visita.tensionArterial ?? '',
+          'glucometria': visita.glucometria?.toString() ?? '',
+          'temperatura': visita.temperatura?.toString() ?? '',
+          'familiar': visita.familiar ?? '',
+          'abandono_social': visita.abandonoSocial ?? '',
+          'motivo': visita.motivo ?? '',
+          'factores': visita.factores ?? '',
+          'conductas': visita.conductas ?? '',
+          'novedades': visita.novedades ?? '',
+          'proximo_control': visita.proximoControl?.toIso8601String().split('T')[0] ?? '',
+        };
         
-        // 4. Actualizar en base de datos local con URLs
-        await dbHelper.updateVisita(visitaConUrls);
+        // 4. 🆕 USAR createVisitaCompleta PARA MANEJAR ARCHIVOS CORRECTAMENTE
+        Map<String, dynamic>? resultado = await FileService.createVisitaCompleta(
+          visitaData: visitaData,
+          token: token,
+          riskPhotoPath: visita.riesgoFotografico, // 🆕 Pasar ruta de foto
+          signaturePath: visita.firmaPath ?? visita.firma, // 🆕 Pasar ruta de firma
+          medicamentosData: medicamentosData,
+        );
         
-        // 5. Preparar datos para enviar al servidor, incluyendo medicamentos como STRING
-        Map<String, dynamic> visitaData = visitaConUrls.toServerJson();
-        
-        // IMPORTANTE: Convertir el array de medicamentos a string JSON
-        visitaData['medicamentos'] = jsonEncode(medicamentosData);
-        
-        debugPrint('📤 Enviando visita ${visita.id} al servidor con ${medicamentosData.length} medicamentos...');
-        debugPrint('📄 Formato de medicamentos: ${visitaData['medicamentos']}');
-        
-        // 6. Enviar al servidor
-        final serverData = await ApiService.guardarVisita(visitaData, token);
-        
-        if (serverData != null) {
-          // 7. Marcar como sincronizada
+        if (resultado != null && resultado['success'] == true) {
+          // 5. Marcar como sincronizada
           await dbHelper.marcarVisitaComoSincronizada(visita.id);
           exitosas++;
-          debugPrint('✅ Visita ${visita.id} sincronizada exitosamente con medicamentos');
+          debugPrint('✅ Visita ${visita.id} sincronizada exitosamente con archivos y medicamentos');
         } else {
           fallidas++;
           errores.add('Servidor respondió con error para visita ${visita.id}');
