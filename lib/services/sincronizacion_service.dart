@@ -687,8 +687,6 @@ if (resultado['exito_general'] == true) {
   );
 }
 
-
- 
  // services/sincronizacion_service.dart - MÉTODO CORREGIDO
 static Future<Map<String, dynamic>> sincronizarVisitasPendientes(String token) async {
   final dbHelper = DatabaseHelper.instance;
@@ -710,6 +708,30 @@ static Future<Map<String, dynamic>> sincronizarVisitasPendientes(String token) a
     for (final visita in visitasPendientes) {
       try {
         debugPrint('🔄 Sincronizando visita ${visita.id}...');
+
+           
+        // 1. ✅ PRIMERO: Actualizar coordenadas del paciente si existen
+        if (visita.latitud != null && visita.longitud != null) {
+          try {
+            debugPrint('📍 Actualizando coordenadas del paciente ${visita.idpaciente}...');
+            
+            final coordenadasResult = await ApiService.updatePacienteCoordenadas(
+              token,
+              visita.idpaciente,
+              visita.latitud!,
+              visita.longitud!,
+            );
+            
+            if (coordenadasResult != null && coordenadasResult['success'] == true) {
+              debugPrint('✅ Coordenadas del paciente actualizadas exitosamente');
+            } else {
+              debugPrint('⚠️ No se pudieron actualizar las coordenadas del paciente');
+            }
+          } catch (coordError) {
+            debugPrint('⚠️ Error actualizando coordenadas del paciente: $coordError');
+            // No es crítico, continúa con la visita
+          }
+        }
         
         // 1. Obtener medicamentos asociados a esta visita
         final medicamentos = await dbHelper.getMedicamentosDeVisita(visita.id);
@@ -755,6 +777,7 @@ static Future<Map<String, dynamic>> sincronizarVisitasPendientes(String token) a
           'conductas': visita.conductas ?? '',
           'novedades': visita.novedades ?? '',
           'proximo_control': visita.proximoControl?.toIso8601String().split('T')[0] ?? '',
+          
         };
         
         // 4. 🆕 USAR createVisitaCompleta PARA MANEJAR ARCHIVOS CORRECTAMENTE
@@ -805,9 +828,6 @@ static Future<Map<String, dynamic>> sincronizarVisitasPendientes(String token) a
     'total': visitasPendientes.length
   };
 }
-
-
-
 
   static Future<Map<String, int>> obtenerEstadoSincronizacion() async {
     final dbHelper = DatabaseHelper.instance;
@@ -890,6 +910,30 @@ static Future<Map<String, dynamic>> sincronizarPacientesPendientes(String token)
             await dbHelper.markPacientesAsSynced([paciente.id]);
             exitosas++;
             debugPrint('✅ Paciente actualizado: ${paciente.identificacion}');
+          }
+        }
+        
+        // 🆕 SINCRONIZAR COORDENADAS ESPECÍFICAMENTE
+        if (serverData != null && paciente.latitud != null && paciente.longitud != null) {
+          try {
+            debugPrint('📍 Sincronizando coordenadas específicamente para paciente ${paciente.identificacion}');
+            
+            final coordenadasResult = await ApiService.updatePacienteCoordenadas(
+              token,
+              paciente.id.startsWith('offline_') ? serverData['id'].toString() : paciente.id,
+              paciente.latitud!,
+              paciente.longitud!,
+            );
+            
+            if (coordenadasResult != null && coordenadasResult['success'] == true) {
+              debugPrint('✅ Coordenadas sincronizadas exitosamente para ${paciente.identificacion}');
+            } else {
+              debugPrint('⚠️ No se pudieron sincronizar las coordenadas para ${paciente.identificacion}');
+              // No marcamos como error crítico, solo advertencia
+            }
+          } catch (coordError) {
+            debugPrint('⚠️ Error sincronizando coordenadas para ${paciente.identificacion}: $coordError');
+            // No afecta el éxito general del paciente
           }
         }
         
@@ -1369,7 +1413,4 @@ static Future<Map<String, dynamic>> sincronizarPacientesPendientes(String token)
     Set<String> getKeys() {
       return _prefs.keys.toSet();
   }
-
-  // En tu SincronizacionService, agregar este método:
-
 }

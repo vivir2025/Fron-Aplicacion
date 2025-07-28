@@ -267,7 +267,6 @@ if (medicamentosData != null && medicamentosData.isNotEmpty) {
   }
 }
 
- // 🆕 MÉTODO ACTUALIZADO PARA ACTUALIZAR VISITA
 // 🆕 MÉTODO ACTUALIZADO PARA ACTUALIZAR VISITA - CORREGIDO
 static Future<Map<String, dynamic>?> updateVisitaCompleta({
   required String visitaId,
@@ -323,6 +322,13 @@ static Future<Map<String, dynamic>?> updateVisitaCompleta({
         request.files.add(multipartFile);
         debugPrint('✍️ Nueva firma agregada para actualización');
       }
+    }
+    
+     // 🆕 ASEGURAR QUE LAS COORDENADAS SE ENVÍEN
+    if (visitaData.containsKey('latitud') && visitaData.containsKey('longitud')) {
+      request.fields['latitud'] = visitaData['latitud'] ?? '';
+      request.fields['longitud'] = visitaData['longitud'] ?? '';
+      debugPrint('📍 Coordenadas incluidas en request: ${visitaData['latitud']}, ${visitaData['longitud']}');
     }
     
     final response = await request.send().timeout(

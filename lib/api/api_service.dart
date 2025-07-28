@@ -320,4 +320,37 @@ static Future<bool> verificarSaludServidor() async {
       rethrow;
     }
   }
+
+
+  static Future<Map<String, dynamic>?> updatePacienteCoordenadas(
+  String token, 
+  String pacienteId, 
+  double latitud, 
+  double longitud
+) async {
+  try {
+    debugPrint('📍 Actualizando coordenadas del paciente $pacienteId');
+    
+    final response = await http.put(
+      Uri.parse('$baseUrl/pacientes/$pacienteId/coordenadas'),
+      headers: _buildHeaders(token),
+      body: jsonEncode({
+        'latitud': latitud,
+        'longitud': longitud,
+      }),
+    );
+    
+    if (response.statusCode == 200) {
+      final responseData = jsonDecode(response.body);
+      debugPrint('✅ Coordenadas actualizadas en servidor');
+      return responseData;
+    } else {
+      debugPrint('❌ Error actualizando coordenadas: ${response.statusCode}');
+      return null;
+    }
+  } catch (e) {
+    debugPrint('❌ Excepción actualizando coordenadas: $e');
+    return null;
+  }
+}
 }

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:fnpv_app/api/api_service.dart';
 import 'package:fnpv_app/models/medicamento_con_indicaciones.dart';
 import 'package:fnpv_app/services/medicamento_service.dart';
 import 'package:fnpv_app/widgets/medicamentos_selector.dart';
@@ -708,6 +709,49 @@ Future<void> _saveVisita() async {
       throw Exception('No se pudo obtener el ID del usuario. Vuelva a iniciar sesión.');
     }
 
+     // ✅ 1. PRIMERO ACTUALIZAR COORDENADAS DEL PACIENTE SI ES NECESARIO
+    if (_latitudController.text.isNotEmpty && _longitudController.text.isNotEmpty) {
+      final lat = double.tryParse(_latitudController.text);
+      final lng = double.tryParse(_longitudController.text);
+      
+      if (lat != null && lng != null) {
+        try {
+          // Actualizar en base de datos local
+          await DatabaseHelper.instance.updatePacienteGeolocalizacion(
+            _currentPaciente!.id,
+            lat,
+            lng,
+          );
+          
+          // ✅ Si hay conexión, actualizar también en el servidor
+          if (token != null) {
+            try {
+              await ApiService.updatePacienteCoordenadas(
+                token,
+                _currentPaciente!.id,
+                lat,
+                lng,
+              );
+              debugPrint('✅ Coordenadas del paciente actualizadas en servidor');
+            } catch (e) {
+              debugPrint('⚠️ Error actualizando coordenadas en servidor: $e');
+              // No es crítico, continúa con el guardado de la visita
+            }
+          }
+          
+          _currentPaciente = _currentPaciente!.copyWith(
+            latitud: lat,
+            longitud: lng,
+            syncStatus: 0,
+          );
+          
+          debugPrint('✅ Coordenadas del paciente actualizadas: $lat, $lng');
+        } catch (e) {
+          debugPrint('⚠️ Error actualizando coordenadas del paciente: $e');
+        }
+      }
+    }
+
     // ✅ 1. Preparar medicamentos ANTES de crear la visita (CORREGIDO)
     List<Map<String, dynamic>> medicamentosData = [];
     for (var medicamentoConIndicaciones in _selectedMedicamentos) {
@@ -726,32 +770,7 @@ Future<void> _saveVisita() async {
       debugPrint('  - ${med['nombre']}: ${med['indicaciones']}');
     }
 
-
-if (_latitudController.text.isNotEmpty && _longitudController.text.isNotEmpty) {
-  final lat = double.tryParse(_latitudController.text);
-  final lng = double.tryParse(_longitudController.text);
-  
-  if (lat != null && lng != null && _currentPaciente != null) {
-    try {
-      await DatabaseHelper.instance.updatePacienteGeolocalizacion(
-        _currentPaciente!.id,
-        lat,
-        lng,
-      );
-      
-      _currentPaciente = _currentPaciente!.copyWith(
-        latitud: lat,
-        longitud: lng,
-        syncStatus: 0, // ✅ MARCAR COMO NO SINCRONIZADO
-      );
-      
-      debugPrint('✅ Coordenadas del paciente actualizadas antes de guardar visita');
-    } catch (e) {
-      debugPrint('⚠️ Error actualizando coordenadas del paciente: $e');
-    }
-  }
-}
-
+ 
 
     // ✅ 3. Preparar ID de visita
     final visitaId = _currentVisitaId ?? VisitaService.generateId();
@@ -840,7 +859,7 @@ if (_latitudController.text.isNotEmpty && _longitudController.text.isNotEmpty) {
           'conductas': _conductas.isEmpty ? '' : _conductas.join(', '),
           'novedades': _novedadesController.text.isEmpty ? '' : _novedadesController.text,
           'proximo_control': _proximoControlController.text.isEmpty ? '' : _proximoControlController.text,
-
+          
          
         };
         
