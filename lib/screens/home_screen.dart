@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fnpv_app/screens/envio_muestras_screen.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'pacientes_screen.dart';
@@ -159,16 +160,21 @@ class HomeScreen extends StatelessWidget {
                             _showComingSoon(context, 'Encuestas');
                           },
                         ),
-                        _buildMenuCard(
-                          context,
-                          icon: Icons.science,
-                          title: 'Laboratorios',
-                          subtitle: 'Resultados de laboratorio',
-                          color: Colors.red,
-                          onTap: () {
-                            _showComingSoon(context, 'Laboratorios');
-                          },
-                        ),
+                       _buildMenuCard(
+  context,
+  icon: Icons.local_shipping, // Cambié el icono para que sea más representativo
+  title: 'Envío de Muestras',
+  subtitle: 'Gestionar envío de muestras',
+  color: Colors.red,
+  onTap: () {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => EnvioMuestrasScreen(),
+      ),
+    );
+  },
+),
+
                       ],
                     );
                   },

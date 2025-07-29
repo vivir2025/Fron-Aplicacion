@@ -35,7 +35,6 @@ class AuthProvider with ChangeNotifier {
         final hasLocalData = await _dbHelper.hasPacientes();
         
         await _onlineLogin(usuario, contrasena);
-
         // Si el login fue exitoso y no había datos, marcamos para sincronizar
         if (!hasLocalData) {
           needsInitialSync = true;

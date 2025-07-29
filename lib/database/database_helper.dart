@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:fnpv_app/models/envio_muestra_model.dart';
 import 'package:fnpv_app/models/medicamento.dart';
 import 'package:fnpv_app/models/medicamento_con_indicaciones.dart';
 import 'package:fnpv_app/models/visita_model.dart';
@@ -40,7 +41,7 @@ final path = join(dbPath, filePath);
 
 return await openDatabase(
   path,
-  version: 10, // 🚀 Incrementado a 10 
+  version: 11, // 🚀 Incrementado a 10 
   onCreate: _createDB,
   onUpgrade: _onUpgrade,
 );
@@ -155,6 +156,81 @@ await db.execute('''
     PRIMARY KEY (medicamento_id, visita_id),
     FOREIGN KEY (medicamento_id) REFERENCES medicamentos (id) ON DELETE CASCADE,
     FOREIGN KEY (visita_id) REFERENCES visitas (id) ON DELETE CASCADE
+  )
+''');
+
+await db.execute('''
+  CREATE TABLE IF NOT EXISTS envio_muestras (
+    id TEXT PRIMARY KEY,
+    codigo TEXT DEFAULT 'PM-CE-TM-F-01',
+    fecha TEXT NOT NULL,
+    version TEXT DEFAULT '1',
+    lugar_toma_muestras TEXT,
+    hora_salida TEXT,
+    fecha_salida TEXT,
+    temperatura_salida REAL,
+    responsable_toma_id TEXT,
+    responsable_transporte_id TEXT,
+    fecha_llegada TEXT,
+    hora_llegada TEXT,
+    temperatura_llegada REAL,
+    lugar_llegada TEXT,
+    responsable_recepcion_id TEXT,
+    observaciones TEXT,
+    idsede TEXT NOT NULL,
+    sync_status INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+  )
+''');
+ // Crear tabla detalle_envio_muestras
+   await db.execute('''
+  CREATE TABLE IF NOT EXISTS detalle_envio_muestras (
+    id TEXT PRIMARY KEY,
+    envio_muestra_id TEXT NOT NULL,
+    paciente_id TEXT NOT NULL,
+    numero_orden INTEGER NOT NULL,
+    dm TEXT,
+    hta TEXT,
+    num_muestras_enviadas INTEGER,
+    orina_esp TEXT,
+    orina_24h TEXT,
+    tubo_lila TEXT,
+    tubo_amarillo TEXT,
+    tubo_amarillo_forrado TEXT,
+    a TEXT,
+    m TEXT,
+    oe TEXT,
+    po TEXT,
+    h3 TEXT,
+    hba1c TEXT,
+    pth TEXT,
+    glu TEXT,
+    crea TEXT,
+    pl TEXT,
+    au TEXT,
+    bun TEXT,
+    relacion_crea_alb TEXT,
+    dcre24h TEXT,
+    alb24h TEXT,
+    buno24h TEXT,
+    fer TEXT,
+    tra TEXT,
+    fosfat TEXT,
+    alb TEXT,
+    fe TEXT,
+    tsh TEXT,
+    p TEXT,
+    ionograma TEXT,
+    b12 TEXT,
+    acido_folico TEXT,
+    peso REAL,
+    talla REAL,
+    volumen TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (envio_muestra_id) REFERENCES envio_muestras (id) ON DELETE CASCADE,
+    FOREIGN KEY (paciente_id) REFERENCES pacientes (id) ON DELETE CASCADE
   )
 ''');
 
@@ -338,7 +414,100 @@ if (oldVersion < 9) {
   } catch (e) {
     debugPrint('⚠️ Error en migración v10 (medicamentos): $e');
   }
+// Y agregar en _onUpgrade:
+if (oldVersion < 11) {
+  try {
+    // Recrear tabla envio_muestras con estructura correcta
+    await db.execute('DROP TABLE IF EXISTS envio_muestras');
+    await db.execute('DROP TABLE IF EXISTS detalle_envio_muestras');
+    
+    // Crear tablas nuevamente con estructura completa
+    await db.execute('''
+      CREATE TABLE envio_muestras (
+        id TEXT PRIMARY KEY,
+        codigo TEXT DEFAULT 'PM-CE-TM-F-01',
+        fecha TEXT NOT NULL,
+        version TEXT DEFAULT '1',
+        lugar_toma_muestras TEXT,
+        hora_salida TEXT,
+        fecha_salida TEXT,
+        temperatura_salida REAL,
+        responsable_toma_id TEXT,
+        responsable_transporte_id TEXT,
+        fecha_llegada TEXT,
+        hora_llegada TEXT,
+        temperatura_llegada REAL,
+        lugar_llegada TEXT,
+        responsable_recepcion_id TEXT,
+        observaciones TEXT,
+        idsede TEXT NOT NULL,
+        sync_status INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE detalle_envio_muestras (
+        id TEXT PRIMARY KEY,
+        envio_muestra_id TEXT NOT NULL,
+        paciente_id TEXT NOT NULL,
+        numero_orden INTEGER NOT NULL,
+        dm TEXT,
+        hta TEXT,
+        num_muestras_enviadas INTEGER,
+        orina_esp TEXT,
+        orina_24h TEXT,
+        tubo_lila TEXT,
+        tubo_amarillo TEXT,
+        tubo_amarillo_forrado TEXT,
+        a TEXT,
+        m TEXT,
+        oe TEXT,
+        po TEXT,
+        h3 TEXT,
+        hba1c TEXT,
+        pth TEXT,
+        glu TEXT,
+        crea TEXT,
+        pl TEXT,
+        au TEXT,
+        bun TEXT,
+        relacion_crea_alb TEXT,
+        dcre24h TEXT,
+        alb24h TEXT,
+        buno24h TEXT,
+        fer TEXT,
+        tra TEXT,
+        fosfat TEXT,
+        alb TEXT,
+        fe TEXT,
+        tsh TEXT,
+        p TEXT,
+        ionograma TEXT,
+        b12 TEXT,
+        acido_folico TEXT,
+        peso REAL,
+        talla REAL,
+        volumen TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (envio_muestra_id) REFERENCES envio_muestras (id) ON DELETE CASCADE,
+        FOREIGN KEY (paciente_id) REFERENCES pacientes (id) ON DELETE CASCADE
+      )
+    ''');
+
+    
+
+    debugPrint('✅ Tabla envio_muestras creada en migración v11');
+  } catch (e) {
+    debugPrint('⚠️ Error en migración v11 (envio_muestras): $e');
+  }
 }
+  
+}
+
+
 }
 
 // Método para verificar si una tabla existe
@@ -1781,6 +1950,191 @@ Future<void> insertMedicamentoVisita({
     rethrow;
   }
 }
+// Métodos para envío de muestras
+// database_helper.dart - MÉTODO CORREGIDO PARA GUARDAR
+Future<bool> createEnvioMuestra(EnvioMuestra envio) async {
+  try {
+    final db = await database;
+    
+    return await db.transaction((txn) async {
+      // 1. Preparar datos del envío principal (SIN detalles)
+      final envioData = envio.toJson();
+      envioData.remove('detalles'); // ✅ Remover detalles del JSON principal
+      
+      // 2. Insertar envío principal
+      await txn.insert(
+        'envio_muestras',
+        envioData,
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+      
+      // 3. Insertar cada detalle por separado con TODOS los campos como TEXT
+      for (final detalle in envio.detalles) {
+        final detalleData = detalle.toJson();
+        
+        // ✅ MAPEAR TODOS LOS CAMPOS CORRECTAMENTE
+        final detalleCompleto = {
+          'id': detalleData['id'],
+          'envio_muestra_id': envio.id,
+          'paciente_id': detalleData['paciente_id'],
+          'numero_orden': detalleData['numero_orden'],
+          'dm': detalleData['dm'],
+          'hta': detalleData['hta'],
+          'num_muestras_enviadas': detalleData['num_muestras_enviadas'], // ✅ COMO TEXT
+          'tubo_lila': detalleData['tubo_lila'],
+          'tubo_amarillo': detalleData['tubo_amarillo'],
+          'tubo_amarillo_forrado': detalleData['tubo_amarillo_forrado'],
+          'orina_esp': detalleData['orina_esp'],
+          'orina_24h': detalleData['orina_24h'],
+          'a': detalleData['a'],
+          'm': detalleData['m'],
+          'oe': detalleData['oe'],
+          'po': detalleData['po'],
+          'h3': detalleData['h3'],
+          'hba1c': detalleData['hba1c'],
+          'pth': detalleData['pth'],
+          'glu': detalleData['glu'],
+          'crea': detalleData['crea'],
+          'pl': detalleData['pl'],
+          'au': detalleData['au'],
+          'bun': detalleData['bun'],
+          'relacion_crea_alb': detalleData['relacion_crea_alb'],
+          'dcre24h': detalleData['dcre24h'],
+          'alb24h': detalleData['alb24h'],
+          'buno24h': detalleData['buno24h'],
+          'fer': detalleData['fer'],
+          'tra': detalleData['tra'],
+          'fosfat': detalleData['fosfat'],
+          'alb': detalleData['alb'],
+          'fe': detalleData['fe'],
+          'tsh': detalleData['tsh'],
+          'p': detalleData['p'],
+          'ionograma': detalleData['ionograma'],
+          'b12': detalleData['b12'],
+          'acido_folico': detalleData['acido_folico'],
+          'peso': detalleData['peso'], // ✅ COMO TEXT
+          'talla': detalleData['talla'], // ✅ COMO TEXT
+          'volumen': detalleData['volumen'],
+          'created_at': DateTime.now().toIso8601String(),
+          'updated_at': DateTime.now().toIso8601String(),
+        };
+        
+        await txn.insert(
+          'detalle_envio_muestras',
+          detalleCompleto,
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      
+      debugPrint('✅ Envío de muestra guardado localmente: ${envio.id} con ${envio.detalles.length} detalles');
+      return true;
+    });
+  } catch (e) {
+    debugPrint('❌ Error guardando envío de muestra: $e');
+    return false;
+  }
+}
 
+
+Future<List<EnvioMuestra>> getAllEnviosMuestras() async {
+  try {
+    final db = await database;
+    
+    // Obtener envíos
+    final enviosResult = await db.query(
+      'envio_muestras',
+      orderBy: 'fecha DESC',
+    );
+    
+    List<EnvioMuestra> envios = [];
+    
+    for (final envioData in enviosResult) {
+      // Obtener detalles para cada envío
+      final detallesResult = await db.query(
+        'detalle_envio_muestras',
+        where: 'envio_muestra_id = ?',
+        whereArgs: [envioData['id']],
+        orderBy: 'numero_orden ASC',
+      );
+      
+      final detalles = detallesResult
+          .map((d) => DetalleEnvioMuestra.fromJson(d))
+          .toList();
+      
+      final envio = EnvioMuestra.fromJson({
+        ...envioData,
+        'detalles': detalles.map((d) => d.toJson()).toList(),
+      });
+      
+      envios.add(envio);
+    }
+    
+    return envios;
+  } catch (e) {
+    debugPrint('❌ Error obteniendo envíos de muestras: $e');
+    return [];
+  }
+}
+
+Future<List<EnvioMuestra>> getEnviosMuestrasNoSincronizados() async {
+  try {
+    final db = await database;
+    
+    final enviosResult = await db.query(
+      'envio_muestras',
+      where: 'sync_status = ?',
+      whereArgs: [0],
+      orderBy: 'fecha DESC',
+    );
+    
+    List<EnvioMuestra> envios = [];
+    
+    for (final envioData in enviosResult) {
+      final detallesResult = await db.query(
+        'detalle_envio_muestras',
+        where: 'envio_muestra_id = ?',
+        whereArgs: [envioData['id']],
+        orderBy: 'numero_orden ASC',
+      );
+      
+      final detalles = detallesResult
+          .map((d) => DetalleEnvioMuestra.fromJson(d))
+          .toList();
+      
+      final envio = EnvioMuestra.fromJson({
+        ...envioData,
+        'detalles': detalles.map((d) => d.toJson()).toList(),
+      });
+      
+      envios.add(envio);
+    }
+    
+    return envios;
+  } catch (e) {
+    debugPrint('❌ Error obteniendo envíos no sincronizados: $e');
+    return [];
+  }
+}
+
+Future<bool> marcarEnvioMuestraComoSincronizado(String id) async {
+  try {
+    final db = await database;
+    final result = await db.update(
+      'envio_muestras',
+      {
+        'sync_status': 1,
+        'updated_at': DateTime.now().toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    
+    debugPrint('✅ Envío de muestra $id marcado como sincronizado');
+    return result > 0;
+  } catch (e) {
+    debugPrint('❌ Error marcando envío como sincronizado: $e');
+    return false;
+  }
+}
 
 } // Fin de la clase DatabaseHelper

@@ -7,6 +7,7 @@ import 'package:fnpv_app/api/api_service.dart';
 import 'package:fnpv_app/database/database_helper.dart';
 import 'package:fnpv_app/models/paciente_model.dart';
 import 'package:fnpv_app/models/visita_model.dart';
+import 'package:fnpv_app/services/envio_muestra_service.dart';
 import 'package:fnpv_app/services/medicamento_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'file_service.dart'; // Importar el nuevo servicio
@@ -72,6 +73,7 @@ class SincronizacionService {
       'medicamentos': {'exitosas': 0, 'fallidas': 0, 'errores': []}, // 🆕
       'visitas': {'exitosas': 0, 'fallidas': 0, 'errores': []},
       'pacientes': {'exitosas': 0, 'fallidas': 0, 'errores': []},
+        'envios_muestras': {'exitosas': 0, 'fallidas': 0, 'errores': []}, // 🆕 Nuevo
       'archivos': {'exitosas': 0, 'fallidas': 0, 'errores': []},
       'tiempo_total': 0,
       'exito_general': false,
@@ -107,7 +109,11 @@ class SincronizacionService {
         debugPrint('✅ $pacientesExitosos pacientes sincronizados exitosamente');
       }
       
-      // 4. Sincronizar archivos pendientes
+       // 4. 🆕 Sincronizar envíos de muestras pendientes
+    debugPrint('3️⃣ Sincronizando envíos de muestras pendientes...');
+    resultado['envios_muestras'] = await sincronizarEnviosMuestrasPendientes(token);
+
+      // 5. Sincronizar archivos pendientes
       debugPrint('3️⃣ Sincronizando archivos pendientes...');
       resultado['archivos'] = await sincronizarArchivosPendientes(token);
       
@@ -116,7 +122,7 @@ class SincronizacionService {
         debugPrint('✅ $archivosExitosos archivos sincronizados exitosamente');
       }
       
-      // 5. Limpiar archivos antiguos
+      // 6. Limpiar archivos antiguos
       debugPrint('4️⃣ Limpiando archivos antiguos...');
       await limpiarArchivosLocales();
       
@@ -124,7 +130,8 @@ class SincronizacionService {
       resultado['tiempo_total'] = stopwatch.elapsedMilliseconds;
       
       // Determinar éxito general
-      final totalExitosas = medicamentosExitosos + visitasExitosas + pacientesExitosos + archivosExitosos;
+       final enviosExitosos = resultado['envios_muestras']['exitosas'] ?? 0; // 🆕
+      final totalExitosas = medicamentosExitosos + visitasExitosas + pacientesExitosos + archivosExitosos + enviosExitosos; // 🆕
       
       resultado['exito_general'] = totalExitosas > 0;
       
@@ -248,6 +255,42 @@ Future<void> scheduleSync() async {
       return false;
     }
   }
+// services/sincronizacion_service.dart - MÉTODO CORREGIDO PARA ENVÍOS
+static Future<Map<String, dynamic>> sincronizarEnviosMuestrasPendientes(String token) async {
+  try {
+    debugPrint('🧪 Iniciando sincronización de envíos de muestras...');
+    
+    // ✅ USAR EL SERVICIO ESPECÍFICO
+    final resultado = await EnvioMuestraService.sincronizarEnviosPendientes(token);
+    
+    final exitosas = resultado['exitosas'] ?? 0;
+    final fallidas = resultado['fallidas'] ?? 0;
+    final total = resultado['total'] ?? 0;
+    
+    if (exitosas > 0) {
+      debugPrint('✅ $exitosas envíos de muestras sincronizados exitosamente');
+    }
+    
+    if (fallidas > 0) {
+      debugPrint('⚠️ $fallidas envíos de muestras fallaron en la sincronización');
+      final errores = resultado['errores'] as List<String>? ?? [];
+      for (final error in errores.take(3)) { // Mostrar solo los primeros 3 errores
+        debugPrint('❌ Error: $error');
+      }
+    }
+    
+    return resultado;
+  } catch (e) {
+    debugPrint('💥 Error en sincronización de envíos de muestras: $e');
+    return {
+      'exitosas': 0,
+      'fallidas': 1,
+      'errores': ['Error general: $e'],
+      'total': 1,
+    };
+  }
+}
+
 
   // Método para iniciar el proceso de sincronización
   Future<void> _startSyncProcess() async {

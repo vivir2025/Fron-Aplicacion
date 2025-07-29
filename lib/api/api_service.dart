@@ -353,4 +353,99 @@ static Future<bool> verificarSaludServidor() async {
     return null;
   }
 }
+// api/api_service.dart - VALIDACIÓN MEJORADA
+static Future<Map<String, dynamic>?> createEnvioMuestra(
+  String token, 
+  Map<String, dynamic> envioData
+) async {
+  try {
+    debugPrint('📤 Enviando envío de muestras al servidor...');
+    
+    // ✅ VALIDAR LONGITUD DE IDs ANTES DE ENVIAR
+    if (envioData['id'] != null && envioData['id'].toString().length > 36) {
+      debugPrint('⚠️ ID de envío demasiado largo, truncando...');
+      envioData['id'] = envioData['id'].toString().substring(0, 36);
+    }
+    
+    if (envioData['detalles'] is List) {
+      final detalles = envioData['detalles'] as List;
+      for (int i = 0; i < detalles.length; i++) {
+        if (detalles[i]['id'] != null && detalles[i]['id'].toString().length > 20) {
+          debugPrint('⚠️ ID de detalle $i demasiado largo, truncando...');
+          detalles[i]['id'] = detalles[i]['id'].toString().substring(0, 20);
+        }
+      }
+    }
+    
+    debugPrint('📋 Payload validado: ${jsonEncode(envioData)}');
+    
+    final url = Uri.parse('${ApiService.baseUrl}/envio-muestras');
+    
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(envioData),
+    ).timeout(const Duration(seconds: 30));
+    
+    debugPrint('📥 Respuesta del servidor: ${response.statusCode}');
+    
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final responseData = jsonDecode(response.body);
+      debugPrint('✅ Envío de muestras creado exitosamente');
+      return responseData;
+    } else {
+      debugPrint('❌ Error del servidor: ${response.statusCode}');
+      debugPrint('📄 Respuesta: ${response.body}');
+      throw Exception('Error del servidor: ${response.statusCode}');
+    }
+  } catch (e) {
+    debugPrint('💥 Excepción al crear envío de muestras: $e');
+    rethrow;
+  }
+}
+
+
+// Obtener responsables
+static Future<List<dynamic>> getResponsables(String token) async {
+  try {
+    final response = await http.get(
+      Uri.parse('$baseUrl/responsables'),
+      headers: _buildHeaders(token),
+    );
+    
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body);
+      return decoded is List ? decoded : [];
+    }
+    
+    return [];
+  } catch (e) {
+    debugPrint('❌ Error obteniendo responsables: $e');
+    return [];
+  }
+}
+
+// Obtener envíos por sede
+static Future<List<dynamic>> getEnviosPorSede(String token, String sedeId) async {
+  try {
+    final response = await http.get(
+      Uri.parse('$baseUrl/envio-muestras/sede/$sedeId'),
+      headers: _buildHeaders(token),
+    );
+    
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body);
+      return decoded is List ? decoded : [];
+    }
+    
+    return [];
+  } catch (e) {
+    debugPrint('❌ Error obteniendo envíos por sede: $e');
+    return [];
+  }
+}
 }
