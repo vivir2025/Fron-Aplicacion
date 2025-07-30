@@ -1,4 +1,4 @@
-// screens/crear_envio_muestra_screen.dart - VERSIÓN ACTUALIZADA
+// screens/crear_envio_muestra_screen.dart - VERSIÓN COMPLETA CORREGIDA
 import 'package:flutter/material.dart';
 import 'package:fnpv_app/database/database_helper.dart';
 import 'package:fnpv_app/models/envio_muestra_model.dart';
@@ -31,7 +31,11 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
   DateTime? _fechaSalida;
   DateTime? _fechaLlegada;
   
-  // ✅ NUEVAS VARIABLES PARA SEDES
+  // ✅ NUEVAS VARIABLES PARA HORAS
+  TimeOfDay? _horaSalidaSeleccionada;
+  TimeOfDay? _horaLlegadaSeleccionada;
+  
+  // ✅ VARIABLES PARA SEDES
   List<Map<String, dynamic>> _sedes = [];
   String? _sedeSeleccionada;
   bool _cargandoSedes = true;
@@ -110,6 +114,84 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
       debugPrint('❌ Error cargando sedes: $e');
       _mostrarError('Error cargando sedes: $e');
     }
+  }
+
+  // ✅ MÉTODOS PARA SELECCIONAR FECHAS Y HORAS
+  Future<void> _seleccionarFecha() async {
+    final fecha = await showDatePicker(
+      context: context,
+      initialDate: _fechaSeleccionada,
+      firstDate: DateTime.now().subtract(Duration(days: 30)),
+      lastDate: DateTime.now().add(Duration(days: 30)),
+    );
+    
+    if (fecha != null) {
+      setState(() => _fechaSeleccionada = fecha);
+    }
+  }
+
+  // ✅ MÉTODO PARA SELECCIONAR FECHA DE SALIDA
+  Future<void> _seleccionarFechaSalida() async {
+    final fecha = await showDatePicker(
+      context: context,
+      initialDate: _fechaSalida ?? _fechaSeleccionada,
+      firstDate: DateTime.now().subtract(Duration(days: 30)),
+      lastDate: DateTime.now().add(Duration(days: 30)),
+    );
+    
+    if (fecha != null) {
+      setState(() => _fechaSalida = fecha);
+    }
+  }
+
+  // ✅ MÉTODO PARA SELECCIONAR FECHA DE LLEGADA
+  Future<void> _seleccionarFechaLlegada() async {
+    final fecha = await showDatePicker(
+      context: context,
+      initialDate: _fechaLlegada ?? _fechaSalida ?? _fechaSeleccionada,
+      firstDate: DateTime.now().subtract(Duration(days: 30)),
+      lastDate: DateTime.now().add(Duration(days: 30)),
+    );
+    
+    if (fecha != null) {
+      setState(() => _fechaLlegada = fecha);
+    }
+  }
+
+  // ✅ MÉTODO PARA SELECCIONAR HORA DE SALIDA
+  Future<void> _seleccionarHoraSalida() async {
+    final hora = await showTimePicker(
+      context: context,
+      initialTime: _horaSalidaSeleccionada ?? TimeOfDay.now(),
+    );
+    
+    if (hora != null) {
+      setState(() {
+        _horaSalidaSeleccionada = hora;
+        _horaSalidaController.text = '${hora.hour.toString().padLeft(2, '0')}:${hora.minute.toString().padLeft(2, '0')}';
+      });
+    }
+  }
+
+  // ✅ MÉTODO PARA SELECCIONAR HORA DE LLEGADA
+  Future<void> _seleccionarHoraLlegada() async {
+    final hora = await showTimePicker(
+      context: context,
+      initialTime: _horaLlegadaSeleccionada ?? _horaSalidaSeleccionada ?? TimeOfDay.now(),
+    );
+    
+    if (hora != null) {
+      setState(() {
+        _horaLlegadaSeleccionada = hora;
+        _horaLlegadaController.text = '${hora.hour.toString().padLeft(2, '0')}:${hora.minute.toString().padLeft(2, '0')}';
+      });
+    }
+  }
+
+  // ✅ MÉTODO AUXILIAR PARA FORMATEAR FECHA
+  String _formatearFecha(DateTime? fecha) {
+    if (fecha == null) return 'No seleccionada';
+    return '${fecha.day}/${fecha.month}/${fecha.year}';
   }
 
   @override
@@ -210,17 +292,18 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
             ),
             SizedBox(height: 16),
             
-            // ✅ SELECTOR DE SEDE - NUEVO CAMPO
+            // ✅ SELECTOR DE SEDE
             _buildSelectorSede(),
             SizedBox(height: 16),
             
-            // Fecha
+            // Fecha del envío
             ListTile(
               leading: Icon(Icons.calendar_today),
               title: Text('Fecha del envío'),
               subtitle: Text('${_fechaSeleccionada.day}/${_fechaSeleccionada.month}/${_fechaSeleccionada.year}'),
               onTap: _seleccionarFecha,
             ),
+            SizedBox(height: 16),
             
             // Lugar de toma de muestras
             TextFormField(
@@ -239,63 +322,151 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
             ),
             SizedBox(height: 16),
             
-            // Información de salida
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _horaSalidaController,
-                    decoration: InputDecoration(
-                      labelText: 'Hora salida',
-                      hintText: '08:00',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.access_time),
+            // ✅ INFORMACIÓN DE SALIDA MEJORADA
+            Container(
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue[200]!),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Información de Salida',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue[800],
                     ),
                   ),
-                ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    controller: _temperaturaSalidaController,
-                    decoration: InputDecoration(
-                      labelText: 'Temperatura salida (°C)',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.thermostat),
+                  SizedBox(height: 12),
+                  
+                  // Fecha de salida
+                  ListTile(
+                    leading: Icon(Icons.calendar_today, color: Colors.blue[600]),
+                    title: Text('Fecha de salida'),
+                    subtitle: Text(_formatearFecha(_fechaSalida)),
+                    trailing: Icon(Icons.arrow_forward_ios, size: 16),
+                    onTap: _seleccionarFechaSalida,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    keyboardType: TextInputType.number,
+                    tileColor: Colors.white,
                   ),
-                ),
-              ],
+                  SizedBox(height: 8),
+                  
+                  Row(
+                    children: [
+                      // Hora de salida
+                      Expanded(
+                        child: ListTile(
+                          leading: Icon(Icons.access_time, color: Colors.blue[600]),
+                          title: Text('Hora salida'),
+                          subtitle: Text(_horaSalidaSeleccionada != null 
+                              ? '${_horaSalidaSeleccionada!.hour.toString().padLeft(2, '0')}:${_horaSalidaSeleccionada!.minute.toString().padLeft(2, '0')}'
+                              : 'No seleccionada'),
+                          onTap: _seleccionarHoraSalida,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          tileColor: Colors.white,
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      // Temperatura de salida
+                      Expanded(
+                        child: TextFormField(
+                          controller: _temperaturaSalidaController,
+                          decoration: InputDecoration(
+                            labelText: 'Temperatura salida (°C)',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.thermostat, color: Colors.blue[600]),
+                            filled: true,
+                            fillColor: Colors.white,
+                          ),
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
             SizedBox(height: 16),
-            
-            // Información de llegada
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _horaLlegadaController,
-                    decoration: InputDecoration(
-                      labelText: 'Hora llegada',
-                      hintText: '10:00',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.access_time_filled),
+
+            // ✅ INFORMACIÓN DE LLEGADA MEJORADA
+            Container(
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.green[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green[200]!),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Información de Llegada',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green[800],
                     ),
                   ),
-                ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    controller: _temperaturaLlegadaController,
-                    decoration: InputDecoration(
-                      labelText: 'Temperatura llegada (°C)',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.thermostat_outlined),
+                  SizedBox(height: 12),
+                  
+                  // Fecha de llegada
+                  ListTile(
+                    leading: Icon(Icons.calendar_today, color: Colors.green[600]),
+                    title: Text('Fecha de llegada'),
+                    subtitle: Text(_formatearFecha(_fechaLlegada)),
+                    trailing: Icon(Icons.arrow_forward_ios, size: 16),
+                    onTap: _seleccionarFechaLlegada,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    keyboardType: TextInputType.number,
+                    tileColor: Colors.white,
                   ),
-                ),
-              ],
+                  SizedBox(height: 8),
+                  
+                  Row(
+                    children: [
+                      // Hora de llegada
+                      Expanded(
+                        child: ListTile(
+                          leading: Icon(Icons.access_time_filled, color: Colors.green[600]),
+                          title: Text('Hora llegada'),
+                          subtitle: Text(_horaLlegadaSeleccionada != null 
+                              ? '${_horaLlegadaSeleccionada!.hour.toString().padLeft(2, '0')}:${_horaLlegadaSeleccionada!.minute.toString().padLeft(2, '0')}'
+                              : 'No seleccionada'),
+                          onTap: _seleccionarHoraLlegada,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          tileColor: Colors.white,
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      // Temperatura de llegada
+                      Expanded(
+                        child: TextFormField(
+                          controller: _temperaturaLlegadaController,
+                          decoration: InputDecoration(
+                            labelText: 'Temperatura llegada (°C)',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.thermostat_outlined, color: Colors.green[600]),
+                            filled: true,
+                            fillColor: Colors.white,
+                          ),
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
             SizedBox(height: 16),
             
@@ -470,7 +641,6 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
     }
   }
 
-  // ... resto de los métodos existentes sin cambios ...
   Widget _buildSeccionMuestras() {
     return Card(
       elevation: 4,
@@ -575,19 +745,6 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
     );
   }
 
-  Future<void> _seleccionarFecha() async {
-    final fecha = await showDatePicker(
-      context: context,
-      initialDate: _fechaSeleccionada,
-      firstDate: DateTime.now().subtract(Duration(days: 30)),
-      lastDate: DateTime.now().add(Duration(days: 30)),
-    );
-    
-    if (fecha != null) {
-      setState(() => _fechaSeleccionada = fecha);
-    }
-  }
-
   void _agregarMuestra() async {
     if (_sedeSeleccionada == null) {
       _mostrarError('Debe seleccionar una sede antes de agregar muestras');
@@ -648,7 +805,7 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
                     m: _detalles[i].m,
                     oe: _detalles[i].oe,
                     po: _detalles[i].po,
-                    h3: _detalles[i].h3,
+                                       h3: _detalles[i].h3,
                     hba1c: _detalles[i].hba1c,
                     pth: _detalles[i].pth,
                     glu: _detalles[i].glu,
@@ -685,7 +842,7 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
     );
   }
 
-  // ✅ MÉTODO ACTUALIZADO PARA GUARDAR CON VALIDACIÓN DE SEDE
+  // ✅ MÉTODO ACTUALIZADO PARA GUARDAR CON FECHAS Y HORAS SELECCIONADAS
   Future<void> _guardarEnvio() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -704,7 +861,7 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
     setState(() => _isSaving = true);
 
     try {
-      // Crear envío con sede seleccionada
+      // ✅ CREAR ENVÍO CON FECHAS Y HORAS SELECCIONADAS
       final envio = EnvioMuestra(
         id: 'env_${_uuid.v4()}',
         codigo: 'PM-CE-TM-F-01',
@@ -712,11 +869,11 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
         version: '1',
         lugarTomaMuestras: _lugarTomaController.text,
         horaSalida: _horaSalidaController.text.isEmpty ? null : _horaSalidaController.text,
-        fechaSalida: _fechaSalida,
+        fechaSalida: _fechaSalida, // ✅ USAR FECHA SELECCIONADA
         temperaturaSalida: _temperaturaSalidaController.text.isEmpty 
             ? null 
             : double.tryParse(_temperaturaSalidaController.text),
-        fechaLlegada: _fechaLlegada,
+        fechaLlegada: _fechaLlegada, // ✅ USAR FECHA SELECCIONADA
         horaLlegada: _horaLlegadaController.text.isEmpty ? null : _horaLlegadaController.text,
         temperaturaLlegada: _temperaturaLlegadaController.text.isEmpty 
             ? null 
