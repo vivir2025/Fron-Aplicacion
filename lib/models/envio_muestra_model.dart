@@ -1,6 +1,5 @@
-
 import 'dart:convert';
-import 'package:uuid/uuid.dart'; // ✅ AGREGAR ESTA LÍNEA
+import 'package:uuid/uuid.dart';
 
 class EnvioMuestra {
   final String id;
@@ -11,13 +10,13 @@ class EnvioMuestra {
   final String? horaSalida;
   final DateTime? fechaSalida;
   final double? temperaturaSalida;
-  final String? responsableTomaId;
-  final String? responsableTransporteId;
+  final String? responsableTomaId; // ✅ Se llena automáticamente
+  final String? responsableTransporteId; // ✅ Ahora es String normal
   final DateTime? fechaLlegada;
   final String? horaLlegada;
   final double? temperaturaLlegada;
   final String? lugarLlegada;
-  final String? responsableRecepcionId;
+  final String? responsableRecepcionId; // ✅ Ahora es String normal
   final String? observaciones;
   final String idsede;
   final List<DetalleEnvioMuestra> detalles;
@@ -32,31 +31,22 @@ class EnvioMuestra {
     this.horaSalida,
     this.fechaSalida,
     this.temperaturaSalida,
-    this.responsableTomaId,
-    this.responsableTransporteId,
+    this.responsableTomaId, // ✅ Opcional porque se llena automáticamente
+    this.responsableTransporteId, // ✅ Campo de texto
     this.fechaLlegada,
     this.horaLlegada,
     this.temperaturaLlegada,
     this.lugarLlegada,
-    this.responsableRecepcionId,
+    this.responsableRecepcionId, // ✅ Campo de texto
     this.observaciones,
     required this.idsede,
     required this.detalles,
     this.syncStatus = 0,
   });
 
-// ✅ AGREGAR ESTE MÉTODO ESTÁTICO
-  static String generarIdUnicoCorto() {
-    final uuid = Uuid();
-    final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-    // ID corto: env_ + 8 chars del UUID + últimos 6 del timestamp
-    return 'env_${uuid.v4().substring(0, 8)}${timestamp.substring(timestamp.length - 6)}';
-  }
-
-  // ✅ AGREGAR MÉTODO PARA SERVIDOR
+  // ✅ MÉTODO PARA SERVIDOR SIN responsable_toma_id (se llena automáticamente)
   Map<String, dynamic> toServerJson() {
     return {
-      'id': id.length > 36 ? id.substring(0, 36) : id, // ✅ LIMITAR ID
       'codigo': codigo,
       'fecha': fecha.toIso8601String().split('T')[0],
       'version': version,
@@ -64,18 +54,20 @@ class EnvioMuestra {
       'hora_salida': horaSalida,
       'fecha_salida': fechaSalida?.toIso8601String().split('T')[0],
       'temperatura_salida': temperaturaSalida,
-      'responsable_toma_id': responsableTomaId,
-      'responsable_transporte_id': responsableTransporteId,
+      // ✅ NO ENVIAR responsable_toma_id - se asigna automáticamente en el backend
+      'responsable_transporte_id': responsableTransporteId, // ✅ String
       'fecha_llegada': fechaLlegada?.toIso8601String().split('T')[0],
       'hora_llegada': horaLlegada,
       'temperatura_llegada': temperaturaLlegada,
       'lugar_llegada': lugarLlegada,
-      'responsable_recepcion_id': responsableRecepcionId,
+      'responsable_recepcion_id': responsableRecepcionId, // ✅ String
       'observaciones': observaciones,
       'idsede': idsede,
-      'detalles': detalles.map((d) => d.toServerJson()).toList(), // ✅ USAR toServerJson()
+      'detalles': detalles.map((d) => d.toServerJson()).toList(),
     };
   }
+
+  // Resto del código permanece igual...
   factory EnvioMuestra.fromJson(Map<String, dynamic> json) {
     return EnvioMuestra(
       id: json['id']?.toString() ?? '',
@@ -174,7 +166,6 @@ class EnvioMuestra {
     );
   }
 }
-
 class DetalleEnvioMuestra {
   final String id;
   final String envioMuestraId;

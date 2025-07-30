@@ -1,4 +1,4 @@
-// screens/crear_envio_muestra_screen.dart - VERSIÓN COMPLETA CORREGIDA
+// screens/crear_envio_muestra_screen.dart - VERSIÓN ACTUALIZADA CON CAMPOS
 import 'package:flutter/material.dart';
 import 'package:fnpv_app/database/database_helper.dart';
 import 'package:fnpv_app/models/envio_muestra_model.dart';
@@ -27,15 +27,17 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
   final _lugarLlegadaController = TextEditingController();
   final _observacionesController = TextEditingController();
   
+  // ✅ NUEVOS CONTROLADORES PARA RESPONSABLES
+  final _responsableTransporteController = TextEditingController();
+  final _responsableRecepcionController = TextEditingController();
+  
   DateTime _fechaSeleccionada = DateTime.now();
   DateTime? _fechaSalida;
   DateTime? _fechaLlegada;
   
-  // ✅ NUEVAS VARIABLES PARA HORAS
   TimeOfDay? _horaSalidaSeleccionada;
   TimeOfDay? _horaLlegadaSeleccionada;
   
-  // ✅ VARIABLES PARA SEDES
   List<Map<String, dynamic>> _sedes = [];
   String? _sedeSeleccionada;
   bool _cargandoSedes = true;
@@ -45,21 +47,23 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
   bool _isLoading = false;
   bool _isSaving = false;
 
+  // ✅ INFORMACIÓN DEL USUARIO LOGUEADO
+  String? _usuarioLogueado;
+
   @override
   void initState() {
     super.initState();
     _cargarDatosIniciales();
   }
 
-  // ✅ MÉTODO PARA CARGAR DATOS INICIALES
   Future<void> _cargarDatosIniciales() async {
     setState(() => _isLoading = true);
     
     try {
-      // Cargar en paralelo para mejor rendimiento
       await Future.wait([
         _cargarPacientes(),
         _cargarSedes(),
+        _cargarUsuarioLogueado(), // ✅ NUEVO
       ]);
     } catch (e) {
       _mostrarError('Error cargando datos: $e');
@@ -68,6 +72,32 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
     }
   }
 
+  // ✅ NUEVO MÉTODO PARA CARGAR USUARIO LOGUEADO
+  Future<void> _cargarUsuarioLogueado() async {
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final usuario = authProvider.user;
+      
+      if (usuario != null) {
+        setState(() {
+          _usuarioLogueado = '${usuario['nombre'] ?? 'Usuario'} (${usuario['usuario'] ?? ''})';
+        });
+        debugPrint('✅ Usuario logueado: $_usuarioLogueado');
+      } else {
+        debugPrint('⚠️ No hay usuario logueado');
+        setState(() {
+          _usuarioLogueado = 'Usuario no identificado';
+        });
+      }
+    } catch (e) {
+      debugPrint('❌ Error cargando usuario: $e');
+      setState(() {
+        _usuarioLogueado = 'Error al cargar usuario';
+      });
+    }
+  }
+
+  // Resto de métodos existentes permanecen igual...
   Future<void> _cargarPacientes() async {
     try {
       final dbHelper = DatabaseHelper.instance;
@@ -82,7 +112,6 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
     }
   }
 
-  // ✅ MÉTODO PARA CARGAR SEDES DESDE LA BASE DE DATOS LOCAL
   Future<void> _cargarSedes() async {
     setState(() => _cargandoSedes = true);
     
@@ -94,7 +123,6 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
         _sedes = sedes;
         _cargandoSedes = false;
         
-        // ✅ SELECCIONAR AUTOMÁTICAMENTE LA SEDE DEL USUARIO SI EXISTE
         final authProvider = Provider.of<AuthProvider>(context, listen: false);
         final userSedeId = authProvider.user?['sede_id']?.toString();
         
@@ -102,7 +130,6 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
           _sedeSeleccionada = userSedeId;
           debugPrint('✅ Sede del usuario seleccionada automáticamente: $userSedeId');
         } else if (sedes.isNotEmpty) {
-          // Si no tiene sede asignada, seleccionar la primera disponible
           _sedeSeleccionada = sedes.first['id'].toString();
           debugPrint('✅ Primera sede seleccionada por defecto: ${_sedeSeleccionada}');
         }
@@ -116,7 +143,7 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
     }
   }
 
-  // ✅ MÉTODOS PARA SELECCIONAR FECHAS Y HORAS
+  // Métodos para fechas y horas permanecen igual...
   Future<void> _seleccionarFecha() async {
     final fecha = await showDatePicker(
       context: context,
@@ -130,7 +157,6 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
     }
   }
 
-  // ✅ MÉTODO PARA SELECCIONAR FECHA DE SALIDA
   Future<void> _seleccionarFechaSalida() async {
     final fecha = await showDatePicker(
       context: context,
@@ -144,7 +170,6 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
     }
   }
 
-  // ✅ MÉTODO PARA SELECCIONAR FECHA DE LLEGADA
   Future<void> _seleccionarFechaLlegada() async {
     final fecha = await showDatePicker(
       context: context,
@@ -158,7 +183,6 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
     }
   }
 
-  // ✅ MÉTODO PARA SELECCIONAR HORA DE SALIDA
   Future<void> _seleccionarHoraSalida() async {
     final hora = await showTimePicker(
       context: context,
@@ -173,7 +197,6 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
     }
   }
 
-  // ✅ MÉTODO PARA SELECCIONAR HORA DE LLEGADA
   Future<void> _seleccionarHoraLlegada() async {
     final hora = await showTimePicker(
       context: context,
@@ -188,7 +211,6 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
     }
   }
 
-  // ✅ MÉTODO AUXILIAR PARA FORMATEAR FECHA
   String _formatearFecha(DateTime? fecha) {
     if (fecha == null) return 'No seleccionada';
     return '${fecha.day}/${fecha.month}/${fecha.year}';
@@ -235,7 +257,7 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
                     _buildFormularioPrincipal(),
                     SizedBox(height: 24),
                     _buildSeccionMuestras(),
-                    SizedBox(height: 80), // Espacio para FAB
+                    SizedBox(height: 80),
                   ],
                 ),
               ),
@@ -292,11 +314,57 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
             ),
             SizedBox(height: 16),
             
-            // ✅ SELECTOR DE SEDE
+            // ✅ MOSTRAR RESPONSABLE DE TOMA (USUARIO LOGUEADO)
+            Container(
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.green[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green[200]!),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.person, color: Colors.green[700], size: 20),
+                      SizedBox(width: 8),
+                      Text(
+                        'Responsable de Toma de Muestras',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green[800],
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    _usuarioLogueado ?? 'Cargando...',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.green[700],
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Se asignará automáticamente',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.green[600],
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 16),
+            
             _buildSelectorSede(),
             SizedBox(height: 16),
             
-            // Fecha del envío
             ListTile(
               leading: Icon(Icons.calendar_today),
               title: Text('Fecha del envío'),
@@ -305,7 +373,6 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
             ),
             SizedBox(height: 16),
             
-            // Lugar de toma de muestras
             TextFormField(
               controller: _lugarTomaController,
               decoration: InputDecoration(
@@ -343,7 +410,6 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
                   ),
                   SizedBox(height: 12),
                   
-                  // Fecha de salida
                   ListTile(
                     leading: Icon(Icons.calendar_today, color: Colors.blue[600]),
                     title: Text('Fecha de salida'),
@@ -359,7 +425,6 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
                   
                   Row(
                     children: [
-                      // Hora de salida
                       Expanded(
                         child: ListTile(
                           leading: Icon(Icons.access_time, color: Colors.blue[600]),
@@ -375,7 +440,6 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
                         ),
                       ),
                       SizedBox(width: 8),
-                      // Temperatura de salida
                       Expanded(
                         child: TextFormField(
                           controller: _temperaturaSalidaController,
@@ -390,6 +454,20 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
                         ),
                       ),
                     ],
+                  ),
+                  SizedBox(height: 12),
+                  
+                  // ✅ NUEVO CAMPO RESPONSABLE DE TRANSPORTE
+                  TextFormField(
+                    controller: _responsableTransporteController,
+                    decoration: InputDecoration(
+                      labelText: 'Responsable de Transporte',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.local_shipping, color: Colors.blue[600]),
+                      filled: true,
+                      fillColor: Colors.white,
+                      hintText: 'Nombre del responsable de transporte',
+                    ),
                   ),
                 ],
               ),
@@ -417,7 +495,6 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
                   ),
                   SizedBox(height: 12),
                   
-                  // Fecha de llegada
                   ListTile(
                     leading: Icon(Icons.calendar_today, color: Colors.green[600]),
                     title: Text('Fecha de llegada'),
@@ -433,7 +510,6 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
                   
                   Row(
                     children: [
-                      // Hora de llegada
                       Expanded(
                         child: ListTile(
                           leading: Icon(Icons.access_time_filled, color: Colors.green[600]),
@@ -449,7 +525,6 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
                         ),
                       ),
                       SizedBox(width: 8),
-                      // Temperatura de llegada
                       Expanded(
                         child: TextFormField(
                           controller: _temperaturaLlegadaController,
@@ -465,23 +540,35 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
                       ),
                     ],
                   ),
+                  SizedBox(height: 12),
+                  
+                  // ✅ NUEVO CAMPO RESPONSABLE DE RECEPCIÓN
+                  TextFormField(
+                    controller: _responsableRecepcionController,
+                    decoration: InputDecoration(
+                      labelText: 'Responsable de Recepción',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.how_to_reg, color: Colors.green[600]),
+                      filled: true,
+                      fillColor: Colors.white,
+                      hintText: 'Nombre del responsable de recepción',
+                    ),
+                  ),
                 ],
               ),
             ),
             SizedBox(height: 16),
             
-            // Lugar de llegada
             TextFormField(
               controller: _lugarLlegadaController,
               decoration: InputDecoration(
-                labelText: 'Lugar de llegada',
+                                labelText: 'Lugar de llegada',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.location_city),
               ),
             ),
             SizedBox(height: 16),
             
-            // Observaciones
             TextFormField(
               controller: _observacionesController,
               decoration: InputDecoration(
@@ -497,7 +584,7 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
     );
   }
 
-  // ✅ WIDGET PARA SELECTOR DE SEDE
+  // Widget _buildSelectorSede permanece igual...
   Widget _buildSelectorSede() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -631,7 +718,6 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
     );
   }
 
-  // ✅ MÉTODO AUXILIAR PARA OBTENER NOMBRE DE SEDE
   String _obtenerNombreSede(String sedeId) {
     try {
       final sede = _sedes.firstWhere((s) => s['id'].toString() == sedeId);
@@ -641,6 +727,7 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
     }
   }
 
+  // Widget _buildSeccionMuestras permanece igual...
   Widget _buildSeccionMuestras() {
     return Card(
       elevation: 4,
@@ -805,7 +892,7 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
                     m: _detalles[i].m,
                     oe: _detalles[i].oe,
                     po: _detalles[i].po,
-                                       h3: _detalles[i].h3,
+                    h3: _detalles[i].h3,
                     hba1c: _detalles[i].hba1c,
                     pth: _detalles[i].pth,
                     glu: _detalles[i].glu,
@@ -842,7 +929,7 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
     );
   }
 
-  // ✅ MÉTODO ACTUALIZADO PARA GUARDAR CON FECHAS Y HORAS SELECCIONADAS
+  // ✅ MÉTODO ACTUALIZADO PARA GUARDAR CON NUEVOS CAMPOS
   Future<void> _guardarEnvio() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -861,7 +948,7 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
     setState(() => _isSaving = true);
 
     try {
-      // ✅ CREAR ENVÍO CON FECHAS Y HORAS SELECCIONADAS
+      // ✅ CREAR ENVÍO CON NUEVOS CAMPOS
       final envio = EnvioMuestra(
         id: 'env_${_uuid.v4()}',
         codigo: 'PM-CE-TM-F-01',
@@ -869,18 +956,25 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
         version: '1',
         lugarTomaMuestras: _lugarTomaController.text,
         horaSalida: _horaSalidaController.text.isEmpty ? null : _horaSalidaController.text,
-        fechaSalida: _fechaSalida, // ✅ USAR FECHA SELECCIONADA
+        fechaSalida: _fechaSalida,
         temperaturaSalida: _temperaturaSalidaController.text.isEmpty 
             ? null 
             : double.tryParse(_temperaturaSalidaController.text),
-        fechaLlegada: _fechaLlegada, // ✅ USAR FECHA SELECCIONADA
+        // ✅ NO SE ENVÍA responsableTomaId - se asigna automáticamente en el backend
+        responsableTransporteId: _responsableTransporteController.text.isEmpty 
+            ? null 
+            : _responsableTransporteController.text, // ✅ NUEVO CAMPO
+        fechaLlegada: _fechaLlegada,
         horaLlegada: _horaLlegadaController.text.isEmpty ? null : _horaLlegadaController.text,
         temperaturaLlegada: _temperaturaLlegadaController.text.isEmpty 
             ? null 
             : double.tryParse(_temperaturaLlegadaController.text),
         lugarLlegada: _lugarLlegadaController.text.isEmpty ? null : _lugarLlegadaController.text,
+        responsableRecepcionId: _responsableRecepcionController.text.isEmpty 
+            ? null 
+            : _responsableRecepcionController.text, // ✅ NUEVO CAMPO
         observaciones: _observacionesController.text.isEmpty ? null : _observacionesController.text,
-        idsede: _sedeSeleccionada!, // ✅ USAR SEDE SELECCIONADA
+        idsede: _sedeSeleccionada!,
         detalles: _detalles,
       );
 
@@ -939,6 +1033,9 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
     _temperaturaLlegadaController.dispose();
     _lugarLlegadaController.dispose();
     _observacionesController.dispose();
+    _responsableTransporteController.dispose(); // ✅ NUEVO
+    _responsableRecepcionController.dispose(); // ✅ NUEVO
     super.dispose();
   }
 }
+
