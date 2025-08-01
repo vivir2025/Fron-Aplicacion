@@ -1,4 +1,4 @@
-// services/envio_muestra_service.dart - VERSIÓN CORREGIDA
+// services/envio_muestra_service.dart - VERSIÓN CORREGIDA CON o24h
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -78,7 +78,7 @@ class EnvioMuestraService {
       'responsable_toma_id': envio.responsableTomaId,
       'responsable_transporte_id': envio.responsableTransporteId,
       'fecha_llegada': envio.fechaLlegada?.toIso8601String().split('T')[0],
-            'hora_llegada': envio.horaLlegada,
+      'hora_llegada': envio.horaLlegada,
       'temperatura_llegada': envio.temperaturaLlegada,
       'lugar_llegada': envio.lugarLlegada,
       'responsable_recepcion_id': envio.responsableRecepcionId,
@@ -105,6 +105,7 @@ class EnvioMuestraService {
         'a': detalle.a,
         'm': detalle.m,
         'oe': detalle.oe,
+        'o24h': detalle.o24h, // ✅ CORREGIDO: Usar o24h como está en la BD
         'po': detalle.po,
         'h3': detalle.h3,
         'hba1c': detalle.hba1c,
@@ -239,4 +240,3 @@ class EnvioMuestraService {
     };
   }
 }
-

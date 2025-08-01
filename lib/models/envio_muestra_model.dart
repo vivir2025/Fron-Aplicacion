@@ -166,6 +166,7 @@ class EnvioMuestra {
     );
   }
 }
+
 class DetalleEnvioMuestra {
   final String id;
   final String envioMuestraId;
@@ -192,10 +193,11 @@ class DetalleEnvioMuestra {
   final String? orinaEsp;
   final String? orina24h;
   
-  // PACIENTES NEFRO (todos los exámenes)
+  // PACIENTES NEFRO (todos los exámenes) - ✅ REORDENADO
   final String? a;
   final String? m;
   final String? oe;
+  final String? o24h; // ✅ COLOCADO DESPUÉS DE oe
   final String? po;
   final String? h3;
   final String? hba1c;
@@ -249,6 +251,7 @@ class DetalleEnvioMuestra {
     this.a,
     this.m,
     this.oe,
+    this.o24h, // ✅ AGREGADO EN LA POSICIÓN CORRECTA
     this.po,
     this.h3,
     this.hba1c,
@@ -294,6 +297,7 @@ class DetalleEnvioMuestra {
       a: json['a']?.toString(),
       m: json['m']?.toString(),
       oe: json['oe']?.toString(),
+      o24h: json['o24h']?.toString(), // ✅ CAMBIADO: Leer desde 'o24h' en la BD
       po: json['po']?.toString(),
       h3: json['h3']?.toString(),
       hba1c: json['hba1c']?.toString(),
@@ -340,6 +344,7 @@ class DetalleEnvioMuestra {
       'a': a,
       'm': m,
       'oe': oe,
+      'o24h': o24h, // ✅ CAMBIADO: Guardar como 'o24h' en la BD
       'po': po,
       'h3': h3,
       'hba1c': hba1c,
@@ -386,6 +391,7 @@ class DetalleEnvioMuestra {
       'a': a?.toString() ?? '',
       'm': m?.toString() ?? '',
       'oe': oe?.toString() ?? '',
+      'o24h': o24h?.toString() ?? '', // ✅ CAMBIADO: Enviar como 'o24h' al servidor
       'po': po?.toString() ?? '',
       'h3': h3?.toString() ?? '',
       'hba1c': hba1c?.toString() ?? '',

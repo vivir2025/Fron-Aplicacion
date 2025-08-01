@@ -201,6 +201,7 @@ await db.execute('''
     a TEXT,
     m TEXT,
     oe TEXT,
+    o24h TEXT,
     po TEXT,
     h3 TEXT,
     hba1c TEXT,
@@ -464,6 +465,7 @@ if (oldVersion < 11) {
         a TEXT,
         m TEXT,
         oe TEXT,
+        o24h TEXT,
         po TEXT,
         h3 TEXT,
         hba1c TEXT,
@@ -1970,7 +1972,7 @@ Future<bool> createEnvioMuestra(EnvioMuestra envio) async {
       
       // 3. Insertar cada detalle por separado con TODOS los campos como TEXT
       for (final detalle in envio.detalles) {
-        final detalleData = detalle.toJson();
+        final detalleData = detalle.toJson(); // ✅ Esto ya mapea o24h → o24h
         
         // ✅ MAPEAR TODOS LOS CAMPOS CORRECTAMENTE
         final detalleCompleto = {
@@ -1980,7 +1982,7 @@ Future<bool> createEnvioMuestra(EnvioMuestra envio) async {
           'numero_orden': detalleData['numero_orden'],
           'dm': detalleData['dm'],
           'hta': detalleData['hta'],
-          'num_muestras_enviadas': detalleData['num_muestras_enviadas'], // ✅ COMO TEXT
+          'num_muestras_enviadas': detalleData['num_muestras_enviadas'],
           'tubo_lila': detalleData['tubo_lila'],
           'tubo_amarillo': detalleData['tubo_amarillo'],
           'tubo_amarillo_forrado': detalleData['tubo_amarillo_forrado'],
@@ -1989,6 +1991,7 @@ Future<bool> createEnvioMuestra(EnvioMuestra envio) async {
           'a': detalleData['a'],
           'm': detalleData['m'],
           'oe': detalleData['oe'],
+          'o24h': detalleData['o24h'], // ✅ CORRECTO: Ya viene mapeado desde toJson()
           'po': detalleData['po'],
           'h3': detalleData['h3'],
           'hba1c': detalleData['hba1c'],
@@ -2012,8 +2015,8 @@ Future<bool> createEnvioMuestra(EnvioMuestra envio) async {
           'ionograma': detalleData['ionograma'],
           'b12': detalleData['b12'],
           'acido_folico': detalleData['acido_folico'],
-          'peso': detalleData['peso'], // ✅ COMO TEXT
-          'talla': detalleData['talla'], // ✅ COMO TEXT
+          'peso': detalleData['peso'],
+          'talla': detalleData['talla'],
           'volumen': detalleData['volumen'],
           'created_at': DateTime.now().toIso8601String(),
           'updated_at': DateTime.now().toIso8601String(),
@@ -2034,6 +2037,7 @@ Future<bool> createEnvioMuestra(EnvioMuestra envio) async {
     return false;
   }
 }
+
 
 
 Future<List<EnvioMuestra>> getAllEnviosMuestras() async {

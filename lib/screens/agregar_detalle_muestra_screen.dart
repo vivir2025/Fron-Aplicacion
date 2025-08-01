@@ -1,4 +1,4 @@
-// screens/agregar_detalle_muestra_screen.dart - VERSIÓN PROFESIONAL MEJORADA
+// screens/agregar_detalle_muestra_screen.dart - VERSIÓN CORREGIDA
 import 'package:flutter/material.dart';
 import 'package:fnpv_app/database/database_helper.dart';
 import 'package:fnpv_app/models/envio_muestra_model.dart';
@@ -42,7 +42,7 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
   final _aController = TextEditingController();
   final _mController = TextEditingController();
   final _oeController = TextEditingController();
-  final _o24hController = TextEditingController();
+  final _o24hController = TextEditingController(); // ✅ CORRECTO: o24h internamente
   final _poController = TextEditingController();
   
   // TUBO LILA
@@ -108,7 +108,7 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
       _aController.dispose();
       _mController.dispose();
       _oeController.dispose();
-      _o24hController.dispose();
+      _o24hController.dispose(); // ✅ CORRECTO
       _poController.dispose();
       _h3Controller.dispose();
       _hba1cController.dispose();
@@ -654,7 +654,7 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                       
                       SizedBox(height: 24),
                       
-                      // ✅ # MUESTRAS ENVIADAS
+                      // ✅ # MUESTRAS ENVIADAS - ✅ CORREGIDO CON O24H
                       _buildMainTitle('MUESTRAS ENVIADAS', Icons.inventory_2_rounded, color: Color(0xFF9B59B6)),
                       _buildFieldRow([
                         _buildNumericField('A', _aController),
@@ -662,9 +662,9 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                         _buildNumericField('OE', _oeController),
                       ]),
                       _buildFieldRow([
-                        _buildNumericField('024H', _o24hController),
+                        _buildNumericField('O24H', _o24hController), // ✅ MOSTRAR COMO O24H (más legible)
                         _buildNumericField('PO', _poController),
-                        Container(),
+                        Container(), // Espacio vacío
                       ]),
                       
                       SizedBox(height: 24),
@@ -801,13 +801,13 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
               }
 
               try {
-                final detalle = DetalleEnvioMuestra(
+                                final detalle = DetalleEnvioMuestra(
                   id: DetalleEnvioMuestra.generarIdCorto(),
                   envioMuestraId: '',
                   pacienteId: _pacienteSeleccionado?.id ?? '',
                   numeroOrden: widget.numeroOrden,
                   dm: _dmController.text.isEmpty ? null : _dmController.text,
-                                    hta: _htaController.text.isEmpty ? null : _htaController.text,
+                  hta: _htaController.text.isEmpty ? null : _htaController.text,
                   numMuestrasEnviadas: null,
                   tuboLila: null,
                   tuboAmarillo: null,
@@ -817,6 +817,7 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                   a: _aController.text.isEmpty ? null : _aController.text,
                   m: _mController.text.isEmpty ? null : _mController.text,
                   oe: _oeController.text.isEmpty ? null : _oeController.text,
+                  o24h: _o24hController.text.isEmpty ? null : _o24hController.text, // ✅ CORRECTO: Usar o24h internamente
                   po: _poController.text.isEmpty ? null : _poController.text,
                   h3: _h3Controller.text.isEmpty ? null : _h3Controller.text,
                   hba1c: _hba1cController.text.isEmpty ? null : _hba1cController.text,
@@ -938,3 +939,5 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
     );
   }
 }
+
+                // ✅
