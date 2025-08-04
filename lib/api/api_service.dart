@@ -448,4 +448,123 @@ static Future<List<dynamic>> getEnviosPorSede(String token, String sedeId) async
     return [];
   }
 }
+
+// ==================== MÉTODOS PARA BRIGADAS ====================
+
+// Crear brigada
+static Future<Map<String, dynamic>?> createBrigada(
+  Map<String, dynamic> brigadaData,
+  String token,
+) async {
+  try {
+    debugPrint('📤 Enviando brigada al servidor...');
+    debugPrint('📋 Datos de brigada: ${brigadaData['tema']}');
+    
+    final response = await http.post(
+      Uri.parse('$baseUrl/brigadas'),
+      headers: _buildHeaders(token),
+      body: jsonEncode(brigadaData),
+    ).timeout(const Duration(seconds: 30));
+    
+    debugPrint('📥 Respuesta del servidor: ${response.statusCode}');
+    
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final responseData = jsonDecode(response.body);
+      debugPrint('✅ Brigada creada exitosamente en servidor');
+      return responseData;
+    } else {
+      debugPrint('❌ Error del servidor: ${response.statusCode}');
+      debugPrint('📄 Respuesta: ${response.body}');
+      return null;
+    }
+  } catch (e) {
+    debugPrint('💥 Excepción al crear brigada: $e');
+    return null;
+  }
+}
+
+// Obtener brigadas
+static Future<List<dynamic>> getBrigadas(String token) async {
+  try {
+    final response = await http.get(
+      Uri.parse('$baseUrl/brigadas'),
+      headers: _buildHeaders(token),
+    );
+    
+    final decoded = _handleResponse(response);
+    
+    if (decoded is Map && decoded.containsKey('data')) {
+      return decoded['data'] as List;
+    } else if (decoded is List) {
+      return decoded;
+    }
+    throw Exception('Formato de respuesta inesperado');
+  } catch (e) {
+    debugPrint('❌ Error obteniendo brigadas: $e');
+    return [];
+  }
+}
+
+// Asignar pacientes a brigada
+static Future<Map<String, dynamic>?> assignPacientesToBrigada(
+  String brigadaId,
+  List<String> pacientesIds,
+  String token,
+) async {
+  try {
+    final response = await http.post(
+      Uri.parse('$baseUrl/brigadas/$brigadaId/pacientes'),
+      headers: _buildHeaders(token),
+      body: jsonEncode({'pacientes': pacientesIds}),
+    );
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+    return null;
+  } catch (e) {
+    debugPrint('❌ Error asignando pacientes a brigada: $e');
+    return null;
+  }
+}
+
+// Asignar medicamentos a paciente en brigada
+static Future<Map<String, dynamic>?> assignMedicamentosToPacienteInBrigada(
+  String brigadaId,
+  String pacienteId,
+  List<Map<String, dynamic>> medicamentos,
+  String token,
+) async {
+  try {
+    final response = await http.post(
+      Uri.parse('$baseUrl/brigadas/$brigadaId/pacientes/$pacienteId/medicamentos'),
+      headers: _buildHeaders(token),
+      body: jsonEncode({'medicamentos': medicamentos}),
+    );
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+    return null;
+  } catch (e) {
+    debugPrint('❌ Error asignando medicamentos a paciente en brigada: $e');
+    return null;
+  }
+}
+
+// Eliminar brigada
+static Future<bool> deleteBrigada(String brigadaId, String token) async {
+  try {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/brigadas/$brigadaId'),
+      headers: _buildHeaders(token),
+    );
+    
+    return response.statusCode == 200;
+  } catch (e) {
+    debugPrint('❌ Error eliminando brigada: $e');
+    return false;
+  }
+}
+
 }

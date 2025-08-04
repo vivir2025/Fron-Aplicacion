@@ -1,5 +1,8 @@
 import 'dart:convert';
 
+import 'package:fnpv_app/models/brigada_model.dart';
+import 'package:fnpv_app/models/brigada_paciente_medicamento_model.dart';
+import 'package:fnpv_app/models/brigada_paciente_model.dart';
 import 'package:fnpv_app/models/envio_muestra_model.dart';
 import 'package:fnpv_app/models/medicamento.dart';
 import 'package:fnpv_app/models/medicamento_con_indicaciones.dart';
@@ -41,7 +44,7 @@ final path = join(dbPath, filePath);
 
 return await openDatabase(
   path,
-  version: 11, // 🚀 Incrementado a 10 
+  version: 12, // 🚀 Incrementado a 12
   onCreate: _createDB,
   onUpgrade: _onUpgrade,
 );
@@ -232,6 +235,56 @@ await db.execute('''
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (envio_muestra_id) REFERENCES envio_muestras (id) ON DELETE CASCADE,
     FOREIGN KEY (paciente_id) REFERENCES pacientes (id) ON DELETE CASCADE
+  )
+''');
+
+await db.execute('''
+  CREATE TABLE brigadas (
+    id TEXT PRIMARY KEY,
+    lugar_evento TEXT NOT NULL,
+    fecha_brigada TEXT NOT NULL,
+    nombre_conductor TEXT NOT NULL,
+    usuarios_hta TEXT NOT NULL,
+    usuarios_dn TEXT NOT NULL,
+    usuarios_hta_rcu TEXT NOT NULL,
+    usuarios_dm_rcu TEXT NOT NULL,
+    observaciones TEXT,
+    tema TEXT NOT NULL,
+    pacientes_ids TEXT,
+    sync_status INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+  )
+''');
+
+await db.execute('''
+  CREATE TABLE brigada_paciente (
+    id TEXT PRIMARY KEY,
+    brigada_id TEXT NOT NULL,
+    paciente_id TEXT NOT NULL,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (brigada_id) REFERENCES brigadas (id) ON DELETE CASCADE,
+    FOREIGN KEY (paciente_id) REFERENCES pacientes (id) ON DELETE CASCADE,
+    UNIQUE(brigada_id, paciente_id)
+  )
+''');
+
+await db.execute('''
+  CREATE TABLE brigada_paciente_medicamento (
+    id TEXT PRIMARY KEY,
+    brigada_id TEXT NOT NULL,
+    paciente_id TEXT NOT NULL,
+    medicamento_id TEXT NOT NULL,
+    dosis TEXT,
+    cantidad INTEGER,
+    indicaciones TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (brigada_id) REFERENCES brigadas (id) ON DELETE CASCADE,
+    FOREIGN KEY (paciente_id) REFERENCES pacientes (id) ON DELETE CASCADE,
+    FOREIGN KEY (medicamento_id) REFERENCES medicamentos (id) ON DELETE CASCADE,
+    UNIQUE(brigada_id, paciente_id, medicamento_id)
   )
 ''');
 
@@ -501,9 +554,71 @@ if (oldVersion < 11) {
 
     
 
+    
+
     debugPrint('✅ Tabla envio_muestras creada en migración v11');
   } catch (e) {
     debugPrint('⚠️ Error en migración v11 (envio_muestras): $e');
+  }
+}
+
+
+if (oldVersion < 12) {
+  try {
+    // Crear tablas de brigadas
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS brigadas (
+        id TEXT PRIMARY KEY,
+        lugar_evento TEXT NOT NULL,
+        fecha_brigada TEXT NOT NULL,
+        nombre_conductor TEXT NOT NULL,
+        usuarios_hta TEXT NOT NULL,
+        usuarios_dn TEXT NOT NULL,
+        usuarios_hta_rcu TEXT NOT NULL,
+        usuarios_dm_rcu TEXT NOT NULL,
+        observaciones TEXT,
+        tema TEXT NOT NULL,
+        pacientes_ids TEXT,
+        sync_status INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS brigada_paciente (
+        id TEXT PRIMARY KEY,
+        brigada_id TEXT NOT NULL,
+        paciente_id TEXT NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (brigada_id) REFERENCES brigadas (id) ON DELETE CASCADE,
+        FOREIGN KEY (paciente_id) REFERENCES pacientes (id) ON DELETE CASCADE,
+        UNIQUE(brigada_id, paciente_id)
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS brigada_paciente_medicamento (
+        id TEXT PRIMARY KEY,
+        brigada_id TEXT NOT NULL,
+        paciente_id TEXT NOT NULL,
+        medicamento_id TEXT NOT NULL,
+        dosis TEXT,
+        cantidad INTEGER,
+        indicaciones TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (brigada_id) REFERENCES brigadas (id) ON DELETE CASCADE,
+        FOREIGN KEY (paciente_id) REFERENCES pacientes (id) ON DELETE CASCADE,
+        FOREIGN KEY (medicamento_id) REFERENCES medicamentos (id) ON DELETE CASCADE,
+        UNIQUE(brigada_id, paciente_id, medicamento_id)
+      )
+    ''');
+
+    debugPrint('✅ Tablas de brigadas creadas en migración v12');
+  } catch (e) {
+    debugPrint('⚠️ Error en migración v12 (brigadas): $e');
   }
 }
   
@@ -2138,6 +2253,334 @@ Future<bool> marcarEnvioMuestraComoSincronizado(String id) async {
   } catch (e) {
     debugPrint('❌ Error marcando envío como sincronizado: $e');
     return false;
+  }
+}
+
+// ==================== MÉTODOS PARA BRIGADAS ====================
+
+// Generador de ID único para brigadas
+String generarIdUnicoBrigada() {
+  final uuid = Uuid();
+  final idUnico = uuid.v4();
+  return 'brig_$idUnico';
+}
+
+// Crear brigada
+Future<bool> createBrigada(Brigada brigada) async {
+  try {
+    final db = await database;
+    
+    // Si no tiene ID, generar uno único
+    if (brigada.id.isEmpty) {
+      final nuevoId = generarIdUnicoBrigada();
+      brigada = brigada.copyWith(id: nuevoId);
+      debugPrint('✅ ID único generado para nueva brigada: $nuevoId');
+    }
+    
+    final result = await db.insert(
+      'brigadas',
+      brigada.toJson(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    
+    debugPrint('✅ Brigada guardada localmente con ID: ${brigada.id}');
+    return result > 0;
+  } catch (e) {
+    debugPrint('❌ Error al guardar brigada localmente: $e');
+    return false;
+  }
+}
+
+// Actualizar brigada
+Future<bool> updateBrigada(Brigada brigada) async {
+  try {
+    final db = await database;
+    
+    final brigadaData = brigada.toJson();
+    brigadaData['updated_at'] = DateTime.now().toIso8601String();
+    
+    final result = await db.update(
+      'brigadas',
+      brigadaData,
+      where: 'id = ?',
+      whereArgs: [brigada.id],
+    );
+    
+    debugPrint('✅ Brigada actualizada: ${brigada.id}');
+    return result > 0;
+  } catch (e) {
+    debugPrint('❌ Error al actualizar brigada: $e');
+    return false;
+  }
+}
+
+// Obtener todas las brigadas
+Future<List<Brigada>> getAllBrigadas() async {
+  try {
+    final db = await database;
+    final result = await db.query(
+      'brigadas',
+      orderBy: 'fecha_brigada DESC',
+    );
+    
+    return result.map((json) => Brigada.fromJson(json)).toList();
+  } catch (e) {
+    debugPrint('Error al obtener todas las brigadas: $e');
+    return [];
+  }
+}
+
+// Obtener brigada por ID
+Future<Brigada?> getBrigadaById(String id) async {
+  try {
+    final db = await database;
+    final result = await db.query(
+      'brigadas',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    
+    if (result.isNotEmpty) {
+      return Brigada.fromJson(result.first);
+    }
+    return null;
+  } catch (e) {
+    debugPrint('Error al obtener brigada por ID: $e');
+    return null;
+  }
+}
+
+// Obtener brigadas no sincronizadas
+Future<List<Brigada>> getBrigadasNoSincronizadas() async {
+  try {
+    final db = await database;
+    final result = await db.query(
+      'brigadas',
+      where: 'sync_status = ?',
+      whereArgs: [0],
+      orderBy: 'fecha_brigada DESC',
+    );
+    return result.map((json) => Brigada.fromJson(json)).toList();
+  } catch (e) {
+    debugPrint('Error al obtener brigadas no sincronizadas: $e');
+    return [];
+  }
+}
+
+// Eliminar brigada
+Future<bool> deleteBrigada(String id) async {
+  try {
+    final db = await database;
+    
+    // Eliminar relaciones primero
+    await db.delete('brigada_paciente_medicamento', where: 'brigada_id = ?', whereArgs: [id]);
+    await db.delete('brigada_paciente', where: 'brigada_id = ?', whereArgs: [id]);
+    
+    // Eliminar brigada
+    final result = await db.delete(
+      'brigadas',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    return result > 0;
+  } catch (e) {
+    debugPrint('Error al eliminar brigada: $e');
+    return false;
+  }
+}
+
+// Marcar brigada como sincronizada
+Future<bool> marcarBrigadaComoSincronizada(String id) async {
+  try {
+    final db = await database;
+    final result = await db.update(
+      'brigadas',
+      {
+        'sync_status': 1,
+        'updated_at': DateTime.now().toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    
+    debugPrint('✅ Brigada $id marcada como sincronizada');
+    return result > 0;
+  } catch (e) {
+    debugPrint('❌ Error al marcar brigada como sincronizada: $e');
+    return false;
+  }
+}
+
+// ==================== MÉTODOS PARA BRIGADA-PACIENTE ====================
+
+// Asignar pacientes a brigada
+Future<bool> asignarPacientesABrigada(String brigadaId, List<String> pacientesIds) async {
+  try {
+    final db = await database;
+    
+    await db.transaction((txn) async {
+      // Eliminar asignaciones anteriores
+      await txn.delete('brigada_paciente', where: 'brigada_id = ?', whereArgs: [brigadaId]);
+      
+      // Insertar nuevas asignaciones
+      for (String pacienteId in pacientesIds) {
+        final brigadaPaciente = BrigadaPaciente(
+          id: Uuid().v4(),
+          brigadaId: brigadaId,
+          pacienteId: pacienteId,
+        );
+        
+        await txn.insert('brigada_paciente', brigadaPaciente.toJson());
+      }
+      
+      // Actualizar lista de IDs en la brigada
+      await txn.update(
+        'brigadas',
+        {
+          'pacientes_ids': jsonEncode(pacientesIds),
+          'updated_at': DateTime.now().toIso8601String(),
+          'sync_status': 0, // Marcar como no sincronizada
+        },
+        where: 'id = ?',
+        whereArgs: [brigadaId],
+      );
+    });
+    
+    debugPrint('✅ ${pacientesIds.length} pacientes asignados a brigada $brigadaId');
+    return true;
+  } catch (e) {
+    debugPrint('❌ Error al asignar pacientes a brigada: $e');
+    return false;
+  }
+}
+
+// Obtener pacientes de una brigada
+Future<List<Paciente>> getPacientesDeBrigada(String brigadaId) async {
+  try {
+    final db = await database;
+    final result = await db.rawQuery('''
+      SELECT p.* FROM pacientes p
+      INNER JOIN brigada_paciente bp ON p.id = bp.paciente_id
+      WHERE bp.brigada_id = ?
+      ORDER BY p.nombre, p.apellido
+    ''', [brigadaId]);
+    
+    return result.map((json) => Paciente.fromJson(json)).toList();
+  } catch (e) {
+    debugPrint('Error al obtener pacientes de brigada: $e');
+    return [];
+  }
+}
+
+// ==================== MÉTODOS PARA MEDICAMENTOS DE PACIENTES EN BRIGADAS ====================
+
+// Asignar medicamentos a paciente en brigada
+Future<bool> asignarMedicamentosAPacienteEnBrigada({
+  required String brigadaId,
+  required String pacienteId,
+  required List<Map<String, dynamic>> medicamentos,
+}) async {
+  try {
+    final db = await database;
+    
+    await db.transaction((txn) async {
+      // Eliminar medicamentos anteriores para este paciente en esta brigada
+      await txn.delete(
+        'brigada_paciente_medicamento',
+        where: 'brigada_id = ? AND paciente_id = ?',
+        whereArgs: [brigadaId, pacienteId],
+      );
+      
+      // Insertar nuevos medicamentos
+      for (Map<String, dynamic> medicamentoData in medicamentos) {
+        final brigadaPacienteMedicamento = BrigadaPacienteMedicamento(
+          id: Uuid().v4(),
+          brigadaId: brigadaId,
+          pacienteId: pacienteId,
+          medicamentoId: medicamentoData['medicamento_id'],
+          dosis: medicamentoData['dosis'],
+          cantidad: medicamentoData['cantidad'],
+          indicaciones: medicamentoData['indicaciones'],
+        );
+        
+        await txn.insert('brigada_paciente_medicamento', brigadaPacienteMedicamento.toJson());
+      }
+      
+      // Marcar brigada como no sincronizada
+      await txn.update(
+        'brigadas',
+        {
+          'updated_at': DateTime.now().toIso8601String(),
+          'sync_status': 0,
+        },
+        where: 'id = ?',
+        whereArgs: [brigadaId],
+      );
+    });
+    
+    debugPrint('✅ ${medicamentos.length} medicamentos asignados a paciente $pacienteId en brigada $brigadaId');
+    return true;
+  } catch (e) {
+    debugPrint('❌ Error al asignar medicamentos: $e');
+    return false;
+  }
+}
+
+// Obtener medicamentos de un paciente en una brigada
+Future<List<Map<String, dynamic>>> getMedicamentosDePacienteEnBrigada(String brigadaId, String pacienteId) async {
+  try {
+    final db = await database;
+    final result = await db.rawQuery('''
+      SELECT 
+        m.id as medicamento_id,
+        m.nombmedicamento,
+        bpm.dosis,
+        bpm.cantidad,
+        bpm.indicaciones
+      FROM medicamentos m
+      INNER JOIN brigada_paciente_medicamento bpm ON m.id = bpm.medicamento_id
+      WHERE bpm.brigada_id = ? AND bpm.paciente_id = ?
+      ORDER BY m.nombmedicamento
+    ''', [brigadaId, pacienteId]);
+    
+    return result;
+  } catch (e) {
+    debugPrint('Error al obtener medicamentos de paciente en brigada: $e');
+    return [];
+  }
+}
+
+// Obtener resumen completo de brigada con pacientes y medicamentos
+Future<Map<String, dynamic>> getResumenCompletoBrigada(String brigadaId) async {
+  try {
+    final brigada = await getBrigadaById(brigadaId);
+    if (brigada == null) return {};
+    
+    final pacientes = await getPacientesDeBrigada(brigadaId);
+    
+    List<Map<String, dynamic>> pacientesConMedicamentos = [];
+    
+    for (Paciente paciente in pacientes) {
+      final medicamentos = await getMedicamentosDePacienteEnBrigada(brigadaId, paciente.id);
+      
+      pacientesConMedicamentos.add({
+        'paciente': paciente.toJson(),
+        'medicamentos': medicamentos,
+      });
+    }
+    
+    return {
+      'brigada': brigada.toJson(),
+      'pacientes': pacientesConMedicamentos,
+      'total_pacientes': pacientes.length,
+      'total_medicamentos': pacientesConMedicamentos
+          .map((p) => (p['medicamentos'] as List).length)
+          .fold(0, (a, b) => a + b),
+    };
+  } catch (e) {
+    debugPrint('Error al obtener resumen completo de brigada: $e');
+    return {};
   }
 }
 

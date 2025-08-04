@@ -7,6 +7,7 @@ import 'package:fnpv_app/api/api_service.dart';
 import 'package:fnpv_app/database/database_helper.dart';
 import 'package:fnpv_app/models/paciente_model.dart';
 import 'package:fnpv_app/models/visita_model.dart';
+import 'package:fnpv_app/services/brigada_service.dart';
 import 'package:fnpv_app/services/envio_muestra_service.dart';
 import 'package:fnpv_app/services/medicamento_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -64,6 +65,39 @@ class SincronizacionService {
       };
     }
   }
+  static Future<Map<String, dynamic>> sincronizarBrigadasPendientes(String token) async {
+  try {
+    debugPrint('🏥 Iniciando sincronización de brigadas...');
+    
+    final resultado = await BrigadaService.sincronizarBrigadasPendientes(token);
+    
+    final exitosas = resultado['exitosas'] ?? 0;
+    final fallidas = resultado['fallidas'] ?? 0;
+    
+    if (exitosas > 0) {
+      debugPrint('✅ $exitosas brigadas sincronizadas exitosamente');
+    }
+    
+    if (fallidas > 0) {
+      debugPrint('⚠️ $fallidas brigadas fallaron en la sincronización');
+      final errores = resultado['errores'] as List<String>? ?? [];
+      for (final error in errores.take(3)) {
+        debugPrint('❌ Error: $error');
+      }
+    }
+    
+    return resultado;
+  } catch (e) {
+    debugPrint('💥 Error en sincronización de brigadas: $e');
+    return {
+      'exitosas': 0,
+      'fallidas': 1,
+      'errores': ['Error general: $e'],
+      'total': 1,
+    };
+  }
+}
+
 
   // 🆕 MÉTODO ACTUALIZADO PARA SINCRONIZACIÓN COMPLETA
   static Future<Map<String, dynamic>> sincronizacionCompleta(String token) async {
@@ -74,6 +108,7 @@ class SincronizacionService {
       'visitas': {'exitosas': 0, 'fallidas': 0, 'errores': []},
       'pacientes': {'exitosas': 0, 'fallidas': 0, 'errores': []},
         'envios_muestras': {'exitosas': 0, 'fallidas': 0, 'errores': []}, // 🆕 Nuevo
+         'brigadas': {'exitosas': 0, 'fallidas': 0, 'errores': []}, // 🆕 Nuevo
       'archivos': {'exitosas': 0, 'fallidas': 0, 'errores': []},
       'tiempo_total': 0,
       'exito_general': false,
@@ -113,6 +148,10 @@ class SincronizacionService {
     debugPrint('3️⃣ Sincronizando envíos de muestras pendientes...');
     resultado['envios_muestras'] = await sincronizarEnviosMuestrasPendientes(token);
 
+       // 5. 🆕 Sincronizar brigadas pendientes
+    debugPrint('4️⃣ Sincronizando brigadas pendientes...');
+    resultado['brigadas'] = await sincronizarBrigadasPendientes(token);
+
       // 5. Sincronizar archivos pendientes
       debugPrint('3️⃣ Sincronizando archivos pendientes...');
       resultado['archivos'] = await sincronizarArchivosPendientes(token);
@@ -131,16 +170,17 @@ class SincronizacionService {
       
       // Determinar éxito general
        final enviosExitosos = resultado['envios_muestras']['exitosas'] ?? 0; // 🆕
-      final totalExitosas = medicamentosExitosos + visitasExitosas + pacientesExitosos + archivosExitosos + enviosExitosos; // 🆕
+       final brigadasExitosas = resultado['brigadas']['exitosas'] ?? 0; // 🆕
+      final totalExitosas = medicamentosExitosos + visitasExitosas + pacientesExitosos + archivosExitosos + brigadasExitosas + enviosExitosos; // 🆕
       
       resultado['exito_general'] = totalExitosas > 0;
       
-      if (resultado['exito_general']) {
-        debugPrint('🎉 Sincronización completa finalizada exitosamente en ${stopwatch.elapsedMilliseconds}ms');
-        debugPrint('📊 Resumen: $medicamentosExitosos medicamentos, $visitasExitosas visitas, $pacientesExitosos pacientes, $archivosExitosos archivos sincronizados');
-      } else {
-        debugPrint('⚠️ Sincronización completa finalizada sin elementos para sincronizar en ${stopwatch.elapsedMilliseconds}ms');
-      }
+        if (resultado['exito_general']) {
+      debugPrint('🎉 Sincronización completa finalizada exitosamente en ${stopwatch.elapsedMilliseconds}ms');
+      debugPrint('📊 Resumen: $medicamentosExitosos medicamentos, $visitasExitosas visitas, $pacientesExitosos pacientes, $enviosExitosos envíos, $brigadasExitosas brigadas, $archivosExitosos archivos sincronizados');
+    } else {
+      debugPrint('⚠️ Sincronización completa finalizada sin elementos para sincronizar en ${stopwatch.elapsedMilliseconds}ms');
+    }
       
     } catch (e) {
       stopwatch.stop();
@@ -1307,6 +1347,7 @@ static Future<Map<String, dynamic>> sincronizarPacientesPendientes(String token)
       };
     }
   }
+  
 
   // 🆕 MÉTODO PARA OBTENER RESUMEN DE SINCRONIZACIÓN
   static Future<String> obtenerResumenSincronizacion() async {

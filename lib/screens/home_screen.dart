@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fnpv_app/screens/brigadas_screen.dart';
 import 'package:fnpv_app/screens/envio_muestras_screen.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
@@ -121,15 +122,21 @@ class HomeScreen extends StatelessWidget {
                           },
                         ),
                         _buildMenuCard(
-                          context,
-                          icon: Icons.medication,
-                          title: 'Medicamentos Pendientes',
-                          subtitle: 'Revisar medicamentos',
-                          color: Colors.orange,
-                          onTap: () {
-                            _showComingSoon(context, 'Medicamentos Pendientes');
-                          },
-                        ),
+  context,
+  icon: Icons.medical_services,
+  title: 'Medicamentos Pendientes',
+  subtitle: 'Gestionar medicamentos',
+  color: Colors.green,
+  onTap: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const BrigadasScreen(),
+      ),
+    );
+  },
+),
+
                         _buildMenuCard(
                           context,
                           icon: Icons.assessment,
