@@ -195,18 +195,33 @@ class _DetalleBrigadaScreenState extends State<DetalleBrigadaScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 🆕 Título principal arriba - sin restricciones de espacio
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Icon(Icons.medical_services, color: Colors.green),
                 const SizedBox(width: 8),
-                const Text(
-                  'Información de la Brigada',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                // 🆕 Título expandible que puede ocupar múltiples líneas
+                Expanded(
+                  child: Text(
+                    'Información de la Brigada',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    // 🆕 Permitir múltiples líneas si es necesario
+                    maxLines: null,
+                    overflow: TextOverflow.visible,
                   ),
                 ),
-                const Spacer(),
+              ],
+            ),
+            const SizedBox(height: 12), // 🆕 Espaciado entre título y badge
+            
+            // 🆕 Badge de sincronización abajo del título, alineado a la derecha
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
@@ -217,14 +232,29 @@ class _DetalleBrigadaScreenState extends State<DetalleBrigadaScreen> {
                         ? Colors.green.shade100 
                         : Colors.orange.shade100,
                     borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _brigada!.syncStatus == 1 
+                          ? Colors.green.shade300 
+                          : Colors.orange.shade300,
+                      width: 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: (_brigada!.syncStatus == 1 
+                            ? Colors.green 
+                            : Colors.orange).withOpacity(0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
                         _brigada!.syncStatus == 1 
-                            ? Icons.cloud_done 
-                            : Icons.cloud_upload,
+                            ? Icons.cloud_done_rounded 
+                            : Icons.cloud_upload_rounded,
                         size: 14,
                         color: _brigada!.syncStatus == 1 
                             ? Colors.green.shade700 
@@ -234,10 +264,11 @@ class _DetalleBrigadaScreenState extends State<DetalleBrigadaScreen> {
                       Text(
                         _brigada!.syncStatus == 1 ? 'Sincronizada' : 'Pendiente',
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 11,
                           color: _brigada!.syncStatus == 1 
                               ? Colors.green.shade700 
                               : Colors.orange.shade700,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
@@ -245,7 +276,8 @@ class _DetalleBrigadaScreenState extends State<DetalleBrigadaScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            
+            const SizedBox(height: 16), // 🆕 Espaciado antes del contenido
             
             _buildInfoRow('Tema', _brigada!.tema),
             _buildInfoRow('Lugar', _brigada!.lugarEvento),
@@ -268,7 +300,7 @@ class _DetalleBrigadaScreenState extends State<DetalleBrigadaScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
             width: 120,
@@ -523,5 +555,3 @@ class _DetalleBrigadaScreenState extends State<DetalleBrigadaScreen> {
     );
   }
 }
-
-        

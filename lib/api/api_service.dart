@@ -566,5 +566,139 @@ static Future<bool> deleteBrigada(String brigadaId, String token) async {
     return false;
   }
 }
+// Crear encuesta
+static Future<Map<String, dynamic>?> createEncuesta(
+  Map<String, dynamic> encuestaData,
+  String token,
+) async {
+  try {
+    debugPrint('📤 Enviando encuesta al servidor...');
+    debugPrint('📋 Datos de encuesta: ${encuestaData['id']}');
+    
+    final response = await http.post(
+      Uri.parse('$baseUrl/encuestas'),
+      headers: _buildHeaders(token),
+      body: jsonEncode(encuestaData),
+    ).timeout(const Duration(seconds: 30));
+    
+    debugPrint('📥 Respuesta del servidor: ${response.statusCode}');
+    
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final responseData = jsonDecode(response.body);
+      debugPrint('✅ Encuesta creada exitosamente en servidor');
+      return responseData;
+    } else {
+      debugPrint('❌ Error del servidor: ${response.statusCode}');
+      debugPrint('📄 Respuesta: ${response.body}');
+      return null;
+    }
+  } catch (e) {
+    debugPrint('💥 Excepción al crear encuesta: $e');
+    return null;
+  }
+}
 
+// Obtener encuestas
+static Future<List<dynamic>> getEncuestas(String token) async {
+  try {
+    final response = await http.get(
+      Uri.parse('$baseUrl/encuestas'),
+      headers: _buildHeaders(token),
+    );
+    
+    final decoded = _handleResponse(response);
+    
+    if (decoded is Map && decoded.containsKey('data')) {
+      return decoded['data'] as List;
+    } else if (decoded is List) {
+      return decoded;
+    }
+    throw Exception('Formato de respuesta inesperado');
+  } catch (e) {
+    debugPrint('❌ Error obteniendo encuestas: $e');
+    return [];
+  }
+}
+
+// Obtener encuestas por paciente
+static Future<List<dynamic>> getEncuestasByPaciente(String token, String pacienteId) async {
+  try {
+    final response = await http.get(
+      Uri.parse('$baseUrl/encuestas/paciente/$pacienteId'),
+      headers: _buildHeaders(token),
+    );
+    
+    final decoded = _handleResponse(response);
+    
+    if (decoded is Map && decoded.containsKey('data')) {
+      return decoded['data'] as List;
+    } else if (decoded is List) {
+      return decoded;
+    }
+    return [];
+  } catch (e) {
+    debugPrint('❌ Error obteniendo encuestas por paciente: $e');
+    return [];
+  }
+}
+
+// Obtener encuestas por sede
+static Future<List<dynamic>> getEncuestasBySede(String token, String sedeId) async {
+  try {
+    final response = await http.get(
+      Uri.parse('$baseUrl/encuestas/sede/$sedeId'),
+      headers: _buildHeaders(token),
+    );
+    
+    final decoded = _handleResponse(response);
+    
+    if (decoded is Map && decoded.containsKey('data')) {
+      return decoded['data'] as List;
+    } else if (decoded is List) {
+      return decoded;
+    }
+    return [];
+  } catch (e) {
+    debugPrint('❌ Error obteniendo encuestas por sede: $e');
+    return [];
+  }
+}
+
+// Actualizar encuesta
+static Future<Map<String, dynamic>?> updateEncuesta(
+  String encuestaId,
+  Map<String, dynamic> encuestaData,
+  String token,
+) async {
+  try {
+    final response = await http.put(
+      Uri.parse('$baseUrl/encuestas/$encuestaId'),
+      headers: _buildHeaders(token),
+      body: jsonEncode(encuestaData),
+    );
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+    return null;
+  } catch (e) {
+    debugPrint('❌ Error actualizando encuesta: $e');
+    return null;
+  }
+}
+
+// Eliminar encuesta
+static Future<bool> deleteEncuesta(String encuestaId, String token) async {
+  try {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/encuestas/$encuestaId'),
+      headers: _buildHeaders(token),
+    );
+    
+    return response.statusCode == 200 || response.statusCode == 204;
+  } catch (e) {
+    debugPrint('❌ Error eliminando encuesta: $e');
+    return false;
+  }
+}
 }

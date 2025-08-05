@@ -1,4 +1,4 @@
-// screens/crear_brigada_screen.dart - VERSIÓN CON BÚSQUEDA MEJORADA
+// screens/crear_brigada_screen.dart - VERSIÓN CON OVERFLOW ARREGLADO
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../database/database_helper.dart';
@@ -106,13 +106,40 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
     });
   }
 
+  // ✅ DATEPICKER CORREGIDO - SIN LOCALE
   Future<void> _seleccionarFecha() async {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _fechaBrigada,
       firstDate: DateTime.now().subtract(const Duration(days: 30)),
       lastDate: DateTime.now().add(const Duration(days: 365)),
-      locale: const Locale('es', 'ES'),
+      // ✅ SIN LOCALE - ESTO EVITA EL ERROR
+      helpText: 'Seleccionar fecha',
+      cancelText: 'Cancelar',
+      confirmText: 'Aceptar',
+      fieldLabelText: 'Ingrese fecha',
+      fieldHintText: 'dd/mm/aaaa',
+      errorFormatText: 'Formato inválido',
+      errorInvalidText: 'Fecha inválida',
+      
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: Colors.green, // Color principal
+              onPrimary: Colors.white, // Color del texto en el botón
+              surface: Colors.white, // Color de fondo
+              onSurface: Colors.black, // Color del texto
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.green, // Color de los botones
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
     
     if (picked != null && picked != _fechaBrigada) {
@@ -122,7 +149,7 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
     }
   }
 
-  // ✅ SELECTOR DE PACIENTES MEJORADO CON BÚSQUEDA
+  // ✅ SELECTOR DE PACIENTES CON OVERFLOW ARREGLADO
   void _mostrarSelectorPacientes() {
     if (_allPacientes.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -148,7 +175,7 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
           ),
           content: SizedBox(
             width: double.maxFinite,
-            height: 500, // ✅ AUMENTAR ALTURA PARA LA BÚSQUEDA
+            height: 500,
             child: Column(
               children: [
                 // ✅ BARRA DE BÚSQUEDA PROFESIONAL
@@ -291,7 +318,7 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
                 
                 const SizedBox(height: 12),
                 
-                // ✅ LISTA DE PACIENTES FILTRADOS
+                // ✅ LISTA DE PACIENTES FILTRADOS - SIN OVERFLOW
                 Expanded(
                   child: dialogFilteredPacientes.isEmpty
                       ? Container(
@@ -349,14 +376,18 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
                                   style: TextStyle(
                                     fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                                     color: isSelected ? Colors.green.shade700 : Colors.black87,
+                                    fontSize: 14, // 🆕 Reducir tamaño de fuente
                                   ),
                                 ),
+                                // 🆕 SUBTITLE ARREGLADO - SIN OVERFLOW
                                 subtitle: Container(
                                   margin: const EdgeInsets.only(top: 4),
-                                  child: Row(
+                                  child: Column( // 🆕 Cambiar a Column para evitar overflow
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
+                                      // 🆕 Primera fila: ID
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                         decoration: BoxDecoration(
                                           color: Colors.blue.withOpacity(0.1),
                                           borderRadius: BorderRadius.circular(4),
@@ -364,15 +395,16 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
                                         child: Text(
                                           'ID: ${paciente.identificacion}',
                                           style: TextStyle(
-                                            fontSize: 11,
+                                            fontSize: 10, // 🆕 Reducir tamaño
                                             fontWeight: FontWeight.w600,
                                             color: Colors.blue.shade700,
                                           ),
                                         ),
                                       ),
-                                      const SizedBox(width: 8),
+                                      const SizedBox(height: 4), // 🆕 Espaciado
+                                      // 🆕 Segunda fila: Género - SOLO ICONO Y LETRA
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                         decoration: BoxDecoration(
                                           color: paciente.genero == 'M' 
                                               ? Colors.blue.withOpacity(0.1)
@@ -380,10 +412,10 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
                                           borderRadius: BorderRadius.circular(4),
                                         ),
                                         child: Text(
-                                          paciente.genero == 'M' ? '♂ Masculino' : '♀ Femenino',
+                                          paciente.genero == 'M' ? '♂ M' : '♀ F', // 🆕 SOLO LETRA
                                           style: TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w500,
+                                            fontSize: 10, // 🆕 Reducir tamaño
+                                            fontWeight: FontWeight.w600,
                                             color: paciente.genero == 'M' 
                                                 ? Colors.blue.shade600
                                                 : Colors.pink.shade600,
@@ -406,6 +438,7 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
                                 activeColor: Colors.green,
                                 checkColor: Colors.white,
                                 controlAffinity: ListTileControlAffinity.trailing,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4), // 🆕 Reducir padding
                               ),
                             );
                           },
@@ -798,13 +831,14 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
             
             const SizedBox(height: 16),
             
-            // ✅ PACIENTES ASIGNADOS CON BÚSQUEDA MEJORADA
+            // ✅ PACIENTES ASIGNADOS CON OVERFLOW ARREGLADO
             Card(
               elevation: 2,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
+                 
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
@@ -855,7 +889,7 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
                             Row(
                               children: [
                                 Container(
-                                                                    padding: const EdgeInsets.all(6),
+                                  padding: const EdgeInsets.all(6),
                                   decoration: BoxDecoration(
                                     color: Colors.green,
                                     borderRadius: BorderRadius.circular(6),
@@ -877,6 +911,7 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
                               ],
                             ),
                             const SizedBox(height: 12),
+                            // 🆕 LISTA DE PACIENTES SELECCIONADOS - SIN OVERFLOW
                             ...(_selectedPacientes.take(3).map((paciente) => Container(
                               margin: const EdgeInsets.symmetric(vertical: 3),
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -908,33 +943,43 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
                                           ),
                                         ),
                                         const SizedBox(height: 2),
-                                        Text(
-                                          'ID: ${paciente.identificacion}',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey[600],
-                                          ),
+                                        // 🆕 INFORMACIÓN DEL PACIENTE - SIN OVERFLOW
+                                        Row(
+                                          children: [
+                                            Flexible( // 🆕 Usar Flexible en lugar de Expanded
+                                              child: Text(
+                                                'ID: ${paciente.identificacion}',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: Colors.grey[600],
+                                                ),
+                                                overflow: TextOverflow.ellipsis, // 🆕 Truncar si es muy largo
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            // 🆕 GÉNERO COMPACTO
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: paciente.genero == 'M' 
+                                                    ? Colors.blue.withOpacity(0.2)
+                                                    : Colors.pink.withOpacity(0.2),
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                              child: Text(
+                                                paciente.genero == 'M' ? '♂' : '♀', // 🆕 SOLO SÍMBOLO
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: paciente.genero == 'M' 
+                                                      ? Colors.blue.shade700
+                                                      : Colors.pink.shade700,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ],
-                                    ),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: paciente.genero == 'M' 
-                                          ? Colors.blue.withOpacity(0.2)
-                                          : Colors.pink.withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      paciente.genero == 'M' ? '♂' : '♀',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                        color: paciente.genero == 'M' 
-                                            ? Colors.blue.shade700
-                                            : Colors.pink.shade700,
-                                      ),
                                     ),
                                   ),
                                 ],

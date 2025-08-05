@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:fnpv_app/models/brigada_model.dart';
 import 'package:fnpv_app/models/brigada_paciente_medicamento_model.dart';
 import 'package:fnpv_app/models/brigada_paciente_model.dart';
+import 'package:fnpv_app/models/encuesta_model.dart';
 import 'package:fnpv_app/models/envio_muestra_model.dart';
 import 'package:fnpv_app/models/medicamento.dart';
 import 'package:fnpv_app/models/medicamento_con_indicaciones.dart';
@@ -285,6 +286,25 @@ await db.execute('''
     FOREIGN KEY (paciente_id) REFERENCES pacientes (id) ON DELETE CASCADE,
     FOREIGN KEY (medicamento_id) REFERENCES medicamentos (id) ON DELETE CASCADE,
     UNIQUE(brigada_id, paciente_id, medicamento_id)
+  )
+''');
+
+await db.execute('''
+  CREATE TABLE encuestas (
+    id TEXT PRIMARY KEY,
+    idpaciente TEXT NOT NULL,
+    idsede TEXT NOT NULL,
+    domicilio TEXT NOT NULL,
+    entidad_afiliada TEXT DEFAULT 'ASMET',
+    fecha TEXT NOT NULL,
+    respuestas_calificacion TEXT NOT NULL,
+    respuestas_adicionales TEXT NOT NULL,
+    sugerencias TEXT,
+    sync_status INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (idpaciente) REFERENCES pacientes (id) ON DELETE CASCADE,
+    FOREIGN KEY (idsede) REFERENCES sedes (id) ON DELETE CASCADE
   )
 ''');
 
@@ -620,10 +640,37 @@ if (oldVersion < 12) {
   } catch (e) {
     debugPrint('⚠️ Error en migración v12 (brigadas): $e');
   }
-}
+
   
 }
+  
+if (oldVersion < 13) {
+  try {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS encuestas (
+        id TEXT PRIMARY KEY,
+        idpaciente TEXT NOT NULL,
+        idsede TEXT NOT NULL,
+        domicilio TEXT NOT NULL,
+        entidad_afiliada TEXT DEFAULT 'ASMET',
+        fecha TEXT NOT NULL,
+        respuestas_calificacion TEXT NOT NULL,
+        respuestas_adicionales TEXT NOT NULL,
+        sugerencias TEXT,
+        sync_status INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (idpaciente) REFERENCES pacientes (id) ON DELETE CASCADE,
+        FOREIGN KEY (idsede) REFERENCES sedes (id) ON DELETE CASCADE
+      )
+    ''');
 
+    debugPrint('✅ Tabla encuestas creada en migración v13');
+  } catch (e) {
+    debugPrint('⚠️ Error en migración v13 (encuestas): $e');
+  }
+}
+}
 
 }
 
@@ -2584,4 +2631,193 @@ Future<Map<String, dynamic>> getResumenCompletoBrigada(String brigadaId) async {
   }
 }
 
+// Métodos para encuestas en DatabaseHelper:
+
+// Generador de ID único para encuestas
+String generarIdUnicoEncuesta() {
+  final uuid = Uuid();
+  final idUnico = uuid.v4();
+  return 'enc_$idUnico';
+}
+
+// Crear encuesta
+Future<bool> createEncuesta(Encuesta encuesta) async {
+  try {
+    final db = await database;
+    
+    // Si no tiene ID, generar uno único
+    if (encuesta.id.isEmpty) {
+      final nuevoId = generarIdUnicoEncuesta();
+      encuesta = encuesta.copyWith(
+        id: nuevoId,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+      debugPrint('✅ ID único generado para nueva encuesta: $nuevoId');
+    }
+    
+    final result = await db.insert(
+      'encuestas',
+      encuesta.toJson(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    
+    debugPrint('✅ Encuesta guardada localmente con ID: ${encuesta.id}');
+    return result > 0;
+  } catch (e) {
+    debugPrint('❌ Error al guardar encuesta localmente: $e');
+    return false;
+  }
+}
+
+// Actualizar encuesta
+Future<bool> updateEncuesta(Encuesta encuesta) async {
+  try {
+    final db = await database;
+    
+    final encuestaData = encuesta.toJson();
+    encuestaData['updated_at'] = DateTime.now().toIso8601String();
+    
+    final result = await db.update(
+      'encuestas',
+      encuestaData,
+      where: 'id = ?',
+      whereArgs: [encuesta.id],
+    );
+    
+    debugPrint('✅ Encuesta actualizada: ${encuesta.id}');
+    return result > 0;
+  } catch (e) {
+    debugPrint('❌ Error al actualizar encuesta: $e');
+    return false;
+  }
+}
+
+// Obtener todas las encuestas
+Future<List<Encuesta>> getAllEncuestas() async {
+  try {
+    final db = await database;
+    final result = await db.query(
+      'encuestas',
+      orderBy: 'fecha DESC',
+    );
+    
+    return result.map((json) => Encuesta.fromJson(json)).toList();
+  } catch (e) {
+    debugPrint('Error al obtener todas las encuestas: $e');
+    return [];
+  }
+}
+
+// Obtener encuesta por ID
+Future<Encuesta?> getEncuestaById(String id) async {
+  try {
+    final db = await database;
+    final result = await db.query(
+      'encuestas',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    
+    if (result.isNotEmpty) {
+      return Encuesta.fromJson(result.first);
+    }
+    return null;
+  } catch (e) {
+    debugPrint('Error al obtener encuesta por ID: $e');
+    return null;
+  }
+}
+
+// Obtener encuestas por paciente
+Future<List<Encuesta>> getEncuestasByPaciente(String pacienteId) async {
+  try {
+    final db = await database;
+    final result = await db.query(
+      'encuestas',
+      where: 'idpaciente = ?',
+      whereArgs: [pacienteId],
+      orderBy: 'fecha DESC',
+    );
+    
+    return result.map((json) => Encuesta.fromJson(json)).toList();
+  } catch (e) {
+    debugPrint('Error al obtener encuestas por paciente: $e');
+    return [];
+  }
+}
+
+// Obtener encuestas por sede
+Future<List<Encuesta>> getEncuestasBySede(String sedeId) async {
+  try {
+    final db = await database;
+    final result = await db.query(
+      'encuestas',
+      where: 'idsede = ?',
+      whereArgs: [sedeId],
+      orderBy: 'fecha DESC',
+    );
+    
+    return result.map((json) => Encuesta.fromJson(json)).toList();
+  } catch (e) {
+    debugPrint('Error al obtener encuestas por sede: $e');
+    return [];
+  }
+}
+
+// Obtener encuestas no sincronizadas
+Future<List<Encuesta>> getEncuestasNoSincronizadas() async {
+  try {
+    final db = await database;
+    final result = await db.query(
+      'encuestas',
+      where: 'sync_status = ?',
+      whereArgs: [0],
+      orderBy: 'fecha DESC',
+    );
+    return result.map((json) => Encuesta.fromJson(json)).toList();
+  } catch (e) {
+    debugPrint('Error al obtener encuestas no sincronizadas: $e');
+    return [];
+  }
+}
+
+// Eliminar encuesta
+Future<bool> deleteEncuesta(String id) async {
+  try {
+    final db = await database;
+    final result = await db.delete(
+      'encuestas',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    return result > 0;
+  } catch (e) {
+    debugPrint('Error al eliminar encuesta: $e');
+    return false;
+  }
+}
+
+// Marcar encuesta como sincronizada
+Future<bool> marcarEncuestaComoSincronizada(String id) async {
+  try {
+    final db = await database;
+    final result = await db.update(
+      'encuestas',
+      {
+        'sync_status': 1,
+        'updated_at': DateTime.now().toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    
+    debugPrint('✅ Encuesta $id marcada como sincronizada');
+    return result > 0;
+  } catch (e) {
+    debugPrint('❌ Error al marcar encuesta como sincronizada: $e');
+    return false;
+  }
+}
 } // Fin de la clase DatabaseHelper

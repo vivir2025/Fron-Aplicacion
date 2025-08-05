@@ -1,4 +1,4 @@
-// screens/agregar_detalle_muestra_screen.dart - VERSIÓN CON ESTILO PREMIUM
+// screens/agregar_detalle_muestra_screen.dart - VERSIÓN RESPONSIVA
 import 'package:flutter/material.dart';
 import 'package:fnpv_app/database/database_helper.dart';
 import 'package:fnpv_app/models/envio_muestra_model.dart';
@@ -30,12 +30,12 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
   
-  // ✅ BÚSQUEDA POR IDENTIFICACIÓN
+  // BÚSQUEDA POR IDENTIFICACIÓN
   final _identificacionController = TextEditingController();
   Paciente? _pacienteSeleccionado;
   bool _buscandoPaciente = false;
   
-  // ✅ CONTROLADORES SEGÚN LA ESTRUCTURA EXACTA
+  // CONTROLADORES SEGÚN LA ESTRUCTURA EXACTA
   // DIAGNÓSTICO
   final _dmController = TextEditingController();
   final _htaController = TextEditingController();
@@ -157,7 +157,7 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
     super.dispose();
   }
 
-  // ✅ BÚSQUEDA AUTOMÁTICA POR IDENTIFICACIÓN - MEJORADA
+  // BÚSQUEDA AUTOMÁTICA POR IDENTIFICACIÓN - MEJORADA
   void _buscarPacientePorIdentificacion() async {
     final identificacion = _identificacionController.text.trim();
     
@@ -199,31 +199,44 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
     }
   }
 
-  // ✅ WIDGET PARA CAMPOS NUMÉRICOS ULTRA MODERNOS
+  // 🆕 WIDGET PARA CAMPOS NUMÉRICOS ULTRA MODERNOS - RESPONSIVO
   Widget _buildModernNumericField(String label, TextEditingController controller, {String? hint, Color? accentColor}) {
     final color = accentColor ?? Color(0xFF6366F1);
     
+    // 🆕 Obtener dimensiones para responsividad
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 600;
+    final isMediumScreen = screenWidth >= 600 && screenWidth < 900;
+    
     return Container(
-      margin: EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+      margin: EdgeInsets.symmetric(
+        vertical: isSmallScreen ? 6 : 8, 
+        horizontal: isSmallScreen ? 3 : 6
+      ), // 🆕 Margen adaptativo
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: EdgeInsets.only(left: 8, bottom: 8),
+            padding: EdgeInsets.only(
+              left: isSmallScreen ? 6 : 8, 
+              bottom: isSmallScreen ? 6 : 8
+            ), // 🆕 Padding adaptativo
             child: Text(
               label,
               style: TextStyle(
-                fontSize: 13,
+                fontSize: isSmallScreen ? 11 : (isMediumScreen ? 12 : 13), // 🆕 Tamaño adaptativo
                 fontWeight: FontWeight.w700,
                 color: Color(0xFF1F2937),
                 letterSpacing: 0.5,
               ),
+              overflow: TextOverflow.ellipsis, // 🆕 Prevenir overflow
+              maxLines: 1, // 🆕 Limitar a una línea
             ),
           ),
           Container(
-            height: 56,
+            height: isSmallScreen ? 48 : (isMediumScreen ? 52 : 56), // 🆕 Altura adaptativa
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(isSmallScreen ? 12 : 16), // 🆕 Border radius adaptativo
               gradient: LinearGradient(
                 colors: [
                   Colors.white,
@@ -235,12 +248,12 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
               boxShadow: [
                 BoxShadow(
                   color: color.withOpacity(0.08),
-                  blurRadius: 12,
-                  offset: Offset(0, 4),
+                  blurRadius: isSmallScreen ? 8 : 12, // 🆕 Blur adaptativo
+                  offset: Offset(0, isSmallScreen ? 2 : 4), // 🆕 Offset adaptativo
                 ),
                 BoxShadow(
                   color: Colors.black.withOpacity(0.03),
-                  blurRadius: 6,
+                  blurRadius: isSmallScreen ? 4 : 6,
                   offset: Offset(0, 2),
                 ),
               ],
@@ -251,29 +264,32 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                 hintText: hint ?? '0',
                 hintStyle: TextStyle(
                   color: Colors.grey[400],
-                  fontSize: 14,
+                  fontSize: isSmallScreen ? 12 : 14, // 🆕 Tamaño adaptativo
                   fontWeight: FontWeight.w500,
                 ),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(isSmallScreen ? 12 : 16),
                   borderSide: BorderSide.none,
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(isSmallScreen ? 12 : 16),
                   borderSide: BorderSide(color: Color(0xFFE5E7EB), width: 1.5),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(isSmallScreen ? 12 : 16),
                   borderSide: BorderSide(color: color, width: 2.5),
                 ),
-                contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: isSmallScreen ? 12 : 20, // 🆕 Padding adaptativo
+                  vertical: isSmallScreen ? 12 : 16
+                ),
                 filled: true,
                 fillColor: Colors.transparent,
               ),
               keyboardType: TextInputType.numberWithOptions(decimal: true),
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 16,
+                fontSize: isSmallScreen ? 14 : 16, // 🆕 Tamaño adaptativo
                 fontWeight: FontWeight.w600,
                 color: Color(0xFF111827),
                 letterSpacing: 0.3,
@@ -285,13 +301,20 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
     );
   }
 
-  // ✅ TÍTULO PRINCIPAL ULTRA MODERNO CON GRADIENTES
+  // 🆕 TÍTULO PRINCIPAL ULTRA MODERNO CON GRADIENTES - RESPONSIVO
   Widget _buildUltraModernTitle(String title, IconData icon, {required Color primaryColor, required Color secondaryColor}) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 600;
+    final isMediumScreen = screenWidth >= 600 && screenWidth < 900;
+    
     return Container(
       width: double.infinity,
-      margin: EdgeInsets.symmetric(vertical: 16, horizontal: 4),
+      margin: EdgeInsets.symmetric(
+        vertical: isSmallScreen ? 12 : 16, 
+        horizontal: isSmallScreen ? 2 : 4
+      ), // 🆕 Margen adaptativo
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(isSmallScreen ? 16 : 20), // 🆕 Border radius adaptativo
         gradient: LinearGradient(
           colors: [
             primaryColor.withOpacity(0.1),
@@ -307,33 +330,33 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
         boxShadow: [
           BoxShadow(
             color: primaryColor.withOpacity(0.15),
-            blurRadius: 20,
-            offset: Offset(0, 8),
+            blurRadius: isSmallScreen ? 12 : 20, // 🆕 Blur adaptativo
+            offset: Offset(0, isSmallScreen ? 4 : 8), // 🆕 Offset adaptativo
           ),
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
+            blurRadius: isSmallScreen ? 6 : 10,
             offset: Offset(0, 2),
           ),
         ],
       ),
       child: Container(
-        padding: EdgeInsets.all(24),
+        padding: EdgeInsets.all(isSmallScreen ? 16 : (isMediumScreen ? 20 : 24)), // 🆕 Padding adaptativo
         child: Row(
           children: [
             Container(
-              padding: EdgeInsets.all(12),
+              padding: EdgeInsets.all(isSmallScreen ? 8 : 12), // 🆕 Padding adaptativo
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [primaryColor, secondaryColor],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(isSmallScreen ? 10 : 14), // 🆕 Border radius adaptativo
                 boxShadow: [
                   BoxShadow(
                     color: primaryColor.withOpacity(0.3),
-                    blurRadius: 8,
+                    blurRadius: isSmallScreen ? 6 : 8,
                     offset: Offset(0, 4),
                   ),
                 ],
@@ -341,19 +364,21 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
               child: Icon(
                 icon,
                 color: Colors.white,
-                size: 24,
+                size: isSmallScreen ? 20 : 24, // 🆕 Tamaño adaptativo
               ),
             ),
-            SizedBox(width: 16),
-            Expanded(
+            SizedBox(width: isSmallScreen ? 12 : 16), // 🆕 Espaciado adaptativo
+            Expanded( // 🆕 Expandir para evitar overflow
               child: Text(
                 title,
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: isSmallScreen ? 15 : (isMediumScreen ? 17 : 18), // 🆕 Tamaño adaptativo
                   fontWeight: FontWeight.w800,
                   color: Color(0xFF111827),
                   letterSpacing: 0.5,
                 ),
+                overflow: TextOverflow.ellipsis, // 🆕 Prevenir overflow
+                maxLines: 2, // 🆕 Permitir hasta 2 líneas en títulos largos
               ),
             ),
           ],
@@ -362,12 +387,22 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
     );
   }
 
-  // ✅ SUBTÍTULO MODERNO CON EFECTOS
+  // 🆕 SUBTÍTULO MODERNO CON EFECTOS - RESPONSIVO
   Widget _buildModernSubTitle(String title, {required Color color}) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 600;
+    final isMediumScreen = screenWidth >= 600 && screenWidth < 900;
+    
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.symmetric(vertical: 14, horizontal: 20),
-      margin: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+      padding: EdgeInsets.symmetric(
+        vertical: isSmallScreen ? 10 : 14, 
+        horizontal: isSmallScreen ? 16 : 20
+      ), // 🆕 Padding adaptativo
+      margin: EdgeInsets.symmetric(
+        vertical: isSmallScreen ? 8 : 10, 
+        horizontal: isSmallScreen ? 8 : 12
+      ), // 🆕 Margen adaptativo
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -377,12 +412,12 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
         ),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(isSmallScreen ? 10 : 14), // 🆕 Border radius adaptativo
         border: Border.all(color: color.withOpacity(0.25), width: 1.5),
         boxShadow: [
           BoxShadow(
             color: color.withOpacity(0.1),
-            blurRadius: 8,
+            blurRadius: isSmallScreen ? 6 : 8,
             offset: Offset(0, 2),
           ),
         ],
@@ -392,7 +427,7 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
         children: [
           Container(
             width: 4,
-            height: 16,
+            height: isSmallScreen ? 12 : 16, // 🆕 Altura adaptativa
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [color, color.withOpacity(0.6)],
@@ -402,14 +437,18 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          SizedBox(width: 12),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: color,
-              letterSpacing: 0.8,
+          SizedBox(width: isSmallScreen ? 8 : 12), // 🆕 Espaciado adaptativo
+          Expanded( // 🆕 Expandir para evitar overflow
+            child: Text(
+              title,
+              style: TextStyle(
+                fontSize: isSmallScreen ? 12 : 14, // 🆕 Tamaño adaptativo
+                fontWeight: FontWeight.w700,
+                color: color,
+                letterSpacing: 0.8,
+              ),
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis, // 🆕 Prevenir overflow
             ),
           ),
         ],
@@ -417,22 +456,41 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
     );
   }
 
-  // ✅ FILA DE CAMPOS CON ESPACIADO PERFECTO
+  // 🆕 FILA DE CAMPOS CON ESPACIADO PERFECTO - RESPONSIVO
   Widget _buildFieldRow(List<Widget> fields) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 600;
+    
     return Container(
-      margin: EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-      child: Row(
-        children: fields.map((field) => Expanded(child: field)).toList(),
-      ),
+      margin: EdgeInsets.symmetric(
+        vertical: isSmallScreen ? 4 : 6, 
+        horizontal: isSmallScreen ? 2 : 4
+      ), // 🆕 Margen adaptativo
+      child: isSmallScreen && fields.length > 2
+          ? Column( // 🆕 En pantallas pequeñas, mostrar campos en columna si son más de 2
+              children: fields.where((field) => field.runtimeType != Container || (field as Container).child != null).map((field) => 
+                Container(
+                  width: double.infinity,
+                  child: field,
+                )
+              ).toList(),
+            )
+          : Row( // 🆕 En pantallas medianas/grandes, mantener en fila
+              children: fields.map((field) => Expanded(child: field)).toList(),
+            ),
     );
   }
 
-  // ✅ CARD ULTRA PREMIUM
+  // 🆕 CARD ULTRA PREMIUM - RESPONSIVO
   Widget _buildPremiumCard({required Widget child, required Color primaryColor, required Color secondaryColor}) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 600;
+    final isMediumScreen = screenWidth >= 600 && screenWidth < 900;
+    
     return Container(
-      margin: EdgeInsets.symmetric(vertical: 16),
+      margin: EdgeInsets.symmetric(vertical: isSmallScreen ? 12 : 16), // 🆕 Margen adaptativo
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(isSmallScreen ? 16 : 24), // 🆕 Border radius adaptativo
         gradient: LinearGradient(
           colors: [
             Colors.white,
@@ -448,25 +506,25 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
         boxShadow: [
           BoxShadow(
             color: primaryColor.withOpacity(0.08),
-            blurRadius: 24,
-            offset: Offset(0, 8),
+            blurRadius: isSmallScreen ? 16 : 24, // 🆕 Blur adaptativo
+            offset: Offset(0, isSmallScreen ? 4 : 8), // 🆕 Offset adaptativo
           ),
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
-            blurRadius: 12,
+            blurRadius: isSmallScreen ? 8 : 12,
             offset: Offset(0, 4),
           ),
           BoxShadow(
             color: Colors.white.withOpacity(0.7),
-            blurRadius: 8,
+            blurRadius: isSmallScreen ? 6 : 8,
             offset: Offset(0, -2),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(isSmallScreen ? 16 : 24),
         child: Container(
-          padding: EdgeInsets.all(28),
+          padding: EdgeInsets.all(isSmallScreen ? 16 : (isMediumScreen ? 22 : 28)), // 🆕 Padding adaptativo
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
@@ -485,6 +543,13 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
 
   @override
   Widget build(BuildContext context) {
+    // 🆕 Obtener dimensiones para responsividad
+    final screenSize = MediaQuery.of(context).size;
+    final screenWidth = screenSize.width;
+    final screenHeight = screenSize.height;
+    final isSmallScreen = screenWidth < 600;
+    final isMediumScreen = screenWidth >= 600 && screenWidth < 900;
+    
     return Scaffold(
       backgroundColor: Color(0xFFF8FAFC),
       extendBodyBehindAppBar: true,
@@ -493,20 +558,21 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
           'Nueva Muestra #${widget.numeroOrden}',
           style: TextStyle(
             fontWeight: FontWeight.w800,
-            fontSize: 20,
+            fontSize: isSmallScreen ? 16 : (isMediumScreen ? 18 : 20), // 🆕 Tamaño adaptativo
             letterSpacing: 0.5,
             color: Color(0xFF111827),
           ),
+          overflow: TextOverflow.ellipsis, // 🆕 Prevenir overflow
         ),
         backgroundColor: Colors.white.withOpacity(0.95),
         foregroundColor: Color(0xFF111827),
         elevation: 0,
         centerTitle: true,
         leading: Container(
-          margin: EdgeInsets.all(8),
+          margin: EdgeInsets.all(isSmallScreen ? 6 : 8), // 🆕 Margen adaptativo
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(isSmallScreen ? 10 : 12), // 🆕 Border radius adaptativo
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.1),
@@ -516,7 +582,7 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
             ],
           ),
           child: IconButton(
-            icon: Icon(Icons.arrow_back_ios_rounded, size: 20),
+            icon: Icon(Icons.arrow_back_ios_rounded, size: isSmallScreen ? 18 : 20), // 🆕 Tamaño adaptativo
             onPressed: () => Navigator.of(context).pop(),
           ),
         ),
@@ -540,11 +606,16 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
           child: Form(
             key: _formKey,
             child: SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(20, 120, 20, 140),
+              padding: EdgeInsets.fromLTRB(
+                isSmallScreen ? 12 : 20, // 🆕 Padding lateral adaptativo
+                isSmallScreen ? 100 : 120, // 🆕 Padding superior adaptativo
+                isSmallScreen ? 12 : 20, // 🆕 Padding lateral adaptativo
+                isSmallScreen ? 120 : 140 // 🆕 Padding inferior adaptativo
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ✅ BÚSQUEDA DE PACIENTE ULTRA MODERNA
+                  // BÚSQUEDA DE PACIENTE ULTRA MODERNA
                   _buildPremiumCard(
                     primaryColor: Color(0xFF10B981),
                     secondaryColor: Color(0xFF059669),
@@ -554,47 +625,49 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                         Row(
                           children: [
                             Container(
-                              padding: EdgeInsets.all(14),
+                              padding: EdgeInsets.all(isSmallScreen ? 10 : 14), // 🆕 Padding adaptativo
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
                                   colors: [Color(0xFF10B981), Color(0xFF059669)],
                                 ),
-                                borderRadius: BorderRadius.circular(16),
+                                borderRadius: BorderRadius.circular(isSmallScreen ? 12 : 16), // 🆕 Border radius adaptativo
                                 boxShadow: [
                                   BoxShadow(
                                     color: Color(0xFF10B981).withOpacity(0.3),
-                                    blurRadius: 12,
-                                    offset: Offset(0, 6),
+                                    blurRadius: isSmallScreen ? 8 : 12,
+                                    offset: Offset(0, isSmallScreen ? 4 : 6),
                                   ),
                                 ],
                               ),
                               child: Icon(
                                 Icons.person_search_rounded,
                                 color: Colors.white,
-                                size: 28,
+                                size: isSmallScreen ? 24 : 28, // 🆕 Tamaño adaptativo
                               ),
                             ),
-                            SizedBox(width: 16),
-                            Expanded(
+                            SizedBox(width: isSmallScreen ? 12 : 16), // 🆕 Espaciado adaptativo
+                            Expanded( // 🆕 Expandir para evitar overflow
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
                                     'BUSCAR PACIENTE',
                                     style: TextStyle(
-                                      fontSize: 20,
+                                      fontSize: isSmallScreen ? 16 : (isMediumScreen ? 18 : 20), // 🆕 Tamaño adaptativo
                                       fontWeight: FontWeight.w800,
                                       color: Color(0xFF111827),
                                       letterSpacing: 0.5,
                                     ),
+                                    overflow: TextOverflow.ellipsis, // 🆕 Prevenir overflow
                                   ),
                                   Text(
                                     'Ingrese la identificación',
                                     style: TextStyle(
-                                      fontSize: 14,
+                                      fontSize: isSmallScreen ? 12 : 14, // 🆕 Tamaño adaptativo
                                       color: Color(0xFF6B7280),
                                       fontWeight: FontWeight.w500,
                                     ),
+                                    overflow: TextOverflow.ellipsis, // 🆕 Prevenir overflow
                                   ),
                                 ],
                               ),
@@ -602,18 +675,19 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                           ],
                         ),
                         
-                        SizedBox(height: 24),
+                        SizedBox(height: isSmallScreen ? 16 : 24), // 🆕 Espaciado adaptativo
                         
                         Container(
+                          width: double.infinity, // 🆕 Asegurar ancho completo
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: BorderRadius.circular(isSmallScreen ? 16 : 20), // 🆕 Border radius adaptativo
                             gradient: LinearGradient(
                               colors: [Colors.white, Color(0xFFFAFBFC)],
                             ),
                             boxShadow: [
                               BoxShadow(
                                 color: Color(0xFF10B981).withOpacity(0.1),
-                                blurRadius: 16,
+                                blurRadius: isSmallScreen ? 12 : 16,
                                 offset: Offset(0, 4),
                               ),
                             ],
@@ -625,38 +699,41 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                               labelStyle: TextStyle(
                                 color: Color(0xFF6B7280),
                                 fontWeight: FontWeight.w600,
-                                fontSize: 16,
+                                fontSize: isSmallScreen ? 14 : 16, // 🆕 Tamaño adaptativo
                               ),
                               hintText: 'Ej: 1234567890',
-                              hintStyle: TextStyle(color: Colors.grey[400]),
+                              hintStyle: TextStyle(
+                                color: Colors.grey[400],
+                                fontSize: isSmallScreen ? 13 : 14, // 🆕 Tamaño adaptativo
+                              ),
                               prefixIcon: Container(
-                                margin: EdgeInsets.all(12),
-                                padding: EdgeInsets.all(8),
+                                margin: EdgeInsets.all(isSmallScreen ? 10 : 12), // 🆕 Margen adaptativo
+                                padding: EdgeInsets.all(isSmallScreen ? 6 : 8), // 🆕 Padding adaptativo
                                 decoration: BoxDecoration(
                                   gradient: LinearGradient(
                                     colors: [Color(0xFF10B981), Color(0xFF059669)],
                                   ),
-                                  borderRadius: BorderRadius.circular(10),
+                                                                   borderRadius: BorderRadius.circular(isSmallScreen ? 8 : 10), // 🆕 Border radius adaptativo
                                 ),
                                 child: Icon(
                                   Icons.badge_rounded,
                                   color: Colors.white,
-                                  size: 20,
+                                  size: isSmallScreen ? 18 : 20, // 🆕 Tamaño adaptativo
                                 ),
                               ),
                               suffixIcon: Container(
-                                margin: EdgeInsets.all(12),
-                                padding: EdgeInsets.all(8),
+                                margin: EdgeInsets.all(isSmallScreen ? 10 : 12), // 🆕 Margen adaptativo
+                                padding: EdgeInsets.all(isSmallScreen ? 6 : 8), // 🆕 Padding adaptativo
                                 decoration: BoxDecoration(
                                   color: _buscandoPaciente 
                                       ? Colors.grey[100] 
                                       : Color(0xFF10B981).withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(10),
+                                  borderRadius: BorderRadius.circular(isSmallScreen ? 8 : 10), // 🆕 Border radius adaptativo
                                 ),
                                 child: _buscandoPaciente 
                                     ? SizedBox(
-                                        width: 20,
-                                        height: 20,
+                                        width: isSmallScreen ? 18 : 20, // 🆕 Tamaño adaptativo
+                                        height: isSmallScreen ? 18 : 20, // 🆕 Tamaño adaptativo
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2.5,
                                           valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF10B981)),
@@ -665,27 +742,30 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                                     : Icon(
                                         Icons.search_rounded,
                                         color: Color(0xFF10B981),
-                                        size: 20,
+                                        size: isSmallScreen ? 18 : 20, // 🆕 Tamaño adaptativo
                                       ),
                               ),
                               border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(20),
+                                borderRadius: BorderRadius.circular(isSmallScreen ? 16 : 20),
                                 borderSide: BorderSide.none,
                               ),
                               enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(20),
+                                borderRadius: BorderRadius.circular(isSmallScreen ? 16 : 20),
                                 borderSide: BorderSide(color: Color(0xFFE5E7EB), width: 1.5),
                               ),
                               focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(20),
+                                borderRadius: BorderRadius.circular(isSmallScreen ? 16 : 20),
                                 borderSide: BorderSide(color: Color(0xFF10B981), width: 2.5),
                               ),
                               filled: true,
                               fillColor: Colors.transparent,
-                              contentPadding: EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: isSmallScreen ? 16 : 24, // 🆕 Padding adaptativo
+                                vertical: isSmallScreen ? 16 : 20 // 🆕 Padding adaptativo
+                              ),
                             ),
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: isSmallScreen ? 14 : 16, // 🆕 Tamaño adaptativo
                               fontWeight: FontWeight.w600,
                               color: Color(0xFF111827),
                             ),
@@ -699,9 +779,10 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                         ),
                         
                         if (_pacienteSeleccionado != null) ...[
-                          SizedBox(height: 24),
+                          SizedBox(height: isSmallScreen ? 16 : 24), // 🆕 Espaciado adaptativo
                           Container(
-                            padding: EdgeInsets.all(24),
+                            width: double.infinity, // 🆕 Asegurar ancho completo
+                            padding: EdgeInsets.all(isSmallScreen ? 16 : 24), // 🆕 Padding adaptativo
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
                                 colors: [
@@ -710,11 +791,11 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                                 ],
                               ),
                               border: Border.all(color: Color(0xFF10B981).withOpacity(0.3), width: 2),
-                              borderRadius: BorderRadius.circular(20),
+                              borderRadius: BorderRadius.circular(isSmallScreen ? 16 : 20), // 🆕 Border radius adaptativo
                               boxShadow: [
                                 BoxShadow(
                                   color: Color(0xFF10B981).withOpacity(0.15),
-                                  blurRadius: 16,
+                                  blurRadius: isSmallScreen ? 12 : 16,
                                   offset: Offset(0, 4),
                                 ),
                               ],
@@ -722,16 +803,16 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                             child: Row(
                               children: [
                                 Container(
-                                  padding: EdgeInsets.all(12),
+                                  padding: EdgeInsets.all(isSmallScreen ? 10 : 12), // 🆕 Padding adaptativo
                                   decoration: BoxDecoration(
                                     gradient: LinearGradient(
                                       colors: [Color(0xFF10B981), Color(0xFF059669)],
                                     ),
-                                    borderRadius: BorderRadius.circular(14),
+                                    borderRadius: BorderRadius.circular(isSmallScreen ? 12 : 14), // 🆕 Border radius adaptativo
                                     boxShadow: [
                                       BoxShadow(
                                         color: Color(0xFF10B981).withOpacity(0.3),
-                                        blurRadius: 8,
+                                        blurRadius: isSmallScreen ? 6 : 8,
                                         offset: Offset(0, 4),
                                       ),
                                     ],
@@ -739,11 +820,11 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                                   child: Icon(
                                     Icons.check_circle_rounded,
                                     color: Colors.white,
-                                    size: 28,
+                                    size: isSmallScreen ? 24 : 28, // 🆕 Tamaño adaptativo
                                   ),
                                 ),
-                                SizedBox(width: 20),
-                                Expanded(
+                                SizedBox(width: isSmallScreen ? 16 : 20), // 🆕 Espaciado adaptativo
+                                Expanded( // 🆕 Expandir para evitar overflow
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
@@ -751,9 +832,11 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                                         '${_pacienteSeleccionado?.nombre ?? ''} ${_pacienteSeleccionado?.apellido ?? ''}',
                                         style: TextStyle(
                                           fontWeight: FontWeight.w800,
-                                          fontSize: 18,
+                                          fontSize: isSmallScreen ? 15 : 18, // 🆕 Tamaño adaptativo
                                           color: Color(0xFF111827),
                                         ),
+                                        overflow: TextOverflow.ellipsis, // 🆕 Prevenir overflow
+                                        maxLines: 2, // 🆕 Permitir hasta 2 líneas
                                       ),
                                       SizedBox(height: 6),
                                       Text(
@@ -761,8 +844,9 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                                         style: TextStyle(
                                           color: Color(0xFF10B981),
                                           fontWeight: FontWeight.w600,
-                                          fontSize: 14,
+                                          fontSize: isSmallScreen ? 12 : 14, // 🆕 Tamaño adaptativo
                                         ),
+                                        overflow: TextOverflow.ellipsis, // 🆕 Prevenir overflow
                                       ),
                                     ],
                                   ),
@@ -771,9 +855,10 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                             ),
                           ),
                         ] else if (_identificacionController.text.isNotEmpty && !_buscandoPaciente) ...[
-                          SizedBox(height: 24),
+                          SizedBox(height: isSmallScreen ? 16 : 24), // 🆕 Espaciado adaptativo
                           Container(
-                            padding: EdgeInsets.all(24),
+                            width: double.infinity, // 🆕 Asegurar ancho completo
+                            padding: EdgeInsets.all(isSmallScreen ? 16 : 24), // 🆕 Padding adaptativo
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
                                 colors: [
@@ -782,33 +867,34 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                                 ],
                               ),
                               border: Border.all(color: Color(0xFFF59E0B).withOpacity(0.3), width: 2),
-                              borderRadius: BorderRadius.circular(20),
+                              borderRadius: BorderRadius.circular(isSmallScreen ? 16 : 20), // 🆕 Border radius adaptativo
                             ),
                             child: Row(
                               children: [
                                 Container(
-                                  padding: EdgeInsets.all(12),
+                                  padding: EdgeInsets.all(isSmallScreen ? 10 : 12), // 🆕 Padding adaptativo
                                   decoration: BoxDecoration(
                                     gradient: LinearGradient(
                                       colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
                                     ),
-                                    borderRadius: BorderRadius.circular(14),
+                                    borderRadius: BorderRadius.circular(isSmallScreen ? 12 : 14), // 🆕 Border radius adaptativo
                                   ),
                                   child: Icon(
                                     Icons.warning_rounded,
                                     color: Colors.white,
-                                    size: 28,
+                                    size: isSmallScreen ? 24 : 28, // 🆕 Tamaño adaptativo
                                   ),
                                 ),
-                                SizedBox(width: 20),
-                                Expanded(
+                                SizedBox(width: isSmallScreen ? 16 : 20), // 🆕 Espaciado adaptativo
+                                Expanded( // 🆕 Expandir para evitar overflow
                                   child: Text(
                                     'Paciente no encontrado con esta identificación',
                                     style: TextStyle(
                                       color: Color(0xFF111827),
                                       fontWeight: FontWeight.w600,
-                                      fontSize: 16,
+                                      fontSize: isSmallScreen ? 14 : 16, // 🆕 Tamaño adaptativo
                                     ),
+                                    overflow: TextOverflow.visible, // 🆕 Permitir múltiples líneas
                                   ),
                                 ),
                               ],
@@ -819,14 +905,14 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                     ),
                   ),
                   
-                  // ✅ FORMULARIO PRINCIPAL ULTRA MODERNO
+                  // FORMULARIO PRINCIPAL ULTRA MODERNO
                   _buildPremiumCard(
                     primaryColor: Color(0xFF6366F1),
                     secondaryColor: Color(0xFF4F46E5),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // ✅ DIAGNÓSTICO
+                        // DIAGNÓSTICO
                         _buildUltraModernTitle(
                           'DIAGNÓSTICO', 
                           Icons.medical_services_rounded, 
@@ -838,10 +924,10 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                           _buildModernNumericField('HTA', _htaController, accentColor: Color(0xFFEF4444)),
                         ]),
                         
-                        SizedBox(height: 32),
+                        SizedBox(height: isSmallScreen ? 24 : 32), // 🆕 Espaciado adaptativo
                         
-                        // ✅ # MUESTRAS ENVIADAS
-                                                _buildUltraModernTitle(
+                        // # MUESTRAS ENVIADAS
+                        _buildUltraModernTitle(
                           'MUESTRAS ENVIADAS', 
                           Icons.inventory_2_rounded, 
                           primaryColor: Color(0xFF8B5CF6), 
@@ -858,9 +944,9 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                           Container(), // Espacio vacío
                         ]),
                         
-                        SizedBox(height: 32),
+                        SizedBox(height: isSmallScreen ? 24 : 32), // 🆕 Espaciado adaptativo
                         
-                        // ✅ TUBO LILA
+                        // TUBO LILA
                         _buildUltraModernTitle(
                           'TUBO LILA', 
                           Icons.science_rounded, 
@@ -873,9 +959,9 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                           _buildModernNumericField('PTH', _pthController, accentColor: Color(0xFFA855F7)),
                         ]),
                         
-                        SizedBox(height: 32),
+                        SizedBox(height: isSmallScreen ? 24 : 32), // 🆕 Espaciado adaptativo
                         
-                        // ✅ TUBO AMARILLO
+                        // TUBO AMARILLO
                         _buildUltraModernTitle(
                           'TUBO AMARILLO', 
                           Icons.biotech_rounded, 
@@ -893,9 +979,9 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                           Container(),
                         ]),
                         
-                        SizedBox(height: 32),
+                        SizedBox(height: isSmallScreen ? 24 : 32), // 🆕 Espaciado adaptativo
                         
-                        // ✅ MUESTRA DE ORINA
+                        // MUESTRA DE ORINA
                         _buildUltraModernTitle(
                           'MUESTRA DE ORINA', 
                           Icons.water_drop_rounded, 
@@ -922,9 +1008,9 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                           _buildModernNumericField('VOLM', _volmController, hint: 'ml', accentColor: Color(0xFF059669)),
                         ]),
                         
-                        SizedBox(height: 32),
+                        SizedBox(height: isSmallScreen ? 24 : 32), // 🆕 Espaciado adaptativo
                         
-                        // ✅ PACIENTES NEFRO
+                        // PACIENTES NEFRO
                         _buildUltraModernTitle(
                           'PACIENTES NEFRO', 
                           Icons.local_hospital_rounded, 
@@ -966,7 +1052,7 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
       ),
       floatingActionButton: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(isSmallScreen ? 20 : 24), // 🆕 Border radius adaptativo
           gradient: LinearGradient(
             colors: [
               Color(0xFF6366F1),
@@ -978,13 +1064,13 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
           boxShadow: [
             BoxShadow(
               color: Color(0xFF6366F1).withOpacity(0.4),
-              blurRadius: 20,
-              offset: Offset(0, 10),
+              blurRadius: isSmallScreen ? 16 : 20, // 🆕 Blur adaptativo
+              offset: Offset(0, isSmallScreen ? 8 : 10), // 🆕 Offset adaptativo
             ),
             BoxShadow(
               color: Color(0xFF6366F1).withOpacity(0.2),
-              blurRadius: 40,
-              offset: Offset(0, 20),
+              blurRadius: isSmallScreen ? 32 : 40,
+              offset: Offset(0, isSmallScreen ? 16 : 20),
             ),
           ],
         ),
@@ -1071,21 +1157,21 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
             }
           },
           icon: Container(
-            padding: EdgeInsets.all(4),
+            padding: EdgeInsets.all(isSmallScreen ? 3 : 4), // 🆕 Padding adaptativo
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(isSmallScreen ? 8 : 10), // 🆕 Border radius adaptativo
             ),
             child: Icon(
               Icons.save_rounded,
-              size: 24,
+              size: isSmallScreen ? 20 : 24, // 🆕 Tamaño adaptativo
               color: Colors.white,
             ),
           ),
           label: Text(
-            'Guardar Muestra',
+            isSmallScreen ? 'Guardar' : 'Guardar Muestra', // 🆕 Texto adaptativo
             style: TextStyle(
-              fontSize: 16,
+              fontSize: isSmallScreen ? 14 : 16, // 🆕 Tamaño adaptativo
               fontWeight: FontWeight.w700,
               letterSpacing: 0.5,
             ),
@@ -1098,16 +1184,19 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
     );
   }
 
-  // ✅ SNACKBAR ULTRA MODERNO
+  // 🆕 SNACKBAR ULTRA MODERNO - RESPONSIVO
   void _showModernSnackBar(BuildContext context, String message, Color color, IconData icon, {bool isError = false}) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 600;
+    
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Container(
-          padding: EdgeInsets.symmetric(vertical: 8),
+          padding: EdgeInsets.symmetric(vertical: isSmallScreen ? 6 : 8), // 🆕 Padding adaptativo
           child: Row(
             children: [
               Container(
-                padding: EdgeInsets.all(8),
+                padding: EdgeInsets.all(isSmallScreen ? 6 : 8), // 🆕 Padding adaptativo
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
@@ -1115,16 +1204,16 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                       Colors.white.withOpacity(0.1),
                     ],
                   ),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(isSmallScreen ? 8 : 10), // 🆕 Border radius adaptativo
                 ),
                 child: Icon(
                   icon,
                   color: Colors.white,
-                  size: 24,
+                  size: isSmallScreen ? 20 : 24, // 🆕 Tamaño adaptativo
                 ),
               ),
-              SizedBox(width: 16),
-              Expanded(
+              SizedBox(width: isSmallScreen ? 12 : 16), // 🆕 Espaciado adaptativo
+              Expanded( // 🆕 Expandir para evitar overflow
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
@@ -1133,19 +1222,21 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                       message,
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
-                        fontSize: 16,
+                        fontSize: isSmallScreen ? 14 : 16, // 🆕 Tamaño adaptativo
                         color: Colors.white,
                       ),
+                      overflow: TextOverflow.visible, // 🆕 Permitir múltiples líneas
                     ),
                     if (!isError && _pacienteSeleccionado != null) ...[
                       SizedBox(height: 4),
                       Text(
                         'Paciente: ${_pacienteSeleccionado?.nombre} ${_pacienteSeleccionado?.apellido}',
                         style: TextStyle(
-                          fontSize: 13,
+                          fontSize: isSmallScreen ? 11 : 13, // 🆕 Tamaño adaptativo
                           color: Colors.white.withOpacity(0.9),
                           fontWeight: FontWeight.w500,
                         ),
+                        overflow: TextOverflow.ellipsis, // 🆕 Prevenir overflow
                       ),
                     ],
                   ],
@@ -1157,9 +1248,9 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(isSmallScreen ? 12 : 16), // 🆕 Border radius adaptativo
         ),
-        margin: EdgeInsets.all(20),
+        margin: EdgeInsets.all(isSmallScreen ? 16 : 20), // 🆕 Margen adaptativo
         duration: Duration(seconds: isError ? 4 : 3),
         elevation: 8,
       ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fnpv_app/screens/brigadas_screen.dart';
+import 'package:fnpv_app/screens/encuestas_list_view.dart';
 import 'package:fnpv_app/screens/envio_muestras_screen.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
@@ -157,16 +158,22 @@ class HomeScreen extends StatelessWidget {
                             _showComingSoon(context, 'Afinamientos');
                           },
                         ),
-                        _buildMenuCard(
-                          context,
-                          icon: Icons.poll,
-                          title: 'Encuestas',
-                          subtitle: 'Completar encuestas',
-                          color: Colors.indigo,
-                          onTap: () {
-                            _showComingSoon(context, 'Encuestas');
-                          },
-                        ),
+                       _buildMenuCard(
+  context,
+  icon: Icons.poll,
+  title: 'Encuestas',
+  subtitle: 'Completar encuestas',
+  color: Colors.indigo,
+  onTap: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const EncuestasListView(),
+      ),
+    );
+  },
+),
+
                        _buildMenuCard(
   context,
   icon: Icons.local_shipping, // Cambié el icono para que sea más representativo
