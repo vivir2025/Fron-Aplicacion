@@ -15,16 +15,27 @@ class EncuestasListView extends StatefulWidget {
   _EncuestasListViewState createState() => _EncuestasListViewState();
 }
 
-class _EncuestasListViewState extends State<EncuestasListView> {
+class _EncuestasListViewState extends State<EncuestasListView> with TickerProviderStateMixin {
   List<Encuesta> _encuestas = [];
   bool _isLoading = true;
   bool _isSyncing = false;
   String _searchQuery = '';
+  late AnimationController _syncAnimationController;
 
   @override
   void initState() {
     super.initState();
+    _syncAnimationController = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    );
     _loadEncuestas();
+  }
+
+  @override
+  void dispose() {
+    _syncAnimationController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadEncuestas() async {
@@ -84,6 +95,7 @@ class _EncuestasListViewState extends State<EncuestasListView> {
     setState(() {
       _isSyncing = true;
     });
+    _syncAnimationController.repeat();
 
     try {
       final token = await _obtenerTokenValido();
@@ -93,7 +105,7 @@ class _EncuestasListViewState extends State<EncuestasListView> {
           'No hay token de autenticación disponible',
           'Por favor, inicia sesión nuevamente',
           Colors.orange,
-          Icons.warning,
+          Icons.warning_rounded,
         );
         return;
       }
@@ -110,7 +122,7 @@ class _EncuestasListViewState extends State<EncuestasListView> {
           'No hay encuestas pendientes por sincronizar',
           'Todas las encuestas están actualizadas',
           Colors.blue,
-          Icons.info,
+          Icons.info_rounded,
         );
         return;
       }
@@ -133,21 +145,21 @@ class _EncuestasListViewState extends State<EncuestasListView> {
             ? '$fallidas encuestas fallaron en la sincronización' 
             : 'Todas las encuestas pendientes fueron sincronizadas',
           Colors.green,
-          Icons.cloud_done,
+          Icons.cloud_done_rounded,
         );
       } else if (fallidas > 0) {
         _mostrarMensajeError(
           'Error en sincronización de encuestas',
           'No se pudo sincronizar ninguna encuesta. ${errores.isNotEmpty ? errores.first : "Error desconocido"}',
           Colors.red,
-          Icons.error,
+          Icons.error_rounded,
         );
       } else {
         _mostrarMensajeInfo(
           'Sin encuestas para sincronizar',
           'No se encontraron encuestas pendientes',
           Colors.blue,
-          Icons.info,
+          Icons.info_rounded,
         );
       }
 
@@ -157,12 +169,14 @@ class _EncuestasListViewState extends State<EncuestasListView> {
         'Error inesperado en sincronización',
         'Error: ${e.toString()}',
         Colors.red,
-        Icons.error,
+        Icons.error_rounded,
       );
     } finally {
       setState(() {
         _isSyncing = false;
       });
+      _syncAnimationController.stop();
+      _syncAnimationController.reset();
     }
   }
 
@@ -172,18 +186,22 @@ class _EncuestasListViewState extends State<EncuestasListView> {
         content: Row(
           children: [
             const SizedBox(
-              width: 16,
-              height: 16,
+              width: 20,
+              height: 20,
               child: CircularProgressIndicator(
-                strokeWidth: 2,
+                strokeWidth: 2.5,
                 color: Colors.white,
+                backgroundColor: Colors.white24,
               ),
             ),
-            const SizedBox(width: 12),
-            Text(mensaje),
+            const SizedBox(width: 16),
+            Expanded(child: Text(mensaje)),
           ],
         ),
         backgroundColor: Colors.blue[700],
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
         duration: const Duration(seconds: 2),
       ),
     );
@@ -192,34 +210,54 @@ class _EncuestasListViewState extends State<EncuestasListView> {
   void _mostrarMensajeExito(String titulo, String subtitulo, Color color, IconData icon) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(
+        content: Container(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(icon, color: Colors.white, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      titulo,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (subtitulo.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.only(left: 38),
                   child: Text(
-                    titulo,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    subtitulo,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Colors.white70,
+                    ),
                   ),
                 ),
               ],
-            ),
-            if (subtitulo.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(
-                subtitulo,
-                style: const TextStyle(fontSize: 12),
-              ),
             ],
-          ],
+          ),
         ),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
         duration: const Duration(seconds: 4),
       ),
     );
@@ -228,38 +266,59 @@ class _EncuestasListViewState extends State<EncuestasListView> {
   void _mostrarMensajeError(String titulo, String subtitulo, Color color, IconData icon) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(
+        content: Container(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(icon, color: Colors.white, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      titulo,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (subtitulo.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.only(left: 38),
                   child: Text(
-                    titulo,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    subtitulo,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Colors.white70,
+                    ),
                   ),
                 ),
               ],
-            ),
-            if (subtitulo.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(
-                subtitulo,
-                style: const TextStyle(fontSize: 12),
-              ),
             ],
-          ],
+          ),
         ),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
         duration: const Duration(seconds: 5),
         action: SnackBarAction(
           label: 'Reintentar',
           textColor: Colors.white,
+          backgroundColor: Colors.white24,
           onPressed: _sincronizarEncuestasPendientes,
         ),
       ),
@@ -269,34 +328,54 @@ class _EncuestasListViewState extends State<EncuestasListView> {
   void _mostrarMensajeInfo(String titulo, String subtitulo, Color color, IconData icon) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(
+        content: Container(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(icon, color: Colors.white, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      titulo,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (subtitulo.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.only(left: 38),
                   child: Text(
-                    titulo,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    subtitulo,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Colors.white70,
+                    ),
                   ),
                 ),
               ],
-            ),
-            if (subtitulo.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(
-                subtitulo,
-                style: const TextStyle(fontSize: 12),
-              ),
             ],
-          ],
+          ),
         ),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
         duration: const Duration(seconds: 3),
       ),
     );
@@ -317,31 +396,46 @@ class _EncuestasListViewState extends State<EncuestasListView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: const Text('Encuestas de Satisfacción'),
+        title: const Text(
+          'Encuestas de Satisfacción',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
         backgroundColor: Colors.blue[800],
         foregroundColor: Colors.white,
+        elevation: 0,
         actions: [
-          IconButton(
-            icon: _isSyncing 
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-              : const Icon(Icons.sync),
-            onPressed: _isSyncing ? null : _sincronizarEncuestasPendientes,
-            tooltip: _isSyncing 
-              ? 'Sincronizando...' 
-              : 'Sincronizar encuestas pendientes',
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            child: IconButton(
+              icon: _isSyncing 
+                ? RotationTransition(
+                    turns: _syncAnimationController,
+                    child: const Icon(Icons.sync_rounded, size: 24),
+                  )
+                : const Icon(Icons.sync_rounded, size: 24),
+              onPressed: _isSyncing ? null : _sincronizarEncuestasPendientes,
+              tooltip: _isSyncing 
+                ? 'Sincronizando...' 
+                : 'Sincronizar encuestas pendientes',
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.white24,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _isLoading ? null : _loadEncuestas,
-            tooltip: 'Recargar lista',
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            child: IconButton(
+              icon: const Icon(Icons.refresh_rounded, size: 24),
+              onPressed: _isLoading ? null : _loadEncuestas,
+              tooltip: 'Recargar lista',
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.white24,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
           ),
         ],
       ),
@@ -349,27 +443,83 @@ class _EncuestasListViewState extends State<EncuestasListView> {
         children: [
           _buildSyncStatusIndicator(),
           
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              decoration: const InputDecoration(
-                labelText: 'Buscar encuestas',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
+          // Barra de búsqueda mejorada
+          Container(
+            padding: const EdgeInsets.all(20.0),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value;
-                });
-              },
+              child: TextField(
+                decoration: InputDecoration(
+                  labelText: 'Buscar encuestas',
+                  hintText: 'ID, domicilio o entidad...',
+                  prefixIcon: Container(
+                    padding: const EdgeInsets.all(12),
+                    child: Icon(
+                      Icons.search_rounded,
+                      color: Colors.blue[800],
+                      size: 24,
+                    ),
+                  ),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear_rounded),
+                          onPressed: () {
+                            setState(() {
+                              _searchQuery = '';
+                            });
+                          },
+                        )
+                      : null,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 16,
+                  ),
+                ),
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value;
+                  });
+                },
+              ),
             ),
           ),
+
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(strokeWidth: 3),
+                        SizedBox(height: 16),
+                        Text(
+                          'Cargando encuestas...',
+                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  )
                 : _filteredEncuestas.isEmpty
                     ? _buildEmptyState()
                     : ListView.builder(
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
                         itemCount: _filteredEncuestas.length,
                         itemBuilder: (context, index) {
                           final encuesta = _filteredEncuestas[index];
@@ -383,8 +533,10 @@ class _EncuestasListViewState extends State<EncuestasListView> {
         onPressed: _showPacienteSelector,
         backgroundColor: Colors.indigo,
         foregroundColor: Colors.white,
-        icon: const Icon(Icons.add),
+        icon: const Icon(Icons.add_rounded),
         label: const Text('Nueva Encuesta'),
+        elevation: 6,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     );
   }
@@ -397,54 +549,93 @@ class _EncuestasListViewState extends State<EncuestasListView> {
       return const SizedBox.shrink();
     }
 
+    final bool hasPendientes = encuestasPendientes > 0;
+    final Color statusColor = hasPendientes ? Colors.orange[700]! : Colors.green[700]!;
+    final IconData statusIcon = hasPendientes ? Icons.cloud_queue_rounded : Icons.cloud_done_rounded;
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: encuestasPendientes > 0 ? Colors.orange[50] : Colors.green[50],
-        border: Border(
-          bottom: BorderSide(
-            color: encuestasPendientes > 0 ? Colors.orange[200]! : Colors.green[200]!,
-            width: 1,
-          ),
+        gradient: LinearGradient(
+          colors: [
+            statusColor.withOpacity(0.1),
+            statusColor.withOpacity(0.05),
+          ],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: statusColor.withOpacity(0.2),
+          width: 1,
         ),
       ),
       child: Row(
         children: [
-          Icon(
-            encuestasPendientes > 0 ? Icons.cloud_queue : Icons.cloud_done,
-            color: encuestasPendientes > 0 ? Colors.orange[700] : Colors.green[700],
-            size: 20,
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: statusColor.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(statusIcon, color: statusColor, size: 24),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 16),
           Expanded(
-            child: Text(
-              encuestasPendientes > 0 
-                ? '$encuestasPendientes encuestas pendientes de sincronización'
-                : 'Todas las encuestas están sincronizadas ($encuestasSincronizadas)',
-              style: TextStyle(
-                color: encuestasPendientes > 0 ? Colors.orange[700] : Colors.green[700],
-                fontWeight: FontWeight.w500,
-                fontSize: 14,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  hasPendientes 
+                    ? 'Sincronización pendiente'
+                    : 'Todo sincronizado',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                    color: statusColor,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  hasPendientes 
+                    ? '$encuestasPendientes encuestas pendientes de sincronización'
+                    : 'Todas las encuestas están sincronizadas ($encuestasSincronizadas)',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey,
+                  ),
+                ),
+              ],
             ),
           ),
-          if (encuestasPendientes > 0) ...[
-            const SizedBox(width: 8),
-            TextButton.icon(
-              onPressed: _isSyncing ? null : _sincronizarEncuestasPendientes,
-              icon: _isSyncing 
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.sync, size: 16),
-              label: Text(_isSyncing ? 'Sincronizando...' : 'Sincronizar'),
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.orange[700],
-                textStyle: const TextStyle(fontSize: 12),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          if (hasPendientes) ...[
+            const SizedBox(width: 12),
+            Container(
+              decoration: BoxDecoration(
+                color: statusColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: TextButton.icon(
+                onPressed: _isSyncing ? null : _sincronizarEncuestasPendientes,
+                icon: _isSyncing 
+                  ? SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: statusColor,
+                      ),
+                    )
+                  : Icon(Icons.sync_rounded, size: 18, color: statusColor),
+                label: Text(
+                  _isSyncing ? 'Sincronizando...' : 'Sincronizar',
+                  style: TextStyle(color: statusColor),
+                ),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
               ),
             ),
           ],
@@ -455,96 +646,258 @@ class _EncuestasListViewState extends State<EncuestasListView> {
 
   Widget _buildEmptyState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.poll_outlined,
-            size: 80,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No hay encuestas registradas',
-            style: TextStyle(
-              fontSize: 18,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
+      child: Container(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.blue[800]!.withOpacity(0.1),
+                    Colors.blue[600]!.withOpacity(0.05),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(60),
+              ),
+              child: Icon(
+                Icons.poll_outlined,
+                size: 60,
+                color: Colors.blue[800]!.withOpacity(0.6),
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Toca el botón + para crear tu primera encuesta',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[500],
+            const SizedBox(height: 24),
+            Text(
+              _searchQuery.isEmpty 
+                ? 'No hay encuestas registradas'
+                : 'No se encontraron encuestas',
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+              textAlign: TextAlign.center,
             ),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: _showPacienteSelector,
-            icon: const Icon(Icons.add),
-            label: const Text('Crear Encuesta'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.indigo,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            const SizedBox(height: 12),
+            Text(
+              _searchQuery.isEmpty
+                ? 'Toca el botón + para crear tu primera encuesta'
+                : 'Intenta con otro término de búsqueda',
+              style: const TextStyle(
+                fontSize: 15,
+                color: Colors.grey,
+                height: 1.4,
+              ),
+              textAlign: TextAlign.center,
             ),
-          ),
-        ],
+            const SizedBox(height: 32),
+            if (_searchQuery.isEmpty) ...[
+              ElevatedButton.icon(
+                onPressed: _showPacienteSelector,
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Crear Encuesta'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.indigo,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ] else ...[
+              OutlinedButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _searchQuery = '';
+                  });
+                },
+                icon: const Icon(Icons.clear_all_rounded),
+                label: const Text('Limpiar búsqueda'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.blue[800],
+                  side: BorderSide(color: Colors.blue[800]!),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildEncuestaCard(Encuesta encuesta) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: encuesta.syncStatus == 1 ? Colors.green : Colors.orange,
-          child: Icon(
-            encuesta.syncStatus == 1 ? Icons.cloud_done : Icons.cloud_upload,
-            color: Colors.white,
+    final bool isSynced = encuesta.syncStatus == 1;
+    final Color statusColor = isSynced ? Colors.green : Colors.orange;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Card(
+        elevation: 3,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        color: Colors.white,
+        shadowColor: Colors.black12,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => _viewEncuestaDetail(encuesta),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [statusColor, statusColor.withOpacity(0.8)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: statusColor.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        isSynced ? Icons.cloud_done_rounded : Icons.cloud_upload_rounded,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Encuesta ${encuesta.id.substring(0, 8)}...',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: statusColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: statusColor.withOpacity(0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    color: statusColor,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  isSynced ? 'Sincronizada' : 'Pendiente',
+                                  style: TextStyle(
+                                    color: statusColor,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (!isSynced)
+                          Icon(Icons.sync_problem_rounded, color: statusColor, size: 20),
+                        const SizedBox(width: 8),
+                        const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Divider(color: Colors.grey[200], height: 1),
+                const SizedBox(height: 16),
+                
+                // Información detallada
+                _buildInfoRow('Domicilio', encuesta.domicilio, Icons.home_outlined),
+                const SizedBox(height: 12),
+                _buildInfoRow('Fecha', '${encuesta.fecha.day}/${encuesta.fecha.month}/${encuesta.fecha.year}', Icons.calendar_today_outlined),
+                const SizedBox(height: 12),
+                _buildInfoRow('Entidad', encuesta.entidadAfiliada, Icons.business_outlined),
+              ],
+            ),
           ),
         ),
-        title: Text(
-          'Encuesta ${encuesta.id.substring(0, 8)}...',
-          style: const TextStyle(fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value, IconData icon) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: Colors.blue[50],
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: Colors.blue[700], size: 16),
         ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Domicilio: ${encuesta.domicilio}'),
-            Text('Fecha: ${encuesta.fecha.day}/${encuesta.fecha.month}/${encuesta.fecha.year}'),
-            Text('Entidad: ${encuesta.entidadAfiliada}'),
-            Container(
-              margin: const EdgeInsets.only(top: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: encuesta.syncStatus == 1 ? Colors.green[100] : Colors.orange[100],
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                encuesta.syncStatus == 1 ? 'Sincronizada' : 'Pendiente',
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
                 style: TextStyle(
-                  color: encuesta.syncStatus == 1 ? Colors.green[700] : Colors.orange[700],
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.blue[700],
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                                    color: Colors.black87,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (encuesta.syncStatus == 0)
-              const Icon(Icons.sync_problem, color: Colors.orange),
-            const Icon(Icons.chevron_right),
-          ],
-        ),
-        onTap: () => _viewEncuestaDetail(encuesta),
-      ),
+      ],
     );
   }
 
@@ -557,7 +910,6 @@ class _EncuestasListViewState extends State<EncuestasListView> {
     ).then((_) => _loadEncuestas());
   }
 
-  // 🆕 MÉTODO MODIFICADO CON BÚSQUEDA DE PACIENTES
   void _showPacienteSelector() async {
     try {
       final dbHelper = DatabaseHelper.instance;
@@ -565,9 +917,27 @@ class _EncuestasListViewState extends State<EncuestasListView> {
       
       if (pacientes.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No hay pacientes registrados. Sincroniza primero los datos.'),
+          SnackBar(
+            content: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.warning_rounded, color: Colors.white, size: 20),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text('No hay pacientes registrados. Sincroniza primero los datos.'),
+                ),
+              ],
+            ),
             backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            margin: const EdgeInsets.all(16),
           ),
         );
         return;
@@ -587,8 +957,24 @@ class _EncuestasListViewState extends State<EncuestasListView> {
       debugPrint('Error al cargar pacientes: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error al cargar pacientes: $e'),
+          content: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.error_rounded, color: Colors.white, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(child: Text('Error al cargar pacientes: $e')),
+            ],
+          ),
           backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: const EdgeInsets.all(16),
         ),
       );
     }
@@ -604,9 +990,25 @@ class _EncuestasListViewState extends State<EncuestasListView> {
       if (result == true) {
         _loadEncuestas();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Encuesta creada exitosamente'),
+          SnackBar(
+            content: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                ),
+                const SizedBox(width: 12),
+                const Text('Encuesta creada exitosamente'),
+              ],
+            ),
             backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            margin: const EdgeInsets.all(16),
           ),
         );
       }
@@ -614,7 +1016,7 @@ class _EncuestasListViewState extends State<EncuestasListView> {
   }
 }
 
-// 🆕 WIDGET SEPARADO PARA EL DIÁLOGO DE SELECCIÓN DE PACIENTES CON BÚSQUEDA
+// Widget mejorado para el diálogo de selección de pacientes
 class _PacienteSelectorDialog extends StatefulWidget {
   final List<Paciente> pacientes;
 
@@ -652,174 +1054,358 @@ class _PacienteSelectorDialogState extends State<_PacienteSelectorDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Row(
-        children: [
-          Icon(Icons.person_search, color: Colors.indigo[700]),
-          const SizedBox(width: 8),
-          const Text('Seleccionar Paciente'),
-        ],
-      ),
-      content: SizedBox(
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Container(
         width: double.maxFinite,
-        height: 500, // Aumentamos la altura para acomodar la búsqueda
+        height: MediaQuery.of(context).size.height * 0.7,
+        padding: const EdgeInsets.all(24),
         child: Column(
           children: [
-            // 🆕 BARRA DE BÚSQUEDA
-            TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                labelText: 'Buscar por nombre o identificación',
-                hintText: 'Escribe para buscar...',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() {
-                            _searchQuery = '';
-                          });
-                        },
-                      )
-                    : null,
-                border: const OutlineInputBorder(),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+            // Header mejorado
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.indigo[700]!, Colors.indigo[500]!],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.indigo.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.person_search_rounded,
+                    color: Colors.white,
+                    size: 28,
+                  ),
                 ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Seleccionar Paciente',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${widget.pacientes.length} pacientes disponibles',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close_rounded),
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.grey[100],
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            
+            // Barra de búsqueda mejorada
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey[200]!),
               ),
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value;
-                });
-              },
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  labelText: 'Buscar paciente',
+                  hintText: 'Nombre, apellido o identificación...',
+                  prefixIcon: Container(
+                    padding: const EdgeInsets.all(12),
+                    child: Icon(
+                      Icons.search_rounded,
+                      color: Colors.indigo[700],
+                      size: 24,
+                    ),
+                  ),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear_rounded),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() {
+                              _searchQuery = '';
+                            });
+                          },
+                        )
+                      : null,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 16,
+                  ),
+                ),
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value;
+                  });
+                },
+              ),
             ),
             const SizedBox(height: 16),
             
-            // 🆕 CONTADOR DE RESULTADOS
+            // Contador de resultados
             if (_searchQuery.isNotEmpty) ...[
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  '${_filteredPacientes.length} paciente(s) encontrado(s)',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 12,
-                    fontStyle: FontStyle.italic,
-                  ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.green[50],
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.filter_list_rounded,
+                      color: Colors.green[700],
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${_filteredPacientes.length} resultado(s) encontrado(s)',
+                      style: TextStyle(
+                        color: Colors.green[700],
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 16),
             ],
             
-            // LISTA DE PACIENTES FILTRADOS
+            // Lista de pacientes
             Expanded(
               child: _filteredPacientes.isEmpty
                   ? _buildEmptySearchResults()
                   : ListView.builder(
+                      physics: const BouncingScrollPhysics(),
                       itemCount: _filteredPacientes.length,
                       itemBuilder: (context, index) {
                         final paciente = _filteredPacientes[index];
-                        return Card(
-                          margin: const EdgeInsets.symmetric(vertical: 4),
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: Colors.indigo[100],
-                              child: Text(
-                                paciente.nombre[0].toUpperCase(),
-                                style: TextStyle(
-                                  color: Colors.indigo[800],
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            title: Text(
-                              paciente.nombreCompleto,
-                              style: const TextStyle(fontWeight: FontWeight.w500),
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('ID: ${paciente.identificacion}'),
-                                // 🆕 RESALTADO DE TEXTO COINCIDENTE (OPCIONAL)
-                                if (_searchQuery.isNotEmpty)
-                                  Text(
-                                    'Coincidencia encontrada',
-                                    style: TextStyle(
-                                      color: Colors.green[600],
-                                      fontSize: 11,
-                                      fontStyle: FontStyle.italic,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                            onTap: () {
-                              Navigator.pop(context, paciente);
-                            },
-                          ),
-                        );
+                        return _buildPacienteCard(paciente);
                       },
                     ),
             ),
           ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
-        ),
-      ],
     );
   }
 
-  // 🆕 WIDGET PARA MOSTRAR CUANDO NO HAY RESULTADOS DE BÚSQUEDA
+  Widget _buildPacienteCard(Paciente paciente) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            Navigator.pop(context, paciente);
+          },
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.indigo[100]!.withOpacity(0.8),
+                        Colors.indigo[50]!.withOpacity(0.6),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Center(
+                    child: Text(
+                      paciente.nombre[0].toUpperCase(),
+                      style: TextStyle(
+                        color: Colors.indigo[800],
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        paciente.nombreCompleto,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.indigo[50],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'ID: ${paciente.identificacion}',
+                          style: TextStyle(
+                            color: Colors.indigo[700],
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      if (_searchQuery.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.green[50],
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            'Coincidencia encontrada',
+                            style: TextStyle(
+                              color: Colors.green[700],
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 16,
+                    color: Colors.grey,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildEmptySearchResults() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.search_off,
-            size: 64,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No se encontraron pacientes',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
+      child: Container(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.grey[300]!.withOpacity(0.3),
+                    Colors.grey[200]!.withOpacity(0.1),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(50),
+              ),
+              child: Icon(
+                Icons.search_off_rounded,
+                size: 50,
+                color: Colors.grey[400],
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Intenta con otro término de búsqueda',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[500],
+            const SizedBox(height: 24),
+            const Text(
+              'No se encontraron pacientes',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: () {
-              _searchController.clear();
-              setState(() {
-                _searchQuery = '';
-              });
-            },
-            icon: const Icon(Icons.clear_all),
-            label: const Text('Limpiar búsqueda'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.grey[100],
-              foregroundColor: Colors.grey[700],
+            const SizedBox(height: 8),
+            const Text(
+              'Intenta con otro término de búsqueda',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+              ),
+              textAlign: TextAlign.center,
             ),
-          ),
-        ],
+            const SizedBox(height: 24),
+            OutlinedButton.icon(
+              onPressed: () {
+                _searchController.clear();
+                setState(() {
+                  _searchQuery = '';
+                });
+              },
+              icon: const Icon(Icons.clear_all_rounded),
+              label: const Text('Limpiar búsqueda'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.indigo[700],
+                side: BorderSide(color: Colors.indigo[700]!),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
+

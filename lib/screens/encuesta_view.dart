@@ -33,11 +33,21 @@ class _EncuestaViewState extends State<EncuestaView> {
   Map<String, String> _respuestasAdicionales = {};
   
   bool _isLoading = false;
-  String? _selectedSedeId; // 🆕 Sede seleccionada
-  String? _userSedeId; // Sede del usuario logueado
-  String? _userSedeNombre; // Nombre de la sede del usuario
-  List<Map<String, dynamic>> _sedes = []; // Lista de todas las sedes
-  bool _loadingSedes = true; // Estado de carga de sedes
+  String? _selectedSedeId;
+  String? _userSedeId;
+  String? _userSedeNombre;
+  List<Map<String, dynamic>> _sedes = [];
+  bool _loadingSedes = true;
+
+  // 🎨 TEMA DE COLORES UNIFICADO
+  static const Color primaryColor = Color(0xFF1565C0);
+  static const Color primaryLightColor = Color(0xFF5E92F3);
+  static const Color primaryDarkColor = Color(0xFF003C8F);
+  static const Color accentColor = Color(0xFF00C853);
+  static const Color surfaceColor = Color(0xFFFAFAFA);
+  static const Color textPrimaryColor = Color(0xFF212121);
+  static const Color textSecondaryColor = Color(0xFF757575);
+  static const Color dividerColor = Color(0xFFE0E0E0);
 
   @override
   void initState() {
@@ -59,7 +69,6 @@ class _EncuestaViewState extends State<EncuestaView> {
     }
   }
 
-  // 🆕 Cargar todas las sedes disponibles
   Future<void> _loadSedes() async {
     try {
       final dbHelper = DatabaseHelper.instance;
@@ -82,7 +91,6 @@ class _EncuestaViewState extends State<EncuestaView> {
     }
   }
 
-  // Cargar la sede del usuario logueado
   Future<void> _loadUserSede() async {
     try {
       final dbHelper = DatabaseHelper.instance;
@@ -92,13 +100,11 @@ class _EncuestaViewState extends State<EncuestaView> {
         final sedeId = user['sede_id'].toString();
         setState(() {
           _userSedeId = sedeId;
-          _selectedSedeId = sedeId; // Pre-seleccionar la sede del usuario
+          _selectedSedeId = sedeId;
         });
         
         debugPrint('✅ Usuario logueado con sede ID: $sedeId');
         
-        // Buscar el nombre de la sede
-        final dbHelper = DatabaseHelper.instance;
         final sedes = await dbHelper.getSedes();
         final sede = sedes.firstWhere(
           (s) => s['id'].toString() == sedeId,
@@ -118,10 +124,8 @@ class _EncuestaViewState extends State<EncuestaView> {
     }
   }
 
-  // 🆕 MÉTODO PARA OBTENER TOKEN DE MÚLTIPLES FUENTES
   Future<String?> _obtenerTokenValido() async {
     try {
-      // 1. Intentar desde SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('auth_token');
       
@@ -130,13 +134,11 @@ class _EncuestaViewState extends State<EncuestaView> {
         return token;
       }
       
-      // 2. Intentar desde usuario logueado en DB
       final dbHelper = DatabaseHelper.instance;
       final user = await dbHelper.getLoggedInUser();
       token = user?['token'];
       
       if (token != null && token.isNotEmpty) {
-        // Guardar en SharedPreferences para próximas veces
         await prefs.setString('auth_token', token);
         debugPrint('✅ Token recuperado desde usuario logueado y guardado en prefs');
         return token;
@@ -151,182 +153,223 @@ class _EncuestaViewState extends State<EncuestaView> {
     }
   }
 
-  // 🆕 MÉTODO PARA SINCRONIZAR MANUALMENTE
   Future<void> _syncPendingEncuestas() async {
     try {
       final token = await _obtenerTokenValido();
       
       if (token == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.warning, color: Colors.white),
-                SizedBox(width: 8),
-                Text('No hay token de autenticación disponible'),
-              ],
-            ),
-            backgroundColor: Colors.orange,
-          ),
+        _showSnackBar(
+          'No hay token de autenticación disponible',
+          Icons.warning,
+          Colors.orange,
         );
         return;
       }
       
-      // Mostrar indicador de carga
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Row(
-            children: [
-              SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              ),
-              SizedBox(width: 12),
-              Text('Sincronizando encuestas pendientes...'),
-            ],
-          ),
-          duration: Duration(seconds: 2),
-        ),
+      _showSnackBar(
+        'Sincronizando encuestas pendientes...',
+        Icons.sync,
+        primaryColor,
+        showProgress: true,
       );
       
-      // Intentar sincronizar
       final resultado = await EncuestaService.sincronizarEncuestasPendientes(token);
       final exitosas = resultado['exitosas'] ?? 0;
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(
-                exitosas > 0 ? Icons.check_circle : Icons.info,
-                color: Colors.white,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                exitosas > 0 
-                  ? '$exitosas encuestas sincronizadas exitosamente'
-                  : 'No hay encuestas pendientes por sincronizar'
-              ),
-            ],
-          ),
-          backgroundColor: exitosas > 0 ? Colors.green : Colors.blue,
-        ),
+      _showSnackBar(
+        exitosas > 0 
+          ? '$exitosas encuestas sincronizadas exitosamente'
+          : 'No hay encuestas pendientes por sincronizar',
+        exitosas > 0 ? Icons.check_circle : Icons.info,
+        exitosas > 0 ? accentColor : primaryColor,
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.error, color: Colors.white),
-              const SizedBox(width: 8),
-              Text('Error en sincronización: $e'),
-            ],
-          ),
-          backgroundColor: Colors.red,
-        ),
+      _showSnackBar(
+        'Error en sincronización: $e',
+        Icons.error,
+        Colors.red,
       );
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
+@override
+Widget build(BuildContext context) {
+  return Theme(
+    data: Theme.of(context).copyWith(
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: primaryColor,
+        brightness: Brightness.light,
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: primaryColor,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        titleTextStyle: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
+        ),
+      ),
+      // 🔧 CORRECCIÓN: Usar CardThemeData en lugar de CardTheme
+      cardTheme: CardThemeData(
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        color: Colors.white,
+        shadowColor: Colors.black12,
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryColor,
+          foregroundColor: Colors.white,
+          elevation: 2,
+          shadowColor: Colors.black26,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+    ),
+    child: Scaffold(
+      backgroundColor: surfaceColor,
       appBar: AppBar(
         title: const Text('Encuesta de Satisfacción'),
-        backgroundColor: Colors.blue[800],
-        foregroundColor: Colors.white,
-        elevation: 2,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.sync),
-            onPressed: _syncPendingEncuestas,
-            tooltip: 'Sincronizar encuestas pendientes',
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            child: IconButton(
+              icon: const Icon(Icons.sync_rounded),
+              onPressed: _syncPendingEncuestas,
+              tooltip: 'Sincronizar encuestas pendientes',
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.white24,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
           ),
         ],
       ),
       body: _isLoading
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('Guardando encuesta...'),
-                ],
-              ),
-            )
+          ? _buildLoadingState()
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.all(20.0),
               child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildPatientInfo(),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
                     _buildBasicInfo(),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
                     _buildCalificationQuestions(),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
                     _buildAdditionalQuestions(),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
                     _buildSuggestions(),
-                    const SizedBox(height: 30),
+                    const SizedBox(height: 32),
                     _buildSubmitButton(),
+                    const SizedBox(height: 20),
                   ],
                 ),
               ),
             ),
+    ),
+  );
+}
+
+  Widget _buildLoadingState() {
+    return Container(
+      color: surfaceColor,
+      child: const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(
+              strokeWidth: 3,
+              color: primaryColor,
+            ),
+            SizedBox(height: 24),
+            Text(
+              'Guardando encuesta...',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: textSecondaryColor,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   Widget _buildPatientInfo() {
     return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
+      child: Container(
+        padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                CircleAvatar(
-                  backgroundColor: Colors.blue[800],
-                  child: Text(
-                    widget.paciente.nombre[0].toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [primaryColor, primaryLightColor],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Center(
+                    child: Text(
+                      widget.paciente.nombre[0].toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      const Text(
                         'Información del Paciente',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue[800],
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: primaryColor,
                         ),
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Nombre: ${widget.paciente.nombreCompleto}',
-                        style: const TextStyle(fontSize: 16),
+                        widget.paciente.nombreCompleto,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: textPrimaryColor,
+                        ),
                       ),
-                      Text(
-                        'Identificación: ${widget.paciente.identificacion}',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: primaryColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'ID: ${widget.paciente.identificacion}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: primaryColor,
+                          ),
                         ),
                       ),
                     ],
@@ -342,39 +385,22 @@ class _EncuestaViewState extends State<EncuestaView> {
 
   Widget _buildBasicInfo() {
     return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
+      child: Container(
+        padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Información Básica',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Colors.blue[800],
-              ),
-            ),
+            _buildSectionHeader('Información Básica', Icons.info_outline),
+            const SizedBox(height: 24),
+            
+            _buildSedeField(),
             const SizedBox(height: 20),
             
-            // 🆕 Campo Sede - COMPLETAMENTE FUNCIONAL
-            _buildSedeField(),
-            const SizedBox(height: 16),
-            
-            // Campo Domicilio
-            TextFormField(
+            _buildTextField(
               controller: _domicilioController,
-              decoration: InputDecoration(
-                labelText: 'Domicilio',
-                hintText: 'Ingrese la dirección del domicilio',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                prefixIcon: Icon(Icons.home, color: Colors.blue[700]),
-                filled: true,
-                fillColor: Colors.grey[50],
-              ),
+              label: 'Domicilio',
+              hint: 'Ingrese la dirección del domicilio',
+              icon: Icons.home_outlined,
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
                   return 'Por favor ingrese el domicilio';
@@ -382,26 +408,13 @@ class _EncuestaViewState extends State<EncuestaView> {
                 return null;
               },
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             
-            // Campo Entidad Afiliada
-            DropdownButtonFormField<String>(
+            _buildDropdownField(
               value: _entidadAfiliada,
-              decoration: InputDecoration(
-                labelText: 'Entidad Afiliada',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                prefixIcon: Icon(Icons.business, color: Colors.blue[700]),
-                filled: true,
-                fillColor: Colors.grey[50],
-              ),
-              items: ['ASMET', 'OTRA'].map((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
+              label: 'Entidad Afiliada',
+              icon: Icons.business_outlined,
+              items: ['ASMET', 'OTRA'],
               onChanged: (String? newValue) {
                 if (newValue != null) {
                   setState(() {
@@ -410,54 +423,178 @@ class _EncuestaViewState extends State<EncuestaView> {
                 }
               },
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             
-            // Campo Fecha
-            InkWell(
-              onTap: () => _selectDate(context),
-              child: InputDecorator(
-                decoration: InputDecoration(
-                  labelText: 'Fecha de la Encuesta',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  prefixIcon: Icon(Icons.calendar_today, color: Colors.blue[700]),
-                  filled: true,
-                  fillColor: Colors.grey[50],
-                ),
-                child: Text(
-                  '${_fechaSeleccionada.day.toString().padLeft(2, '0')}/${_fechaSeleccionada.month.toString().padLeft(2, '0')}/${_fechaSeleccionada.year}',
-                  style: const TextStyle(fontSize: 16),
-                ),
-              ),
-            ),
+            _buildDateField(),
           ],
         ),
       ),
     );
   }
 
-  // 🆕 Widget para el campo de sede - COMPLETAMENTE FUNCIONAL
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: primaryColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: primaryColor, size: 24),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: primaryColor,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+    String? Function(String?)? validator,
+    int maxLines = 1,
+  }) {
+    return TextFormField(
+      controller: controller,
+      maxLines: maxLines,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        prefixIcon: Icon(icon, color: primaryColor),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: dividerColor),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: dividerColor),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: primaryColor, width: 2),
+        ),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      ),
+      validator: validator,
+    );
+  }
+
+  Widget _buildDropdownField({
+    required String value,
+    required String label,
+    required IconData icon,
+    required List<String> items,
+    required void Function(String?) onChanged,
+  }) {
+    return DropdownButtonFormField<String>(
+      value: value,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: primaryColor),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: dividerColor),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: dividerColor),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: primaryColor, width: 2),
+        ),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      ),
+      items: items.map((String item) {
+        return DropdownMenuItem<String>(
+          value: item,
+          child: Text(item),
+        );
+      }).toList(),
+      onChanged: onChanged,
+    );
+  }
+
+  Widget _buildDateField() {
+    return InkWell(
+      onTap: () => _selectDate(context),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        decoration: BoxDecoration(
+          border: Border.all(color: dividerColor),
+          borderRadius: BorderRadius.circular(12),
+          color: Colors.white,
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.calendar_today_outlined, color: primaryColor),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Fecha de la Encuesta',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: textSecondaryColor,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${_fechaSeleccionada.day.toString().padLeft(2, '0')}/${_fechaSeleccionada.month.toString().padLeft(2, '0')}/${_fechaSeleccionada.year}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: textPrimaryColor,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_drop_down, color: textSecondaryColor),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildSedeField() {
     if (_loadingSedes) {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey[300]!),
-          borderRadius: BorderRadius.circular(8),
-          color: Colors.grey[50],
+          border: Border.all(color: dividerColor),
+          borderRadius: BorderRadius.circular(12),
+          color: Colors.white,
         ),
-        child: Row(
+        child: const Row(
           children: [
-            Icon(Icons.location_city, color: Colors.blue[700]),
-            const SizedBox(width: 12),
-            const SizedBox(
+            Icon(Icons.location_city_outlined, color: primaryColor),
+            SizedBox(width: 16),
+            SizedBox(
               width: 20,
               height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
+              child: CircularProgressIndicator(strokeWidth: 2, color: primaryColor),
             ),
-            const SizedBox(width: 12),
-            const Text('Cargando sedes disponibles...'),
+            SizedBox(width: 12),
+            Text('Cargando sedes disponibles...'),
           ],
         ),
       );
@@ -467,15 +604,15 @@ class _EncuestaViewState extends State<EncuestaView> {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.orange[300]!),
-          borderRadius: BorderRadius.circular(8),
-          color: Colors.orange[50],
+          border: Border.all(color: Colors.orange),
+          borderRadius: BorderRadius.circular(12),
+          color: Colors.orange.withOpacity(0.1),
         ),
-        child: Row(
+        child: const Row(
           children: [
-            Icon(Icons.warning, color: Colors.orange[700]),
-            const SizedBox(width: 12),
-            const Expanded(
+            Icon(Icons.warning_outlined, color: Colors.orange),
+            SizedBox(width: 12),
+            Expanded(
               child: Text(
                 'No hay sedes disponibles. Contacte al administrador.',
                 style: TextStyle(fontWeight: FontWeight.w500),
@@ -489,24 +626,23 @@ class _EncuestaViewState extends State<EncuestaView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Información de la sede del usuario (si existe)
         if (_userSedeNombre != null) ...[
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.green[50],
-              border: Border.all(color: Colors.green[200]!),
-              borderRadius: BorderRadius.circular(8),
+              color: accentColor.withOpacity(0.1),
+              border: Border.all(color: accentColor.withOpacity(0.3)),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               children: [
-                Icon(Icons.person, color: Colors.green[700], size: 20),
+                const Icon(Icons.person_outline, color: accentColor, size: 20),
                 const SizedBox(width: 8),
                 Text(
                   'Tu sede asignada: $_userSedeNombre',
-                  style: TextStyle(
-                    color: Colors.green[700],
-                    fontWeight: FontWeight.w500,
+                  style: const TextStyle(
+                    color: accentColor,
+                    fontWeight: FontWeight.w600,
                     fontSize: 14,
                   ),
                 ),
@@ -516,20 +652,29 @@ class _EncuestaViewState extends State<EncuestaView> {
           const SizedBox(height: 12),
         ],
         
-        // Dropdown de selección de sede
         DropdownButtonFormField<String>(
           value: _selectedSedeId,
           decoration: InputDecoration(
             labelText: 'Sede donde se realiza la encuesta',
             hintText: 'Seleccione una sede',
+            prefixIcon: const Icon(Icons.location_city_outlined, color: primaryColor),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: dividerColor),
             ),
-            prefixIcon: Icon(Icons.location_city, color: Colors.blue[700]),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: dividerColor),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: primaryColor, width: 2),
+            ),
             filled: true,
-            fillColor: Colors.grey[50],
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             helperText: 'Puede seleccionar cualquier sede disponible',
-            helperStyle: TextStyle(color: Colors.grey[600]),
+            helperStyle: const TextStyle(color: textSecondaryColor, fontSize: 12),
           ),
           items: _sedes.map((sede) {
             final sedeId = sede['id'].toString();
@@ -540,35 +685,42 @@ class _EncuestaViewState extends State<EncuestaView> {
               value: sedeId,
               child: Row(
                 children: [
-                  Icon(
-                    esSedeUsuario ? Icons.person : Icons.business,
-                    size: 18,
-                    color: esSedeUsuario ? Colors.green[600] : Colors.blue[600],
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: esSedeUsuario ? accentColor.withOpacity(0.1) : primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Icon(
+                      esSedeUsuario ? Icons.person : Icons.business,
+                      size: 16,
+                      color: esSedeUsuario ? accentColor : primaryColor,
+                    ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       sedeNombre,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontWeight: esSedeUsuario ? FontWeight.w600 : FontWeight.normal,
-                        color: esSedeUsuario ? Colors.green[700] : null,
+                        color: esSedeUsuario ? accentColor : textPrimaryColor,
                       ),
                     ),
                   ),
                   if (esSedeUsuario) ...[
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Colors.green[100],
-                        borderRadius: BorderRadius.circular(10),
+                        color: accentColor,
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Text(
+                      child: const Text(
                         'Mi sede',
                         style: TextStyle(
                           fontSize: 10,
-                          color: Colors.green[700],
+                          color: Colors.white,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -584,7 +736,6 @@ class _EncuestaViewState extends State<EncuestaView> {
                 _selectedSedeId = newValue;
               });
               
-              // Encontrar el nombre de la sede seleccionada para logging
               final sedeSeleccionada = _sedes.firstWhere(
                 (s) => s['id'].toString() == newValue,
                 orElse: () => {'nombresede': 'Sede $newValue'},
@@ -600,7 +751,6 @@ class _EncuestaViewState extends State<EncuestaView> {
             return null;
           },
           isExpanded: true,
-          icon: Icon(Icons.arrow_drop_down, color: Colors.blue[700]),
         ),
       ],
     );
@@ -608,35 +758,21 @@ class _EncuestaViewState extends State<EncuestaView> {
 
   Widget _buildCalificationQuestions() {
     return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
+      child: Container(
+        padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Icon(Icons.star_rate, color: Colors.blue[800], size: 28),
-                const SizedBox(width: 8),
-                Text(
-                  'Califique los servicios recibidos',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue[800],
-                  ),
-                ),
-              ],
-            ),
+            _buildSectionHeader('Califique los servicios recibidos', Icons.star_rate_outlined),
             const SizedBox(height: 8),
-            Text(
+            const Text(
               'Seleccione una opción para cada pregunta',
               style: TextStyle(
-                color: Colors.grey[600],
+                color: textSecondaryColor,
                 fontSize: 14,
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             ...Encuesta.preguntasCalificacion.asMap().entries.map((entry) {
               int index = entry.key;
               String pregunta = entry.value;
@@ -650,47 +786,93 @@ class _EncuestaViewState extends State<EncuestaView> {
 
   Widget _buildCalificationQuestion(int index, String pregunta) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 20),
+      margin: const EdgeInsets.only(bottom: 24),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[200]!),
+        color: surfaceColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '${index + 1}. $pregunta',
-            style: const TextStyle(
-              fontWeight: FontWeight.w500,
-              fontSize: 15,
-            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: primaryColor,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Center(
+                  child: Text(
+                    '${index + 1}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  pregunta,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 15,
+                    color: textPrimaryColor,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: Encuesta.opcionesCalificacion.map((opcion) {
               final isSelected = _respuestasCalificacion['pregunta_$index'] == opcion;
-              return ChoiceChip(
-                label: Text(
-                  opcion,
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : Colors.blue[800],
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              return Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    setState(() {
+                      _respuestasCalificacion['pregunta_$index'] = isSelected ? '' : opcion;
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(20),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected ? primaryColor : Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isSelected ? primaryColor : dividerColor,
+                        width: isSelected ? 2 : 1,
+                      ),
+                      boxShadow: isSelected ? [
+                        BoxShadow(
+                          color: primaryColor.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ] : null,
+                    ),
+                    child: Text(
+                      opcion,
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : primaryColor,
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                        fontSize: 14,
+                      ),
+                    ),
                   ),
                 ),
-                selected: isSelected,
-                onSelected: (selected) {
-                  setState(() {
-                    _respuestasCalificacion['pregunta_$index'] = selected ? opcion : '';
-                  });
-                },
-                selectedColor: Colors.blue[600],
-                backgroundColor: Colors.white,
-                elevation: isSelected ? 4 : 1,
-                pressElevation: 2,
               );
             }).toList(),
           ),
@@ -701,55 +883,40 @@ class _EncuestaViewState extends State<EncuestaView> {
 
   Widget _buildAdditionalQuestions() {
     return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
+      child: Container(
+        padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Icon(Icons.help_outline, color: Colors.blue[800], size: 28),
-                const SizedBox(width: 8),
-                Text(
-                  'Preguntas Adicionales',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue[800],
-                  ),
-                ),
-              ],
-            ),
+            _buildSectionHeader('Preguntas Adicionales', Icons.help_outline),
             const SizedBox(height: 8),
-            Text(
+            const Text(
               'Complete las siguientes preguntas específicas',
               style: TextStyle(
-                color: Colors.grey[600],
+                color: textSecondaryColor,
                 fontSize: 14,
               ),
             ),
-            const SizedBox(height: 20),
-            // 🔧 USAR LAS OPCIONES CORRECTAS DEL MODELO
+            const SizedBox(height: 24),
             _buildAdditionalQuestion(
               0,
               Encuesta.preguntasAdicionales[0],
-              Encuesta.opcionesEntendimiento, // ✅ 'Si entendí', 'No entendí'
+              Encuesta.opcionesEntendimiento,
             ),
             _buildAdditionalQuestion(
               1,
               Encuesta.preguntasAdicionales[1],
-              Encuesta.opcionesCaracteristicas, // ✅ 'Amabilidad', 'Confianza', 'Agilidad', 'Seguridad', 'Otra'
+              Encuesta.opcionesCaracteristicas,
             ),
             _buildAdditionalQuestion(
-              2,
+                           2,
               Encuesta.preguntasAdicionales[2],
-              Encuesta.opcionesRecomendacion, // ✅ 'Definitivamente sí', 'Definitivamente no'
+              Encuesta.opcionesRecomendacion,
             ),
             _buildAdditionalQuestion(
               3,
               Encuesta.preguntasAdicionales[3],
-              Encuesta.opcionesSiNo, // ✅ 'Sí', 'No'
+              Encuesta.opcionesSiNo,
             ),
           ],
         ),
@@ -759,47 +926,93 @@ class _EncuestaViewState extends State<EncuestaView> {
 
   Widget _buildAdditionalQuestion(int index, String pregunta, List<String> opciones) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 20),
+      margin: const EdgeInsets.only(bottom: 24),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.green[50],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.green[200]!),
+        color: accentColor.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accentColor.withOpacity(0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '${index + 1}. $pregunta',
-            style: const TextStyle(
-              fontWeight: FontWeight.w500,
-              fontSize: 15,
-            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: accentColor,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Center(
+                  child: Text(
+                    '${index + 1}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  pregunta,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 15,
+                    color: textPrimaryColor,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: opciones.map((opcion) {
               final isSelected = _respuestasAdicionales['pregunta_$index'] == opcion;
-              return ChoiceChip(
-                label: Text(
-                  opcion,
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : Colors.green[800],
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              return Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    setState(() {
+                      _respuestasAdicionales['pregunta_$index'] = isSelected ? '' : opcion;
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(20),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected ? accentColor : Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isSelected ? accentColor : accentColor.withOpacity(0.3),
+                        width: isSelected ? 2 : 1,
+                      ),
+                      boxShadow: isSelected ? [
+                        BoxShadow(
+                          color: accentColor.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ] : null,
+                    ),
+                    child: Text(
+                      opcion,
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : accentColor,
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                        fontSize: 14,
+                      ),
+                    ),
                   ),
                 ),
-                selected: isSelected,
-                onSelected: (selected) {
-                  setState(() {
-                    _respuestasAdicionales['pregunta_$index'] = selected ? opcion : '';
-                  });
-                },
-                selectedColor: Colors.green[600],
-                backgroundColor: Colors.white,
-                elevation: isSelected ? 4 : 1,
-                pressElevation: 2,
               );
             }).toList(),
           ),
@@ -810,48 +1023,45 @@ class _EncuestaViewState extends State<EncuestaView> {
 
   Widget _buildSuggestions() {
     return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
+      child: Container(
+        padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Icon(Icons.comment, color: Colors.blue[800], size: 28),
-                const SizedBox(width: 8),
-                Text(
-                  'Sugerencias (Opcional)',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue[800],
-                  ),
-                ),
-              ],
-            ),
+            _buildSectionHeader('Sugerencias (Opcional)', Icons.comment_outlined),
             const SizedBox(height: 8),
-            Text(
+            const Text(
               'Comparta sus comentarios o sugerencias adicionales',
               style: TextStyle(
-                color: Colors.grey[600],
+                color: textSecondaryColor,
                 fontSize: 14,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             TextFormField(
               controller: _sugerenciasController,
               decoration: InputDecoration(
                 hintText: 'Escriba aquí sus comentarios, sugerencias o cualquier observación adicional...',
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: dividerColor),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: dividerColor),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: primaryColor, width: 2),
                 ),
                 filled: true,
-                fillColor: Colors.grey[50],
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.all(16),
                 alignLabelWithHint: true,
               ),
               maxLines: 5,
               textInputAction: TextInputAction.newline,
+              style: const TextStyle(fontSize: 14),
             ),
           ],
         ),
@@ -860,49 +1070,75 @@ class _EncuestaViewState extends State<EncuestaView> {
   }
 
   Widget _buildSubmitButton() {
-    return SizedBox(
+    return Container(
       width: double.infinity,
-      child: ElevatedButton(
-        onPressed: _isLoading ? null : _submitEncuesta,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.blue[800],
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          elevation: 4,
+      height: 56,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [primaryColor, primaryLightColor],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
         ),
-        child: _isLoading
-            ? const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
-                    ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: primaryColor.withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _isLoading ? null : _submitEncuesta,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            child: _isLoading
+                ? const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      ),
+                      SizedBox(width: 16),
+                      Text(
+                        'Guardando encuesta...',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  )
+                : const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.save_rounded,
+                        size: 24,
+                        color: Colors.white,
+                      ),
+                      SizedBox(width: 12),
+                      Text(
+                        'Guardar Encuesta',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
                   ),
-                                   SizedBox(width: 12),
-                  Text('Guardando encuesta...'),
-                ],
-              )
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.save, size: 24),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Guardar Encuesta',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
+          ),
+        ),
       ),
     );
   }
@@ -918,11 +1154,12 @@ class _EncuestaViewState extends State<EncuestaView> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: ColorScheme.light(
-              primary: Colors.blue[800]!,
+              primary: primaryColor,
               onPrimary: Colors.white,
               surface: Colors.white,
               onSurface: Colors.black,
             ),
+            dialogBackgroundColor: Colors.white,
           ),
           child: child!,
         );
@@ -957,18 +1194,43 @@ class _EncuestaViewState extends State<EncuestaView> {
   }
 
   void _showValidationError(String message) {
+    _showSnackBar(message, Icons.warning_rounded, Colors.orange);
+  }
+
+  void _showSnackBar(String message, IconData icon, Color color, {bool showProgress = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
-            const Icon(Icons.warning, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
+            if (showProgress) ...[
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              ),
+            ] else ...[
+              Icon(icon, color: Colors.white, size: 20),
+            ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
           ],
         ),
-        backgroundColor: Colors.orange[700],
+        backgroundColor: color,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+        duration: Duration(seconds: showProgress ? 2 : 4),
       ),
     );
   }
@@ -995,7 +1257,7 @@ class _EncuestaViewState extends State<EncuestaView> {
     });
 
     try {
-      // 🔧 DEBUG TEMPORAL - Agregar antes de crear la encuesta
+      // Debug temporal
       debugPrint('🔍 === DEBUGGING RESPUESTAS ===');
       debugPrint('📊 Respuestas Calificación:');
       _respuestasCalificacion.forEach((key, value) {
@@ -1006,13 +1268,6 @@ class _EncuestaViewState extends State<EncuestaView> {
       _respuestasAdicionales.forEach((key, value) {
         debugPrint('   $key: "$value" (${value.runtimeType})');
       });
-      
-      debugPrint('🔍 === OPCIONES DISPONIBLES EN MODELO ===');
-      debugPrint('📊 Calificación: ${Encuesta.opcionesCalificacion}');
-      debugPrint('📊 Entendimiento: ${Encuesta.opcionesEntendimiento}');
-      debugPrint('📊 Características: ${Encuesta.opcionesCaracteristicas}');
-      debugPrint('📊 Recomendación: ${Encuesta.opcionesRecomendacion}');
-      debugPrint('📊 Sí/No: ${Encuesta.opcionesSiNo}');
 
       // Obtener nombre de la sede seleccionada para el mensaje
       final sedeSeleccionada = _sedes.firstWhere(
@@ -1037,13 +1292,7 @@ class _EncuestaViewState extends State<EncuestaView> {
         updatedAt: DateTime.now(),
       );
 
-      // 🔧 DEBUG TEMPORAL - Ver qué se va a enviar
-      debugPrint('🔍 === JSON PARA SERVIDOR ===');
-      final serverJson = encuesta.toServerJson();
-      debugPrint('📤 respuestas_calificacion: ${serverJson['respuestas_calificacion']}');
-      debugPrint('📤 respuestas_adicionales: ${serverJson['respuestas_adicionales']}');
-
-      // 🆕 OBTENER TOKEN DE MÚLTIPLES FUENTES
+      // Obtener token
       String? token = await _obtenerTokenValido();
       
       debugPrint('🔍 Token obtenido para encuesta: ${token != null ? "Disponible (${token.length} chars)" : "No disponible"}');
@@ -1052,65 +1301,25 @@ class _EncuestaViewState extends State<EncuestaView> {
       final success = await EncuestaService.guardarEncuesta(encuesta, token);
 
       if (success) {
-        // 🆕 MENSAJE DIFERENCIADO SEGÚN DISPONIBILIDAD DE TOKEN
         final mensaje = token != null 
             ? 'Encuesta guardada y sincronizada exitosamente'
             : 'Encuesta guardada localmente (se sincronizará cuando haya conexión)';
         
-        final color = token != null ? Colors.green[700] : Colors.orange[700];
-        final icon = token != null ? Icons.cloud_done : Icons.cloud_queue;
+        final color = token != null ? accentColor : Colors.orange[600]!;
+        final icon = token != null ? Icons.cloud_done_rounded : Icons.cloud_queue_rounded;
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                Icon(icon, color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        mensaje,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        'Sede: ${sedeSeleccionada['nombresede']}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      Text(
-                        'Paciente: ${widget.paciente.nombreCompleto}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      if (token == null) ...[
-                        const Text(
-                          'Se sincronizará automáticamente cuando detecte conexión',
-                          style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: color,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            duration: const Duration(seconds: 5),
-          ),
-        );
+        _showSnackBar(mensaje, icon, color);
         
         // Mostrar diálogo de confirmación antes de salir
         await _showSuccessDialog(sedeSeleccionada['nombresede'], token != null);
         
         Navigator.of(context).pop(true);
       } else {
-        _showErrorMessage('Error al guardar la encuesta. Intente nuevamente.');
+        _showSnackBar('Error al guardar la encuesta. Intente nuevamente.', Icons.error_rounded, Colors.red);
       }
     } catch (e) {
       debugPrint('❌ Error al guardar encuesta: $e');
-      _showErrorMessage('Error inesperado: ${e.toString()}');
+      _showSnackBar('Error inesperado: ${e.toString()}', Icons.error_rounded, Colors.red);
     } finally {
       setState(() {
         _isLoading = false;
@@ -1123,148 +1332,208 @@ class _EncuestaViewState extends State<EncuestaView> {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Row(
-            children: [
-              CircleAvatar(
-                backgroundColor: sincronizada ? Colors.green[100] : Colors.orange[100],
-                child: Icon(
-                  sincronizada ? Icons.cloud_done : Icons.cloud_queue,
-                  color: sincronizada ? Colors.green[700] : Colors.orange[700],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(sincronizada ? '¡Encuesta Sincronizada!' : '¡Encuesta Guardada!'),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                sincronizada 
-                  ? 'La encuesta ha sido guardada y sincronizada exitosamente con el servidor.'
-                  : 'La encuesta ha sido guardada localmente y se sincronizará automáticamente cuando haya conexión a internet.',
-                style: const TextStyle(fontSize: 16),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: sincronizada ? Colors.green[50] : Colors.orange[50],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: sincronizada ? Colors.green[200]! : Colors.orange[200]!
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.person, 
-                          color: sincronizada ? Colors.green[700] : Colors.orange[700], 
-                          size: 16),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Paciente: ${widget.paciente.nombreCompleto}',
-                          style: const TextStyle(fontWeight: FontWeight.w500),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(Icons.location_city, 
-                          color: sincronizada ? Colors.green[700] : Colors.orange[700], 
-                          size: 16),
-                        const SizedBox(width: 6),
-                        Text('Sede: $nombreSede'),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(Icons.calendar_today, 
-                          color: sincronizada ? Colors.green[700] : Colors.orange[700], 
-                          size: 16),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Fecha: ${_fechaSeleccionada.day.toString().padLeft(2, '0')}/${_fechaSeleccionada.month.toString().padLeft(2, '0')}/${_fechaSeleccionada.year}',
-                        ),
-                      ],
-                    ),
-                    if (!sincronizada) ...[
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.orange[100],
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.info_outline, 
-                              color: Colors.orange[700], 
-                              size: 16),
-                            const SizedBox(width: 6),
-                            const Expanded(
-                              child: Text(
-                                'Se sincronizará automáticamente cuando detecte conexión a internet',
-                                style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text(
-                'Continuar',
-                style: TextStyle(
-                  color: sincronizada ? Colors.green[800] : Colors.orange[800],
-                  fontWeight: FontWeight.bold,
-                ),
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          elevation: 8,
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white,
+                  (sincronizada ? accentColor : Colors.orange[400]!).withOpacity(0.05),
+                ],
               ),
             ),
-          ],
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Ícono de éxito
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: sincronizada 
+                        ? [accentColor, accentColor.withOpacity(0.8)]
+                        : [Colors.orange[400]!, Colors.orange[600]!],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(40),
+                    boxShadow: [
+                      BoxShadow(
+                        color: (sincronizada ? accentColor : Colors.orange[400]!).withOpacity(0.3),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    sincronizada ? Icons.cloud_done_rounded : Icons.cloud_queue_rounded,
+                    color: Colors.white,
+                    size: 40,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                
+                // Título
+                Text(
+                  sincronizada ? '¡Encuesta Sincronizada!' : '¡Encuesta Guardada!',
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: primaryColor,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                
+                // Descripción
+                Text(
+                  sincronizada 
+                    ? 'La encuesta ha sido guardada y sincronizada exitosamente con el servidor.'
+                    : 'La encuesta ha sido guardada localmente y se sincronizará automáticamente cuando haya conexión a internet.',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    color: textSecondaryColor,
+                    height: 1.4,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                
+                // Información detallada
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: (sincronizada ? accentColor : Colors.orange[400]!).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: (sincronizada ? accentColor : Colors.orange[400]!).withOpacity(0.2),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      _buildInfoRow(Icons.person_outline, 'Paciente', widget.paciente.nombreCompleto, sincronizada),
+                      const SizedBox(height: 8),
+                      _buildInfoRow(Icons.location_city_outlined, 'Sede', nombreSede, sincronizada),
+                      const SizedBox(height: 8),
+                      _buildInfoRow(
+                        Icons.calendar_today_outlined, 
+                        'Fecha', 
+                        '${_fechaSeleccionada.day.toString().padLeft(2, '0')}/${_fechaSeleccionada.month.toString().padLeft(2, '0')}/${_fechaSeleccionada.year}',
+                        sincronizada,
+                      ),
+                      
+                      if (!sincronizada) ...[
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.orange[100],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.info_outline, color: Colors.orange[700], size: 18),
+                              const SizedBox(width: 8),
+                              const Expanded(
+                                child: Text(
+                                  'Se sincronizará automáticamente cuando detecte conexión a internet',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontStyle: FontStyle.italic,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                
+                // Botón de continuar
+                Container(
+                  width: double.infinity,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: sincronizada 
+                        ? [accentColor, accentColor.withOpacity(0.8)]
+                        : [Colors.orange[400]!, Colors.orange[600]!],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: (sincronizada ? accentColor : Colors.orange[400]!).withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => Navigator.of(context).pop(),
+                      borderRadius: BorderRadius.circular(12),
+                      child: const Center(
+                        child: Text(
+                          'Continuar',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         );
       },
     );
   }
 
-  void _showErrorMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
+  Widget _buildInfoRow(IconData icon, String label, String value, bool sincronizada) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          color: sincronizada ? accentColor : Colors.orange[600],
+          size: 18,
         ),
-        backgroundColor: Colors.red[700],
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        duration: const Duration(seconds: 4),
-        action: SnackBarAction(
-          label: 'Reintentar',
-          textColor: Colors.white,
-          onPressed: () {
-            _submitEncuesta();
-          },
+        const SizedBox(width: 8),
+        Text(
+          '$label: ',
+          style: const TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 14,
+          ),
         ),
-      ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(
+              fontSize: 14,
+              color: textPrimaryColor,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
     );
   }
 
