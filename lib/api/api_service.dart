@@ -701,4 +701,196 @@ static Future<bool> deleteEncuesta(String encuestaId, String token) async {
     return false;
   }
 }
+// ==================== MÉTODOS PARA FINDRISK ====================
+
+// Crear test FINDRISK
+static Future<Map<String, dynamic>?> createFindriskTest(
+  Map<String, dynamic> findriskData,
+  String token,
+) async {
+  try {
+    debugPrint('📤 Enviando test FINDRISK al servidor...');
+    debugPrint('📋 Datos del test: ${findriskData['id']}');
+    
+    final response = await http.post(
+      Uri.parse('$baseUrl/findrisk'),
+      headers: _buildHeaders(token),
+      body: jsonEncode(findriskData),
+    ).timeout(const Duration(seconds: 30));
+    
+    debugPrint('📥 Respuesta del servidor: ${response.statusCode}');
+    
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final responseData = jsonDecode(response.body);
+      debugPrint('✅ Test FINDRISK creado exitosamente en servidor');
+      return responseData;
+    } else {
+      debugPrint('❌ Error del servidor: ${response.statusCode}');
+      debugPrint('📄 Respuesta: ${response.body}');
+      return null;
+    }
+  } catch (e) {
+    debugPrint('💥 Excepción al crear test FINDRISK: $e');
+    return null;
+  }
+}
+
+// Obtener tests FINDRISK
+static Future<List<dynamic>> getFindriskTests(String token) async {
+  try {
+    final response = await http.get(
+      Uri.parse('$baseUrl/findrisk'),
+      headers: _buildHeaders(token),
+    );
+    
+    final decoded = _handleResponse(response);
+    
+    if (decoded is Map && decoded.containsKey('data')) {
+      return decoded['data'] as List;
+    } else if (decoded is List) {
+      return decoded;
+    }
+    throw Exception('Formato de respuesta inesperado');
+  } catch (e) {
+    debugPrint('❌ Error obteniendo tests FINDRISK: $e');
+    return [];
+  }
+}
+
+// Obtener tests FINDRISK por paciente
+static Future<List<dynamic>> getFindriskTestsByPaciente(String token, String pacienteId) async {
+  try {
+    final response = await http.get(
+      Uri.parse('$baseUrl/findrisk/paciente/$pacienteId'),
+      headers: _buildHeaders(token),
+    );
+    
+    final decoded = _handleResponse(response);
+    
+    if (decoded is Map && decoded.containsKey('data')) {
+      return decoded['data'] as List;
+    } else if (decoded is List) {
+      return decoded;
+    }
+    return [];
+  } catch (e) {
+    debugPrint('❌ Error obteniendo tests FINDRISK por paciente: $e');
+    return [];
+  }
+}
+
+// Obtener tests FINDRISK por sede
+static Future<List<dynamic>> getFindriskTestsBySede(String token, String sedeId) async {
+  try {
+    final response = await http.get(
+      Uri.parse('$baseUrl/findrisk/sede/$sedeId'),
+      headers: _buildHeaders(token),
+    );
+    
+    final decoded = _handleResponse(response);
+    
+    if (decoded is Map && decoded.containsKey('data')) {
+      return decoded['data'] as List;
+    } else if (decoded is List) {
+      return decoded;
+    }
+    return [];
+  } catch (e) {
+    debugPrint('❌ Error obteniendo tests FINDRISK por sede: $e');
+    return [];
+  }
+}
+
+// Actualizar test FINDRISK
+static Future<Map<String, dynamic>?> updateFindriskTest(
+  String testId,
+  Map<String, dynamic> findriskData,
+  String token,
+) async {
+  try {
+    final response = await http.put(
+      Uri.parse('$baseUrl/findrisk/$testId'),
+      headers: _buildHeaders(token),
+      body: jsonEncode(findriskData),
+    );
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+    return null;
+  } catch (e) {
+    debugPrint('❌ Error actualizando test FINDRISK: $e');
+    return null;
+  }
+}
+
+// Eliminar test FINDRISK
+static Future<bool> deleteFindriskTest(String testId, String token) async {
+  try {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/findrisk/$testId'),
+      headers: _buildHeaders(token),
+    );
+    
+    return response.statusCode == 200 || response.statusCode == 204;
+  } catch (e) {
+    debugPrint('❌ Error eliminando test FINDRISK: $e');
+    return false;
+  }
+}
+
+// Obtener estadísticas FINDRISK
+static Future<Map<String, dynamic>> getFindriskEstadisticas(String token) async {
+  try {
+    final response = await http.get(
+      Uri.parse('$baseUrl/findrisk-estadisticas'),
+      headers: _buildHeaders(token),
+    );
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+    return {};
+  } catch (e) {
+    debugPrint('❌ Error obteniendo estadísticas FINDRISK: $e');
+    return {};
+  }
+}
+
+// Obtener estadísticas FINDRISK por sede
+static Future<Map<String, dynamic>> getFindriskEstadisticasBySede(String token, String sedeId) async {
+  try {
+    final response = await http.get(
+      Uri.parse('$baseUrl/findrisk-estadisticas/sede/$sedeId'),
+      headers: _buildHeaders(token),
+    );
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+    return {};
+  } catch (e) {
+    debugPrint('❌ Error obteniendo estadísticas FINDRISK por sede: $e');
+    return {};
+  }
+}
+
+// Obtener paciente con sede por identificación
+static Future<Map<String, dynamic>?> getPacienteConSede(String token, String identificacion) async {
+  try {
+    final response = await http.get(
+      Uri.parse('$baseUrl/findrisk/paciente-sede/$identificacion'),
+      headers: _buildHeaders(token),
+    );
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+    return null;
+  } catch (e) {
+    debugPrint('❌ Error obteniendo paciente con sede: $e');
+    return null;
+  }
+}
+
 }

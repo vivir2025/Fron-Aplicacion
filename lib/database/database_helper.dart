@@ -5,6 +5,7 @@ import 'package:fnpv_app/models/brigada_paciente_medicamento_model.dart';
 import 'package:fnpv_app/models/brigada_paciente_model.dart';
 import 'package:fnpv_app/models/encuesta_model.dart';
 import 'package:fnpv_app/models/envio_muestra_model.dart';
+import 'package:fnpv_app/models/findrisk_test_model.dart';
 import 'package:fnpv_app/models/medicamento.dart';
 import 'package:fnpv_app/models/medicamento_con_indicaciones.dart';
 import 'package:fnpv_app/models/visita_model.dart';
@@ -45,7 +46,7 @@ final path = join(dbPath, filePath);
 
 return await openDatabase(
   path,
-  version: 12, // 🚀 Incrementado a 12
+  version: 14, // 🚀 Incrementado a 12
   onCreate: _createDB,
   onUpgrade: _onUpgrade,
 );
@@ -300,6 +301,41 @@ await db.execute('''
     respuestas_calificacion TEXT NOT NULL,
     respuestas_adicionales TEXT NOT NULL,
     sugerencias TEXT,
+    sync_status INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (idpaciente) REFERENCES pacientes (id) ON DELETE CASCADE,
+    FOREIGN KEY (idsede) REFERENCES sedes (id) ON DELETE CASCADE
+  )
+''');
+
+await db.execute('''
+  CREATE TABLE findrisk_tests (
+    id TEXT PRIMARY KEY,
+    idpaciente TEXT NOT NULL,
+    idsede TEXT NOT NULL,
+    vereda TEXT,
+    telefono TEXT,
+    actividad_fisica TEXT NOT NULL,
+    puntaje_actividad_fisica INTEGER DEFAULT 0,
+    medicamentos_hipertension TEXT NOT NULL,
+    puntaje_medicamentos INTEGER DEFAULT 0,
+    frecuencia_frutas_verduras TEXT NOT NULL,
+    puntaje_frutas_verduras INTEGER DEFAULT 0,
+    azucar_alto_detectado TEXT NOT NULL,
+    puntaje_azucar_alto INTEGER DEFAULT 0,
+    peso REAL NOT NULL,
+    talla REAL NOT NULL,
+    imc REAL DEFAULT 0,
+    puntaje_imc INTEGER DEFAULT 0,
+    perimetro_abdominal REAL NOT NULL,
+    puntaje_perimetro INTEGER DEFAULT 0,
+    antecedentes_familiares TEXT NOT NULL,
+    puntaje_antecedentes INTEGER DEFAULT 0,
+    puntaje_edad INTEGER DEFAULT 0,
+    puntaje_final INTEGER DEFAULT 0,
+    conducta TEXT,
+    promotor_vida TEXT,
     sync_status INTEGER DEFAULT 0,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -670,8 +706,51 @@ if (oldVersion < 13) {
     debugPrint('⚠️ Error en migración v13 (encuestas): $e');
   }
 }
-}
 
+
+if (oldVersion < 14) { // Ajusta el número de versión
+  try {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS findrisk_tests (
+        id TEXT PRIMARY KEY,
+        idpaciente TEXT NOT NULL,
+        idsede TEXT NOT NULL,
+        vereda TEXT,
+        telefono TEXT,
+        actividad_fisica TEXT NOT NULL,
+        puntaje_actividad_fisica INTEGER DEFAULT 0,
+        medicamentos_hipertension TEXT NOT NULL,
+        puntaje_medicamentos INTEGER DEFAULT 0,
+        frecuencia_frutas_verduras TEXT NOT NULL,
+        puntaje_frutas_verduras INTEGER DEFAULT 0,
+        azucar_alto_detectado TEXT NOT NULL,
+        puntaje_azucar_alto INTEGER DEFAULT 0,
+        peso REAL NOT NULL,
+        talla REAL NOT NULL,
+        imc REAL DEFAULT 0,
+        puntaje_imc INTEGER DEFAULT 0,
+        perimetro_abdominal REAL NOT NULL,
+        puntaje_perimetro INTEGER DEFAULT 0,
+        antecedentes_familiares TEXT NOT NULL,
+        puntaje_antecedentes INTEGER DEFAULT 0,
+        puntaje_edad INTEGER DEFAULT 0,
+        puntaje_final INTEGER DEFAULT 0,
+        conducta TEXT,
+        promotor_vida TEXT,
+        sync_status INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (idpaciente) REFERENCES pacientes (id) ON DELETE CASCADE,
+        FOREIGN KEY (idsede) REFERENCES sedes (id) ON DELETE CASCADE
+      )
+    ''');
+
+    debugPrint('✅ Tabla findrisk_tests creada en migración v14');
+  } catch (e) {
+    debugPrint('⚠️ Error en migración v14 (findrisk_tests): $e');
+  }
+}
+}
 }
 
 // Método para verificar si una tabla existe
@@ -2818,6 +2897,229 @@ Future<bool> marcarEncuestaComoSincronizada(String id) async {
   } catch (e) {
     debugPrint('❌ Error al marcar encuesta como sincronizada: $e');
     return false;
+  }
+}
+// Generador de ID único para tests FINDRISK
+String generarIdUnicoFindrisk() {
+  final uuid = Uuid();
+  final idUnico = uuid.v4();
+  return 'findrisk_$idUnico';
+}
+
+// Crear test FINDRISK
+Future<bool> createFindriskTest(FindriskTest test) async {
+  try {
+    final db = await database;
+    
+    // Si no tiene ID, generar uno único
+    if (test.id.isEmpty) {
+      final nuevoId = generarIdUnicoFindrisk();
+      test = test.copyWith(
+        id: nuevoId,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+      debugPrint('✅ ID único generado para nuevo test FINDRISK: $nuevoId');
+    }
+    
+    final result = await db.insert(
+      'findrisk_tests',
+      test.toJson(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    
+    debugPrint('✅ Test FINDRISK guardado localmente con ID: ${test.id}');
+    return result > 0;
+  } catch (e) {
+    debugPrint('❌ Error al guardar test FINDRISK localmente: $e');
+    return false;
+  }
+}
+
+// Actualizar test FINDRISK
+Future<bool> updateFindriskTest(FindriskTest test) async {
+  try {
+    final db = await database;
+    
+    final testData = test.toJson();
+    testData['updated_at'] = DateTime.now().toIso8601String();
+    
+    final result = await db.update(
+      'findrisk_tests',
+      testData,
+      where: 'id = ?',
+      whereArgs: [test.id],
+    );
+    
+    debugPrint('✅ Test FINDRISK actualizado: ${test.id}');
+    return result > 0;
+  } catch (e) {
+    debugPrint('❌ Error al actualizar test FINDRISK: $e');
+    return false;
+  }
+}
+
+// Obtener todos los tests FINDRISK
+Future<List<FindriskTest>> getAllFindriskTests() async {
+  try {
+    final db = await database;
+    final result = await db.query(
+      'findrisk_tests',
+      orderBy: 'created_at DESC',
+    );
+    
+    return result.map((json) => FindriskTest.fromJson(json)).toList();
+  } catch (e) {
+    debugPrint('Error al obtener todos los tests FINDRISK: $e');
+    return [];
+  }
+}
+
+// Obtener test FINDRISK por ID
+Future<FindriskTest?> getFindriskTestById(String id) async {
+  try {
+    final db = await database;
+    final result = await db.query(
+      'findrisk_tests',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    
+    if (result.isNotEmpty) {
+      return FindriskTest.fromJson(result.first);
+    }
+    return null;
+  } catch (e) {
+    debugPrint('Error al obtener test FINDRISK por ID: $e');
+    return null;
+  }
+}
+
+// Obtener tests FINDRISK por paciente
+Future<List<FindriskTest>> getFindriskTestsByPaciente(String pacienteId) async {
+  try {
+    final db = await database;
+    final result = await db.query(
+      'findrisk_tests',
+      where: 'idpaciente = ?',
+      whereArgs: [pacienteId],
+      orderBy: 'created_at DESC',
+    );
+    
+    return result.map((json) => FindriskTest.fromJson(json)).toList();
+  } catch (e) {
+    debugPrint('Error al obtener tests FINDRISK por paciente: $e');
+    return [];
+  }
+}
+// Obtener tests FINDRISK por sede
+Future<List<FindriskTest>> getFindriskTestsBySede(String sedeId) async {
+  try {
+    final db = await database;
+    final result = await db.query(
+      'findrisk_tests',
+      where: 'idsede = ?',
+      whereArgs: [sedeId],
+      orderBy: 'created_at DESC',
+    );
+    
+    return result.map((json) => FindriskTest.fromJson(json)).toList();
+  } catch (e) {
+    debugPrint('Error al obtener tests FINDRISK por sede: $e');
+    return [];
+  }
+}
+
+// Obtener tests FINDRISK no sincronizados
+Future<List<FindriskTest>> getFindriskTestsNoSincronizados() async {
+  try {
+    final db = await database;
+    final result = await db.query(
+      'findrisk_tests',
+      where: 'sync_status = ?',
+      whereArgs: [0],
+      orderBy: 'created_at DESC',
+    );
+    return result.map((json) => FindriskTest.fromJson(json)).toList();
+  } catch (e) {
+    debugPrint('Error al obtener tests FINDRISK no sincronizados: $e');
+    return [];
+  }
+}
+
+// Eliminar test FINDRISK
+Future<bool> deleteFindriskTest(String id) async {
+  try {
+    final db = await database;
+    final result = await db.delete(
+      'findrisk_tests',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    return result > 0;
+  } catch (e) {
+    debugPrint('Error al eliminar test FINDRISK: $e');
+    return false;
+  }
+}
+
+// Marcar test FINDRISK como sincronizado
+Future<bool> marcarFindriskTestComoSincronizado(String id) async {
+  try {
+    final db = await database;
+    final result = await db.update(
+      'findrisk_tests',
+      {
+        'sync_status': 1,
+        'updated_at': DateTime.now().toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    
+    debugPrint('✅ Test FINDRISK $id marcado como sincronizado');
+    return result > 0;
+  } catch (e) {
+    debugPrint('❌ Error al marcar test FINDRISK como sincronizado: $e');
+    return false;
+  }
+}
+
+// Obtener estadísticas locales de tests FINDRISK
+Future<Map<String, dynamic>> getFindriskEstadisticasLocales() async {
+  try {
+    final db = await database;
+    
+    final totalResult = await db.rawQuery('SELECT COUNT(*) as count FROM findrisk_tests');
+    final total = Sqflite.firstIntValue(totalResult) ?? 0;
+    
+    final riesgoBajoResult = await db.rawQuery('SELECT COUNT(*) as count FROM findrisk_tests WHERE puntaje_final < 7');
+    final riesgoBajo = Sqflite.firstIntValue(riesgoBajoResult) ?? 0;
+    
+    final riesgoLigeroResult = await db.rawQuery('SELECT COUNT(*) as count FROM findrisk_tests WHERE puntaje_final >= 7 AND puntaje_final <= 11');
+    final riesgoLigero = Sqflite.firstIntValue(riesgoLigeroResult) ?? 0;
+    
+    final riesgoModeradoResult = await db.rawQuery('SELECT COUNT(*) as count FROM findrisk_tests WHERE puntaje_final >= 12 AND puntaje_final <= 14');
+    final riesgoModerado = Sqflite.firstIntValue(riesgoModeradoResult) ?? 0;
+    
+    final riesgoAltoResult = await db.rawQuery('SELECT COUNT(*) as count FROM findrisk_tests WHERE puntaje_final >= 15 AND puntaje_final <= 20');
+    final riesgoAlto = Sqflite.firstIntValue(riesgoAltoResult) ?? 0;
+    
+    final riesgoMuyAltoResult = await db.rawQuery('SELECT COUNT(*) as count FROM findrisk_tests WHERE puntaje_final > 20');
+    final riesgoMuyAlto = Sqflite.firstIntValue(riesgoMuyAltoResult) ?? 0;
+    
+    return {
+      'total_tests': total,
+      'riesgo_bajo': riesgoBajo,
+      'riesgo_ligeramente_elevado': riesgoLigero,
+      'riesgo_moderado': riesgoModerado,
+      'riesgo_alto': riesgoAlto,
+      'riesgo_muy_alto': riesgoMuyAlto,
+    };
+  } catch (e) {
+    debugPrint('Error al obtener estadísticas FINDRISK locales: $e');
+    return {};
   }
 }
 } // Fin de la clase DatabaseHelper

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fnpv_app/screens/brigadas_screen.dart';
 import 'package:fnpv_app/screens/encuestas_list_view.dart';
 import 'package:fnpv_app/screens/envio_muestras_screen.dart';
+import 'package:fnpv_app/screens/findrisk_list_screen.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'pacientes_screen.dart';
@@ -138,16 +139,22 @@ class HomeScreen extends StatelessWidget {
   },
 ),
 
-                        _buildMenuCard(
-                          context,
-                          icon: Icons.assessment,
-                          title: 'Test Finrisk',
-                          subtitle: 'Evaluaciones de riesgo',
-                          color: Colors.purple,
-                          onTap: () {
-                            _showComingSoon(context, 'Test Finrisk');
-                          },
-                        ),
+                     _buildMenuCard(
+  context,
+  icon: Icons.assessment,
+  title: 'Test Finrisk',
+  subtitle: 'Evaluaciones de riesgo',
+  color: Colors.purple,
+  onTap: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const FindriskListScreen(),
+      ),
+    );
+  },
+),
+
                         _buildMenuCard(
                           context,
                           icon: Icons.tune,

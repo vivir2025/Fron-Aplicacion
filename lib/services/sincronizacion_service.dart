@@ -10,9 +10,10 @@ import 'package:fnpv_app/models/visita_model.dart';
 import 'package:fnpv_app/services/brigada_service.dart';
 import 'package:fnpv_app/services/encuesta_service.dart';
 import 'package:fnpv_app/services/envio_muestra_service.dart';
+import 'package:fnpv_app/services/findrisk_service.dart';
 import 'package:fnpv_app/services/medicamento_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'file_service.dart'; // Importar el nuevo servicio
+import 'file_service.dart'; 
 
 class SincronizacionService {
   // Singleton para evitar múltiples instancias
@@ -131,108 +132,155 @@ static Future<Map<String, dynamic>> sincronizarEncuestasPendientes(String token)
     };
   }
 }
-
-  // 🆕 MÉTODO ACTUALIZADO PARA SINCRONIZACIÓN COMPLETA
-  static Future<Map<String, dynamic>> sincronizacionCompleta(String token) async {
-    debugPrint('🔄 Iniciando sincronización completa...');
+// services/sincronizacion_service.dart - MÉTODO CORREGIDO
+static Future<Map<String, dynamic>> sincronizarFindriskTestsPendientes(String token) async {
+  try {
+    debugPrint('🔍 Iniciando sincronización de tests FINDRISK...');
     
-    final Map<String, dynamic> resultado = {
-      'medicamentos': {'exitosas': 0, 'fallidas': 0, 'errores': []}, 
-      'visitas': {'exitosas': 0, 'fallidas': 0, 'errores': []},
-      'pacientes': {'exitosas': 0, 'fallidas': 0, 'errores': []},
-        'envios_muestras': {'exitosas': 0, 'fallidas': 0, 'errores': []},
-         'brigadas': {'exitosas': 0, 'fallidas': 0, 'errores': []},
-         'encuestas': {'exitosas': 0, 'fallidas': 0, 'errores': []}, // 🆕 Nuevo
-      'archivos': {'exitosas': 0, 'fallidas': 0, 'errores': []},
-      'tiempo_total': 0,
-      'exito_general': false,
-    };
-    
-    final stopwatch = Stopwatch()..start();
-    
-    try {
-      // 🆕 1. Sincronizar medicamentos primero
-      debugPrint('💊 Sincronizando medicamentos...');
-      resultado['medicamentos'] = await sincronizarMedicamentos(token);
-      
-      final medicamentosExitosos = resultado['medicamentos']['exitosas'] ?? 0;
-      if (medicamentosExitosos > 0) {
-        debugPrint('✅ $medicamentosExitosos medicamentos sincronizados exitosamente');
-      }
-      
-      // 2. Sincronizar visitas pendientes
-      debugPrint('1️⃣ Sincronizando visitas pendientes...');
-      resultado['visitas'] = await sincronizarVisitasPendientes(token);
-      
-      final visitasExitosas = resultado['visitas']['exitosas'] ?? 0;
-      if (visitasExitosas > 0) {
-        debugPrint('✅ $visitasExitosas visitas sincronizadas exitosamente');
-      }
-      
-      // 3. Sincronizar pacientes pendientes
-      debugPrint('2️⃣ Sincronizando pacientes pendientes...');
-      resultado['pacientes'] = await sincronizarPacientesPendientes(token);
-      
-      final pacientesExitosos = resultado['pacientes']['exitosas'] ?? 0;
-      if (pacientesExitosos > 0) {
-        debugPrint('✅ $pacientesExitosos pacientes sincronizados exitosamente');
-      }
-      
-       // 4. 🆕 Sincronizar envíos de muestras pendientes
-    debugPrint('3️⃣ Sincronizando envíos de muestras pendientes...');
-    resultado['envios_muestras'] = await sincronizarEnviosMuestrasPendientes(token);
-
-       // 5. 🆕 Sincronizar brigadas pendientes
-    debugPrint('4️⃣ Sincronizando brigadas pendientes...');
-    resultado['brigadas'] = await sincronizarBrigadasPendientes(token);
-
-     // 6. 🆕 Sincronizar encuestas pendientes
-    debugPrint('5️⃣ Sincronizando encuestas pendientes...');
-    resultado['encuestas'] = await sincronizarEncuestasPendientes(token);
-
-      // 5. Sincronizar archivos pendientes
-      debugPrint('3️⃣ Sincronizando archivos pendientes...');
-      resultado['archivos'] = await sincronizarArchivosPendientes(token);
-      
-      final archivosExitosos = resultado['archivos']['exitosas'] ?? 0;
-      if (archivosExitosos > 0) {
-        debugPrint('✅ $archivosExitosos archivos sincronizados exitosamente');
-      }
-      
-      // 6. Limpiar archivos antiguos
-      debugPrint('4️⃣ Limpiando archivos antiguos...');
-      await limpiarArchivosLocales();
-      
-      stopwatch.stop();
-      resultado['tiempo_total'] = stopwatch.elapsedMilliseconds;
-      
-      // Determinar éxito general
-       final enviosExitosos = resultado['envios_muestras']['exitosas'] ?? 0; // 🆕
-       final brigadasExitosas = resultado['brigadas']['exitosas'] ?? 0; // 🆕
-       final encuestasExitosas = resultado['encuestas']['exitosas'] ?? 0;
-      final totalExitosas = medicamentosExitosos + visitasExitosas + pacientesExitosos + archivosExitosos + brigadasExitosas + enviosExitosos + encuestasExitosas; 
-      
-      resultado['exito_general'] = totalExitosas > 0;
-      
-        if (resultado['exito_general']) {
-      debugPrint('🎉 Sincronización completa finalizada exitosamente en ${stopwatch.elapsedMilliseconds}ms');
-      debugPrint('📊 Resumen: $medicamentosExitosos medicamentos, $visitasExitosas visitas, $pacientesExitosos pacientes, $enviosExitosos envíos, $brigadasExitosas brigadas, $encuestasExitosas encuestas, $archivosExitosos archivos sincronizados');
-    } else {
-      debugPrint('⚠️ Sincronización completa finalizada sin elementos para sincronizar en ${stopwatch.elapsedMilliseconds}ms');
+    // ✅ VALIDAR QUE EL TOKEN NO ESTÉ VACÍO
+    if (token.isEmpty) {
+      throw Exception('Token de autenticación requerido para sincronización FINDRISK');
     }
-      
-    } catch (e) {
-      stopwatch.stop();
-      resultado['tiempo_total'] = stopwatch.elapsedMilliseconds;
-      resultado['error_general'] = e.toString();
-      debugPrint('💥 Error en sincronización completa: $e');
+    
+    // ✅ PASAR EL TOKEN AL FINDRISK SERVICE
+    final resultado = await FindriskService.sincronizarTestsPendientes(token);
+    
+    final exitosas = resultado['exitosas'] ?? 0;
+    final fallidas = resultado['fallidas'] ?? 0;
+    
+    if (exitosas > 0) {
+      debugPrint('✅ $exitosas tests FINDRISK sincronizados exitosamente');
+    }
+    
+    if (fallidas > 0) {
+      debugPrint('⚠️ $fallidas tests FINDRISK fallaron en la sincronización');
+      final errores = resultado['errores'] as List<String>? ?? [];
+      for (final error in errores.take(3)) {
+        debugPrint('❌ Error: $error');
+      }
     }
     
     return resultado;
+  } catch (e) {
+    debugPrint('💥 Error en sincronización de tests FINDRISK: $e');
+    return {
+      'exitosas': 0,
+      'fallidas': 1,
+      'errores': ['Error general: $e'],
+      'total': 1,
+    };
   }
+}
 
 
-  // ✅ MÉTODO MEJORADO PARA PROGRAMAR SINCRONIZACIÓN
+// 🆕 MÉTODO ACTUALIZADO PARA SINCRONIZACIÓN COMPLETA
+static Future<Map<String, dynamic>> sincronizacionCompleta(String token) async {
+  debugPrint('🔄 Iniciando sincronización completa...');
+  
+  final Map<String, dynamic> resultado = {
+    'medicamentos': {'exitosas': 0, 'fallidas': 0, 'errores': []}, 
+    'visitas': {'exitosas': 0, 'fallidas': 0, 'errores': []},
+    'pacientes': {'exitosas': 0, 'fallidas': 0, 'errores': []},
+    'envios_muestras': {'exitosas': 0, 'fallidas': 0, 'errores': []},
+    'brigadas': {'exitosas': 0, 'fallidas': 0, 'errores': []},
+    'encuestas': {'exitosas': 0, 'fallidas': 0, 'errores': []}, // 🆕 Nuevo
+    'findrisk_tests': {'exitosas': 0, 'fallidas': 0, 'errores': []}, // 🆕 FINDRISK
+    'archivos': {'exitosas': 0, 'fallidas': 0, 'errores': []},
+    'tiempo_total': 0,
+    'exito_general': false,
+  };
+  
+  final stopwatch = Stopwatch()..start();
+  
+  try {
+    // 🆕 1. Sincronizar medicamentos primero
+    debugPrint('💊 Sincronizando medicamentos...');
+    resultado['medicamentos'] = await sincronizarMedicamentos(token);
+    
+    final medicamentosExitosos = resultado['medicamentos']['exitosas'] ?? 0;
+    if (medicamentosExitosos > 0) {
+      debugPrint('✅ $medicamentosExitosos medicamentos sincronizados exitosamente');
+    }
+    
+    // 2. Sincronizar visitas pendientes
+    debugPrint('1️⃣ Sincronizando visitas pendientes...');
+    resultado['visitas'] = await sincronizarVisitasPendientes(token);
+    
+    final visitasExitosas = resultado['visitas']['exitosas'] ?? 0;
+    if (visitasExitosas > 0) {
+      debugPrint('✅ $visitasExitosas visitas sincronizadas exitosamente');
+    }
+    
+    // 3. Sincronizar pacientes pendientes
+    debugPrint('2️⃣ Sincronizando pacientes pendientes...');
+    resultado['pacientes'] = await sincronizarPacientesPendientes(token);
+    
+    final pacientesExitosos = resultado['pacientes']['exitosas'] ?? 0;
+    if (pacientesExitosos > 0) {
+      debugPrint('✅ $pacientesExitosos pacientes sincronizados exitosamente');
+    }
+    
+    // 4. 🆕 Sincronizar envíos de muestras pendientes
+    debugPrint('3️⃣ Sincronizando envíos de muestras pendientes...');
+    resultado['envios_muestras'] = await sincronizarEnviosMuestrasPendientes(token);
+
+    // 5. 🆕 Sincronizar brigadas pendientes
+    debugPrint('4️⃣ Sincronizando brigadas pendientes...');
+    resultado['brigadas'] = await sincronizarBrigadasPendientes(token);
+
+    // 6. 🆕 Sincronizar encuestas pendientes
+    debugPrint('5️⃣ Sincronizando encuestas pendientes...');
+    resultado['encuestas'] = await sincronizarEncuestasPendientes(token);
+
+    // 7. 🆕 Sincronizar tests FINDRISK pendientes
+    debugPrint('6️⃣ Sincronizando tests FINDRISK pendientes...');
+    resultado['findrisk_tests'] = await sincronizarFindriskTestsPendientes(token);
+
+    // 8. Sincronizar archivos pendientes
+    debugPrint('7️⃣ Sincronizando archivos pendientes...');
+    resultado['archivos'] = await sincronizarArchivosPendientes(token);
+    
+    final archivosExitosos = resultado['archivos']['exitosas'] ?? 0;
+    if (archivosExitosos > 0) {
+      debugPrint('✅ $archivosExitosos archivos sincronizados exitosamente');
+    }
+    
+    // 9. Limpiar archivos antiguos
+    debugPrint('8️⃣ Limpiando archivos antiguos...');
+    await limpiarArchivosLocales();
+    
+    stopwatch.stop();
+    resultado['tiempo_total'] = stopwatch.elapsedMilliseconds;
+    
+    // Determinar éxito general
+    final enviosExitosos = resultado['envios_muestras']['exitosas'] ?? 0; // 🆕
+    final brigadasExitosas = resultado['brigadas']['exitosas'] ?? 0; // 🆕
+    final encuestasExitosas = resultado['encuestas']['exitosas'] ?? 0;
+    final findriskExitosos = resultado['findrisk_tests']['exitosas'] ?? 0; // 🆕 FINDRISK
+    final totalExitosas = medicamentosExitosos + visitasExitosas + pacientesExitosos + archivosExitosos + brigadasExitosas + enviosExitosos + encuestasExitosas + findriskExitosos; 
+    
+    resultado['exito_general'] = totalExitosas > 0;
+    
+    if (resultado['exito_general']) {
+      debugPrint('🎉 Sincronización completa finalizada exitosamente en ${stopwatch.elapsedMilliseconds}ms');
+      debugPrint('📊 Resumen: $medicamentosExitosos medicamentos, $visitasExitosas visitas, $pacientesExitosos pacientes, $enviosExitosos envíos, $brigadasExitosas brigadas, $encuestasExitosas encuestas, $findriskExitosos tests FINDRISK, $archivosExitosos archivos sincronizados');
+    } else {
+      debugPrint('⚠️ Sincronización completa finalizada sin elementos para sincronizar en ${stopwatch.elapsedMilliseconds}ms');
+    }
+    
+  } catch (e) {
+    stopwatch.stop();
+    resultado['tiempo_total'] = stopwatch.elapsedMilliseconds;
+    resultado['error_general'] = e.toString();
+    debugPrint('💥 Error en sincronización completa: $e');
+  }
+  
+  return resultado;
+}
+
+
+
+
  // ✅ MÉTODO CORREGIDO PARA connectivity_plus ^6.1.4
 Future<void> scheduleSync() async {
   debugPrint('🔄 Programando sincronización automática...');
