@@ -7,6 +7,7 @@ import 'package:fnpv_app/api/api_service.dart';
 import 'package:fnpv_app/database/database_helper.dart';
 import 'package:fnpv_app/models/paciente_model.dart';
 import 'package:fnpv_app/models/visita_model.dart';
+import 'package:fnpv_app/services/afinamiento_service.dart';
 import 'package:fnpv_app/services/brigada_service.dart';
 import 'package:fnpv_app/services/encuesta_service.dart';
 import 'package:fnpv_app/services/envio_muestra_service.dart';
@@ -171,6 +172,39 @@ static Future<Map<String, dynamic>> sincronizarFindriskTestsPendientes(String to
     };
   }
 }
+// Método para sincronizar afinamientos (agregar dentro de la clase)
+static Future<Map<String, dynamic>> sincronizarAfinamientosPendientes(String token) async {
+  try {
+    debugPrint('🩺 Iniciando sincronización de afinamientos...');
+    
+    final resultado = await AfinamientoService.sincronizarAfinamientosPendientes(token);
+    
+    final exitosas = resultado['exitosas'] ?? 0;
+    final fallidas = resultado['fallidas'] ?? 0;
+    
+    if (exitosas > 0) {
+      debugPrint('✅ $exitosas afinamientos sincronizados exitosamente');
+    }
+    
+    if (fallidas > 0) {
+      debugPrint('⚠️ $fallidas afinamientos fallaron en la sincronización');
+      final errores = resultado['errores'] as List<String>? ?? [];
+      for (final error in errores.take(3)) {
+        debugPrint('❌ Error: $error');
+      }
+    }
+    
+    return resultado;
+  } catch (e) {
+    debugPrint('💥 Error en sincronización de afinamientos: $e');
+    return {
+      'exitosas': 0,
+      'fallidas': 1,
+      'errores': ['Error general: $e'],
+      'total': 1,
+    };
+  }
+}
 
 
 // 🆕 MÉTODO ACTUALIZADO PARA SINCRONIZACIÓN COMPLETA
@@ -183,8 +217,9 @@ static Future<Map<String, dynamic>> sincronizacionCompleta(String token) async {
     'pacientes': {'exitosas': 0, 'fallidas': 0, 'errores': []},
     'envios_muestras': {'exitosas': 0, 'fallidas': 0, 'errores': []},
     'brigadas': {'exitosas': 0, 'fallidas': 0, 'errores': []},
-    'encuestas': {'exitosas': 0, 'fallidas': 0, 'errores': []}, // 🆕 Nuevo
-    'findrisk_tests': {'exitosas': 0, 'fallidas': 0, 'errores': []}, // 🆕 FINDRISK
+    'encuestas': {'exitosas': 0, 'fallidas': 0, 'errores': []}, 
+    'findrisk_tests': {'exitosas': 0, 'fallidas': 0, 'errores': []},
+    'afinamientos': {'exitosas': 0, 'fallidas': 0, 'errores': []}, 
     'archivos': {'exitosas': 0, 'fallidas': 0, 'errores': []},
     'tiempo_total': 0,
     'exito_general': false,
@@ -236,6 +271,9 @@ static Future<Map<String, dynamic>> sincronizacionCompleta(String token) async {
     debugPrint('6️⃣ Sincronizando tests FINDRISK pendientes...');
     resultado['findrisk_tests'] = await sincronizarFindriskTestsPendientes(token);
 
+     debugPrint('8️⃣ Sincronizando afinamientos pendientes...');
+     resultado['afinamientos'] = await sincronizarAfinamientosPendientes(token);
+
     // 8. Sincronizar archivos pendientes
     debugPrint('7️⃣ Sincronizando archivos pendientes...');
     resultado['archivos'] = await sincronizarArchivosPendientes(token);
@@ -256,14 +294,17 @@ static Future<Map<String, dynamic>> sincronizacionCompleta(String token) async {
     final enviosExitosos = resultado['envios_muestras']['exitosas'] ?? 0; // 🆕
     final brigadasExitosas = resultado['brigadas']['exitosas'] ?? 0; // 🆕
     final encuestasExitosas = resultado['encuestas']['exitosas'] ?? 0;
-    final findriskExitosos = resultado['findrisk_tests']['exitosas'] ?? 0; // 🆕 FINDRISK
-    final totalExitosas = medicamentosExitosos + visitasExitosas + pacientesExitosos + archivosExitosos + brigadasExitosas + enviosExitosos + encuestasExitosas + findriskExitosos; 
+    final findriskExitosos = resultado['findrisk_tests']['exitosas'] ?? 0; 
+    final afinamientosExitosos = resultado['afinamientos']['exitosas'] ?? 0;// 🆕 FINDRISK
+    final totalExitosas = medicamentosExitosos + visitasExitosas + pacientesExitosos + 
+    archivosExitosos + brigadasExitosas + enviosExitosos + encuestasExitosas + findriskExitosos
+    + afinamientosExitosos; 
     
     resultado['exito_general'] = totalExitosas > 0;
     
     if (resultado['exito_general']) {
       debugPrint('🎉 Sincronización completa finalizada exitosamente en ${stopwatch.elapsedMilliseconds}ms');
-      debugPrint('📊 Resumen: $medicamentosExitosos medicamentos, $visitasExitosas visitas, $pacientesExitosos pacientes, $enviosExitosos envíos, $brigadasExitosas brigadas, $encuestasExitosas encuestas, $findriskExitosos tests FINDRISK, $archivosExitosos archivos sincronizados');
+      debugPrint('📊 Resumen: $medicamentosExitosos medicamentos, $visitasExitosas visitas, $pacientesExitosos pacientes, $enviosExitosos envíos, $brigadasExitosas brigadas, $encuestasExitosas encuestas, $findriskExitosos tests FINDRISK, $afinamientosExitosos afinamientos, $archivosExitosos archivos sincronizados');
     } else {
       debugPrint('⚠️ Sincronización completa finalizada sin elementos para sincronizar en ${stopwatch.elapsedMilliseconds}ms');
     }

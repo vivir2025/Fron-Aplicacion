@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:fnpv_app/models/afinamiento_model.dart';
 import 'package:fnpv_app/models/brigada_model.dart';
 import 'package:fnpv_app/models/brigada_paciente_medicamento_model.dart';
 import 'package:fnpv_app/models/brigada_paciente_model.dart';
@@ -46,7 +47,7 @@ final path = join(dbPath, filePath);
 
 return await openDatabase(
   path,
-  version: 14, // 🚀 Incrementado a 12
+  version: 15, // 🚀 Incrementado a 15
   onCreate: _createDB,
   onUpgrade: _onUpgrade,
 );
@@ -341,6 +342,34 @@ await db.execute('''
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (idpaciente) REFERENCES pacientes (id) ON DELETE CASCADE,
     FOREIGN KEY (idsede) REFERENCES sedes (id) ON DELETE CASCADE
+  )
+''');
+
+await db.execute('''
+  CREATE TABLE afinamientos (
+    id TEXT PRIMARY KEY,
+    idpaciente TEXT NOT NULL,
+    idusuario TEXT NOT NULL,
+    procedencia TEXT NOT NULL,
+    fecha_tamizaje TEXT NOT NULL,
+    presion_arterial_tamiz TEXT NOT NULL,
+    primer_afinamiento_fecha TEXT,
+    presion_sistolica_1 INTEGER,
+    presion_diastolica_1 INTEGER,
+    segundo_afinamiento_fecha TEXT,
+    presion_sistolica_2 INTEGER,
+    presion_diastolica_2 INTEGER,
+    tercer_afinamiento_fecha TEXT,
+    presion_sistolica_3 INTEGER,
+    presion_diastolica_3 INTEGER,
+    presion_sistolica_promedio REAL,
+    presion_diastolica_promedio REAL,
+    conducta TEXT,
+    sync_status INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (idpaciente) REFERENCES pacientes (id) ON DELETE CASCADE,
+    FOREIGN KEY (idusuario) REFERENCES usuarios (id) ON DELETE CASCADE
   )
 ''');
 
@@ -748,6 +777,41 @@ if (oldVersion < 14) { // Ajusta el número de versión
     debugPrint('✅ Tabla findrisk_tests creada en migración v14');
   } catch (e) {
     debugPrint('⚠️ Error en migración v14 (findrisk_tests): $e');
+  }
+}
+if (oldVersion < 15) { // Incrementar número de versión
+  try {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS afinamientos (
+        id TEXT PRIMARY KEY,
+        idpaciente TEXT NOT NULL,
+        idusuario TEXT NOT NULL,
+        procedencia TEXT NOT NULL,
+        fecha_tamizaje TEXT NOT NULL,
+        presion_arterial_tamiz TEXT NOT NULL,
+        primer_afinamiento_fecha TEXT,
+        presion_sistolica_1 INTEGER,
+        presion_diastolica_1 INTEGER,
+        segundo_afinamiento_fecha TEXT,
+        presion_sistolica_2 INTEGER,
+        presion_diastolica_2 INTEGER,
+        tercer_afinamiento_fecha TEXT,
+        presion_sistolica_3 INTEGER,
+        presion_diastolica_3 INTEGER,
+        presion_sistolica_promedio REAL,
+        presion_diastolica_promedio REAL,
+        conducta TEXT,
+        sync_status INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (idpaciente) REFERENCES pacientes (id) ON DELETE CASCADE,
+        FOREIGN KEY (idusuario) REFERENCES usuarios (id) ON DELETE CASCADE
+      )
+    ''');
+
+    debugPrint('✅ Tabla afinamientos creada en migración v15');
+  } catch (e) {
+    debugPrint('⚠️ Error en migración v15 (afinamientos): $e');
   }
 }
 }
@@ -3122,4 +3186,289 @@ Future<Map<String, dynamic>> getFindriskEstadisticasLocales() async {
     return {};
   }
 }
+
+// ==================== MÉTODOS PARA AFINAMIENTOS ====================
+
+// Generador de ID único para afinamientos
+String generarIdUnicoAfinamiento() {
+  final uuid = Uuid();
+  final idUnico = uuid.v4();
+  return 'afin_$idUnico';
+}
+
+// Crear afinamiento
+Future<bool> createAfinamiento(Afinamiento afinamiento) async {
+  try {
+    final db = await database;
+    
+    // Si no tiene ID, generar uno único
+    if (afinamiento.id.isEmpty) {
+      final nuevoId = generarIdUnicoAfinamiento();
+      afinamiento = afinamiento.copyWith(
+        id: nuevoId,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+      debugPrint('✅ ID único generado para nuevo afinamiento: $nuevoId');
+    }
+    
+    // Calcular promedios automáticamente
+    final promedios = afinamiento.calcularPromedios();
+    final afinamientoConPromedios = afinamiento.copyWith(
+      presionSistolicaPromedio: promedios['sistolica'],
+      presionDiastolicaPromedio: promedios['diastolica'],
+      updatedAt: DateTime.now(),
+    );
+    
+    final result = await db.insert(
+      'afinamientos',
+      afinamientoConPromedios.toJson(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    
+    debugPrint('✅ Afinamiento guardado localmente con ID: ${afinamientoConPromedios.id}');
+    return result > 0;
+  } catch (e) {
+    debugPrint('❌ Error al guardar afinamiento localmente: $e');
+    return false;
+  }
+}
+
+// Actualizar afinamiento
+Future<bool> updateAfinamiento(Afinamiento afinamiento) async {
+  try {
+    final db = await database;
+    
+    // Calcular promedios automáticamente
+    final promedios = afinamiento.calcularPromedios();
+    final afinamientoConPromedios = afinamiento.copyWith(
+      presionSistolicaPromedio: promedios['sistolica'],
+      presionDiastolicaPromedio: promedios['diastolica'],
+      updatedAt: DateTime.now(),
+    );
+    
+    final afinamientoData = afinamientoConPromedios.toJson();
+    
+    final result = await db.update(
+      'afinamientos',
+      afinamientoData,
+      where: 'id = ?',
+      whereArgs: [afinamiento.id],
+    );
+    
+    debugPrint('✅ Afinamiento actualizado: ${afinamiento.id}');
+    return result > 0;
+  } catch (e) {
+    debugPrint('❌ Error al actualizar afinamiento: $e');
+    return false;
+  }
+}
+
+// Obtener todos los afinamientos
+Future<List<Afinamiento>> getAllAfinamientos() async {
+  try {
+    final db = await database;
+    final result = await db.query(
+      'afinamientos',
+      orderBy: 'fecha_tamizaje DESC',
+    );
+    
+    return result.map((json) => Afinamiento.fromJson(json)).toList();
+  } catch (e) {
+    debugPrint('Error al obtener todos los afinamientos: $e');
+    return [];
+  }
+}
+
+// Obtener afinamiento por ID
+Future<Afinamiento?> getAfinamientoById(String id) async {
+  try {
+    final db = await database;
+    final result = await db.query(
+      'afinamientos',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    
+    if (result.isNotEmpty) {
+      return Afinamiento.fromJson(result.first);
+    }
+    return null;
+  } catch (e) {
+    debugPrint('Error al obtener afinamiento por ID: $e');
+    return null;
+  }
+}
+
+// Obtener afinamientos por paciente
+Future<List<Afinamiento>> getAfinamientosByPaciente(String pacienteId) async {
+  try {
+    final db = await database;
+    final result = await db.query(
+      'afinamientos',
+      where: 'idpaciente = ?',
+      whereArgs: [pacienteId],
+      orderBy: 'fecha_tamizaje DESC',
+    );
+    
+    return result.map((json) => Afinamiento.fromJson(json)).toList();
+  } catch (e) {
+    debugPrint('Error al obtener afinamientos por paciente: $e');
+    return [];
+  }
+}
+
+// Obtener afinamientos por usuario
+Future<List<Afinamiento>> getAfinamientosByUsuario(String usuarioId) async {
+  try {
+    final db = await database;
+    final result = await db.query(
+      'afinamientos',
+      where: 'idusuario = ?',
+      whereArgs: [usuarioId],
+      orderBy: 'fecha_tamizaje DESC',
+    );
+    
+    return result.map((json) => Afinamiento.fromJson(json)).toList();
+  } catch (e) {
+    debugPrint('Error al obtener afinamientos por usuario: $e');
+    return [];
+  }
+}
+
+// Obtener afinamientos no sincronizados
+Future<List<Afinamiento>> getAfinamientosNoSincronizados() async {
+  try {
+    final db = await database;
+    final result = await db.query(
+      'afinamientos',
+      where: 'sync_status = ?',
+      whereArgs: [0],
+      orderBy: 'fecha_tamizaje DESC',
+    );
+    return result.map((json) => Afinamiento.fromJson(json)).toList();
+  } catch (e) {
+    debugPrint('Error al obtener afinamientos no sincronizados: $e');
+    return [];
+  }
+}
+
+// Eliminar afinamiento
+Future<bool> deleteAfinamiento(String id) async {
+  try {
+    final db = await database;
+    final result = await db.delete(
+      'afinamientos',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    return result > 0;
+  } catch (e) {
+    debugPrint('Error al eliminar afinamiento: $e');
+    return false;
+  }
+}
+
+// Marcar afinamiento como sincronizado
+Future<bool> marcarAfinamientoComoSincronizado(String id) async {
+  try {
+    final db = await database;
+    final result = await db.update(
+      'afinamientos',
+      {
+        'sync_status': 1,
+        'updated_at': DateTime.now().toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    
+    debugPrint('✅ Afinamiento $id marcado como sincronizado');
+    return result > 0;
+  } catch (e) {
+    debugPrint('❌ Error al marcar afinamiento como sincronizado: $e');
+    return false;
+  }
+}
+// Obtener afinamientos con información del paciente
+Future<List<Map<String, dynamic>>> getAfinamientosConPaciente() async {
+  try {
+    final db = await database;
+    final result = await db.rawQuery('''
+      SELECT 
+        a.*,
+        p.nombre || ' ' || p.apellido as nombre_paciente,
+        p.identificacion as identificacion_paciente,
+        p.fecnacimiento,
+        u.nombre as promotor_vida
+      FROM afinamientos a
+      LEFT JOIN pacientes p ON a.idpaciente = p.id
+      LEFT JOIN usuarios u ON a.idusuario = u.id
+      ORDER BY a.fecha_tamizaje DESC
+    ''');
+    // Continuación del método getAfinamientosConPaciente
+    return result.map((row) {
+      // Calcular edad del paciente
+      int? edadPaciente;
+      if (row['fecnacimiento'] != null) {
+        final fechaNacimiento = DateTime.parse(row['fecnacimiento'].toString());
+        edadPaciente = DateTime.now().difference(fechaNacimiento).inDays ~/ 365;
+      }
+      
+      final afinamientoData = Map<String, dynamic>.from(row);
+      afinamientoData['edad_paciente'] = edadPaciente;
+      
+      return afinamientoData;
+    }).toList();
+  } catch (e) {
+    debugPrint('Error al obtener afinamientos con paciente: $e');
+    return [];
+  }
+}
+
+// Contar afinamientos por usuario
+Future<int> countAfinamientosByUsuario(String usuarioId) async {
+  try {
+    final db = await database;
+    final result = await db.rawQuery(
+      'SELECT COUNT(*) FROM afinamientos WHERE idusuario = ?',
+      [usuarioId],
+    );
+    return Sqflite.firstIntValue(result) ?? 0;
+  } catch (e) {
+    debugPrint('Error al contar afinamientos: $e');
+    return 0;
+  }
+}
+
+// Obtener estadísticas de afinamientos
+Future<Map<String, dynamic>> getAfinamientosEstadisticas() async {
+  try {
+    final db = await database;
+    
+    final totalResult = await db.rawQuery('SELECT COUNT(*) as count FROM afinamientos');
+    final total = Sqflite.firstIntValue(totalResult) ?? 0;
+    
+    final sincronizadosResult = await db.rawQuery('SELECT COUNT(*) as count FROM afinamientos WHERE sync_status = 1');
+    final sincronizados = Sqflite.firstIntValue(sincronizadosResult) ?? 0;
+    
+    final pendientesResult = await db.rawQuery('SELECT COUNT(*) as count FROM afinamientos WHERE sync_status = 0');
+    final pendientes = Sqflite.firstIntValue(pendientesResult) ?? 0;
+    
+    return {
+      'total': total,
+      'sincronizados': sincronizados,
+      'pendientes': pendientes,
+    };
+  } catch (e) {
+    debugPrint('Error al obtener estadísticas de afinamientos: $e');
+    return {
+      'total': 0,
+      'sincronizados': 0,
+      'pendientes': 0,
+    };
+  }
+}
+
 } // Fin de la clase DatabaseHelper

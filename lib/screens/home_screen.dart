@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fnpv_app/screens/afinamientos_screen.dart';
 import 'package:fnpv_app/screens/brigadas_screen.dart';
 import 'package:fnpv_app/screens/encuestas_list_view.dart';
 import 'package:fnpv_app/screens/envio_muestras_screen.dart';
@@ -155,16 +156,22 @@ class HomeScreen extends StatelessWidget {
   },
 ),
 
-                        _buildMenuCard(
-                          context,
-                          icon: Icons.tune,
-                          title: 'Afinamientos',
-                          subtitle: 'Ajustes y configuración',
-                          color: Colors.teal,
-                          onTap: () {
-                            _showComingSoon(context, 'Afinamientos');
-                          },
-                        ),
+                     _buildMenuCard(
+  context,
+  icon: Icons.tune,
+  title: 'Afinamientos',
+  subtitle: 'Gestión de afinamientos de presión arterial',
+  color: Colors.teal,
+  onTap: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const AfinamientosScreen(),
+      ),
+    );
+  },
+),
+
                        _buildMenuCard(
   context,
   icon: Icons.poll,

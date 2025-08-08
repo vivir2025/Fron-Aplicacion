@@ -893,4 +893,161 @@ static Future<Map<String, dynamic>?> getPacienteConSede(String token, String ide
   }
 }
 
+
+// ==================== MÉTODOS PARA AFINAMIENTOS ====================
+
+// Crear afinamiento
+static Future<Map<String, dynamic>?> createAfinamiento(
+  Map<String, dynamic> afinamientoData,
+  String token,
+) async {
+  try {
+    debugPrint('📤 Enviando afinamiento al servidor...');
+    debugPrint('📋 Datos de afinamiento: ${afinamientoData['id']}');
+    
+    final response = await http.post(
+      Uri.parse('$baseUrl/afinamientos'),
+      headers: _buildHeaders(token),
+      body: jsonEncode(afinamientoData),
+    ).timeout(const Duration(seconds: 30));
+    
+    debugPrint('📥 Respuesta del servidor: ${response.statusCode}');
+    
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final responseData = jsonDecode(response.body);
+      debugPrint('✅ Afinamiento creado exitosamente en servidor');
+      return responseData;
+    } else {
+      debugPrint('❌ Error del servidor: ${response.statusCode}');
+      debugPrint('📄 Respuesta: ${response.body}');
+      return null;
+    }
+  } catch (e) {
+    debugPrint('💥 Excepción al crear afinamiento: $e');
+    return null;
+  }
+}
+
+// Obtener afinamientos
+static Future<List<dynamic>> getAfinamientos(String token) async {
+  try {
+    final response = await http.get(
+      Uri.parse('$baseUrl/afinamientos'),
+      headers: _buildHeaders(token),
+    );
+    
+    final decoded = _handleResponse(response);
+    
+    if (decoded is Map && decoded.containsKey('data')) {
+      return decoded['data'] as List;
+    } else if (decoded is List) {
+      return decoded;
+    }
+    throw Exception('Formato de respuesta inesperado');
+  } catch (e) {
+    debugPrint('❌ Error obteniendo afinamientos: $e');
+    return [];
+  }
+}
+
+// Obtener afinamiento específico
+static Future<Map<String, dynamic>?> getAfinamientoById(String id, String token) async {
+  try {
+    final response = await http.get(
+      Uri.parse('$baseUrl/afinamientos/$id'),
+      headers: _buildHeaders(token),
+    );
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+    return null;
+  } catch (e) {
+    debugPrint('❌ Error obteniendo afinamiento por ID: $e');
+    return null;
+  }
+}
+
+// Actualizar afinamiento
+static Future<Map<String, dynamic>?> updateAfinamiento(
+  String id,
+  Map<String, dynamic> afinamientoData,
+  String token,
+) async {
+  try {
+    final response = await http.put(
+      Uri.parse('$baseUrl/afinamientos/$id'),
+      headers: _buildHeaders(token),
+      body: jsonEncode(afinamientoData),
+    );
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+    return null;
+  } catch (e) {
+    debugPrint('❌ Error actualizando afinamiento: $e');
+    return null;
+  }
+}
+
+// Eliminar afinamiento
+static Future<bool> deleteAfinamiento(String id, String token) async {
+  try {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/afinamientos/$id'),
+      headers: _buildHeaders(token),
+    );
+    
+    return response.statusCode == 200 || response.statusCode == 204;
+  } catch (e) {
+    debugPrint('❌ Error eliminando afinamiento: $e');
+    return false;
+  }
+}
+
+// Obtener afinamientos por paciente
+static Future<List<dynamic>> getAfinamientosByPaciente(String token, String pacienteId) async {
+  try {
+    final response = await http.get(
+      Uri.parse('$baseUrl/afinamientos/paciente/$pacienteId'),
+      headers: _buildHeaders(token),
+    );
+    
+    final decoded = _handleResponse(response);
+    
+    if (decoded is Map && decoded.containsKey('data')) {
+      return decoded['data'] as List;
+    } else if (decoded is List) {
+      return decoded;
+    }
+    return [];
+  } catch (e) {
+    debugPrint('❌ Error obteniendo afinamientos por paciente: $e');
+    return [];
+  }
+}
+
+// Obtener mis afinamientos
+static Future<List<dynamic>> getMisAfinamientos(String token) async {
+  try {
+    final response = await http.get(
+      Uri.parse('$baseUrl/mis-afinamientos'),
+      headers: _buildHeaders(token),
+    );
+    
+    final decoded = _handleResponse(response);
+    
+    if (decoded is Map && decoded.containsKey('data')) {
+      return decoded['data'] as List;
+    } else if (decoded is List) {
+      return decoded;
+    }
+    return [];
+  } catch (e) {
+    debugPrint('❌ Error obteniendo mis afinamientos: $e');
+    return [];
+  }
+}
+
 }
