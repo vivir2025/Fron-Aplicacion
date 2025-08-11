@@ -286,7 +286,7 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                 filled: true,
                 fillColor: Colors.transparent,
               ),
-              keyboardType: TextInputType.numberWithOptions(decimal: true),
+              keyboardType: TextInputType.text, // 🔄 CAMBIO: Teclado normal en lugar de numérico
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: isSmallScreen ? 14 : 16, // 🆕 Tamaño adaptativo
@@ -709,11 +709,11 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                               prefixIcon: Container(
                                 margin: EdgeInsets.all(isSmallScreen ? 10 : 12), // 🆕 Margen adaptativo
                                 padding: EdgeInsets.all(isSmallScreen ? 6 : 8), // 🆕 Padding adaptativo
-                                decoration: BoxDecoration(
+                                                                decoration: BoxDecoration(
                                   gradient: LinearGradient(
                                     colors: [Color(0xFF10B981), Color(0xFF059669)],
                                   ),
-                                                                   borderRadius: BorderRadius.circular(isSmallScreen ? 8 : 10), // 🆕 Border radius adaptativo
+                                  borderRadius: BorderRadius.circular(isSmallScreen ? 8 : 10), // 🆕 Border radius adaptativo
                                 ),
                                 child: Icon(
                                   Icons.badge_rounded,
@@ -1257,3 +1257,5 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
     );
   }
 }
+
+                                

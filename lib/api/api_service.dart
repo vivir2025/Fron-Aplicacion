@@ -1050,4 +1050,160 @@ static Future<List<dynamic>> getMisAfinamientos(String token) async {
   }
 }
 
+// ==================== MÉTODOS PARA TAMIZAJES ====================
+
+// Crear tamizaje
+static Future<Map<String, dynamic>?> createTamizaje(
+  Map<String, dynamic> tamizajeData,
+  String token,
+) async {
+  try {
+    debugPrint('📤 Enviando tamizaje al servidor...');
+    debugPrint('📋 Datos de tamizaje: ${tamizajeData['id']}');
+    
+    final response = await http.post(
+      Uri.parse('$baseUrl/tamizajes'),
+      headers: _buildHeaders(token),
+      body: jsonEncode(tamizajeData),
+    ).timeout(const Duration(seconds: 30));
+    
+    debugPrint('📥 Respuesta del servidor: ${response.statusCode}');
+    
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final responseData = jsonDecode(response.body);
+      debugPrint('✅ Tamizaje creado exitosamente en servidor');
+      return responseData;
+    } else {
+      debugPrint('❌ Error del servidor: ${response.statusCode}');
+      debugPrint('📄 Respuesta: ${response.body}');
+      return null;
+    }
+  } catch (e) {
+    debugPrint('💥 Excepción al crear tamizaje: $e');
+    return null;
+  }
+}
+
+// Obtener tamizajes
+static Future<List<dynamic>> getTamizajes(String token) async {
+  try {
+    final response = await http.get(
+      Uri.parse('$baseUrl/tamizajes'),
+      headers: _buildHeaders(token),
+    );
+    
+    final decoded = _handleResponse(response);
+    
+    if (decoded is Map && decoded.containsKey('data')) {
+      return decoded['data'] as List;
+    } else if (decoded is List) {
+      return decoded;
+    }
+    throw Exception('Formato de respuesta inesperado');
+  } catch (e) {
+    debugPrint('❌ Error obteniendo tamizajes: $e');
+    return [];
+  }
+}
+
+// Obtener tamizajes por paciente
+static Future<List<dynamic>> getTamizajesByPaciente(String token, String pacienteId) async {
+  try {
+    final response = await http.get(
+      Uri.parse('$baseUrl/tamizajes/paciente/$pacienteId'),
+      headers: _buildHeaders(token),
+    );
+    
+    final decoded = _handleResponse(response);
+    
+    if (decoded is Map && decoded.containsKey('data')) {
+      return decoded['data'] as List;
+    } else if (decoded is List) {
+      return decoded;
+    }
+    return [];
+  } catch (e) {
+    debugPrint('❌ Error obteniendo tamizajes por paciente: $e');
+    return [];
+  }
+}
+
+// Obtener mis tamizajes
+static Future<List<dynamic>> getMisTamizajes(String token) async {
+  try {
+    final response = await http.get(
+      Uri.parse('$baseUrl/mis-tamizajes'),
+      headers: _buildHeaders(token),
+    );
+    
+    final decoded = _handleResponse(response);
+    
+    if (decoded is Map && decoded.containsKey('data')) {
+      return decoded['data'] as List;
+    } else if (decoded is List) {
+      return decoded;
+    }
+    return [];
+  } catch (e) {
+    debugPrint('❌ Error obteniendo mis tamizajes: $e');
+    return [];
+  }
+}
+
+// Actualizar tamizaje
+static Future<Map<String, dynamic>?> updateTamizaje(
+  String tamizajeId,
+  Map<String, dynamic> tamizajeData,
+  String token,
+) async {
+  try {
+    final response = await http.put(
+      Uri.parse('$baseUrl/tamizajes/$tamizajeId'),
+      headers: _buildHeaders(token),
+      body: jsonEncode(tamizajeData),
+    );
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+    return null;
+  } catch (e) {
+    debugPrint('❌ Error actualizando tamizaje: $e');
+    return null;
+  }
+}
+
+// Eliminar tamizaje
+static Future<bool> deleteTamizaje(String tamizajeId, String token) async {
+  try {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/tamizajes/$tamizajeId'),
+      headers: _buildHeaders(token),
+    );
+    
+    return response.statusCode == 200 || response.statusCode == 204;
+  } catch (e) {
+    debugPrint('❌ Error eliminando tamizaje: $e');
+    return false;
+  }
+}
+
+// Obtener estadísticas de tamizajes
+static Future<Map<String, dynamic>> getTamizajesEstadisticas(String token) async {
+  try {
+    final response = await http.get(
+      Uri.parse('$baseUrl/tamizajes/estadisticas'),
+      headers: _buildHeaders(token),
+    );
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+    return {};
+  } catch (e) {
+    debugPrint('❌ Error obteniendo estadísticas de tamizajes: $e');
+    return {};
+  }
+}
+
 }

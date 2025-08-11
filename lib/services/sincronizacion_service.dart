@@ -13,6 +13,7 @@ import 'package:fnpv_app/services/encuesta_service.dart';
 import 'package:fnpv_app/services/envio_muestra_service.dart';
 import 'package:fnpv_app/services/findrisk_service.dart';
 import 'package:fnpv_app/services/medicamento_service.dart';
+import 'package:fnpv_app/services/tamizaje_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'file_service.dart'; 
 
@@ -205,6 +206,38 @@ static Future<Map<String, dynamic>> sincronizarAfinamientosPendientes(String tok
     };
   }
 }
+static Future<Map<String, dynamic>> sincronizarTamizajesPendientes(String token) async {
+  try {
+    debugPrint('🩺 Iniciando sincronización de tamizajes...');
+    
+    final resultado = await TamizajeService.sincronizarTamizajesPendientes(token);
+    
+    final exitosas = resultado['exitosas'] ?? 0;
+    final fallidas = resultado['fallidas'] ?? 0;
+    
+    if (exitosas > 0) {
+      debugPrint('✅ $exitosas tamizajes sincronizados exitosamente');
+    }
+    
+    if (fallidas > 0) {
+      debugPrint('⚠️ $fallidas tamizajes fallaron en la sincronización');
+      final errores = resultado['errores'] as List<String>? ?? [];
+      for (final error in errores.take(3)) {
+        debugPrint('❌ Error: $error');
+      }
+    }
+    
+    return resultado;
+  } catch (e) {
+    debugPrint('💥 Error en sincronización de tamizajes: $e');
+    return {
+      'exitosas': 0,
+      'fallidas': 1,
+      'errores': ['Error general: $e'],
+      'total': 1,
+    };
+  }
+}
 
 
 // 🆕 MÉTODO ACTUALIZADO PARA SINCRONIZACIÓN COMPLETA
@@ -219,7 +252,8 @@ static Future<Map<String, dynamic>> sincronizacionCompleta(String token) async {
     'brigadas': {'exitosas': 0, 'fallidas': 0, 'errores': []},
     'encuestas': {'exitosas': 0, 'fallidas': 0, 'errores': []}, 
     'findrisk_tests': {'exitosas': 0, 'fallidas': 0, 'errores': []},
-    'afinamientos': {'exitosas': 0, 'fallidas': 0, 'errores': []}, 
+    'afinamientos': {'exitosas': 0, 'fallidas': 0, 'errores': []},
+    'tamizajes': {'exitosas': 0, 'fallidas': 0, 'errores': []}, 
     'archivos': {'exitosas': 0, 'fallidas': 0, 'errores': []},
     'tiempo_total': 0,
     'exito_general': false,
@@ -274,6 +308,9 @@ static Future<Map<String, dynamic>> sincronizacionCompleta(String token) async {
      debugPrint('8️⃣ Sincronizando afinamientos pendientes...');
      resultado['afinamientos'] = await sincronizarAfinamientosPendientes(token);
 
+       debugPrint('9️⃣ Sincronizando tamizajes pendientes...');
+    resultado['tamizajes'] = await sincronizarTamizajesPendientes(token);
+
     // 8. Sincronizar archivos pendientes
     debugPrint('7️⃣ Sincronizando archivos pendientes...');
     resultado['archivos'] = await sincronizarArchivosPendientes(token);
@@ -296,15 +333,16 @@ static Future<Map<String, dynamic>> sincronizacionCompleta(String token) async {
     final encuestasExitosas = resultado['encuestas']['exitosas'] ?? 0;
     final findriskExitosos = resultado['findrisk_tests']['exitosas'] ?? 0; 
     final afinamientosExitosos = resultado['afinamientos']['exitosas'] ?? 0;// 🆕 FINDRISK
+     final tamizajesExitosos = resultado['tamizajes']['exitosas'] ?? 0;
     final totalExitosas = medicamentosExitosos + visitasExitosas + pacientesExitosos + 
     archivosExitosos + brigadasExitosas + enviosExitosos + encuestasExitosas + findriskExitosos
-    + afinamientosExitosos; 
+    + afinamientosExitosos + tamizajesExitosos; 
     
     resultado['exito_general'] = totalExitosas > 0;
     
     if (resultado['exito_general']) {
       debugPrint('🎉 Sincronización completa finalizada exitosamente en ${stopwatch.elapsedMilliseconds}ms');
-      debugPrint('📊 Resumen: $medicamentosExitosos medicamentos, $visitasExitosas visitas, $pacientesExitosos pacientes, $enviosExitosos envíos, $brigadasExitosas brigadas, $encuestasExitosas encuestas, $findriskExitosos tests FINDRISK, $afinamientosExitosos afinamientos, $archivosExitosos archivos sincronizados');
+      debugPrint('📊 Resumen: $medicamentosExitosos medicamentos, $visitasExitosas visitas, $pacientesExitosos pacientes, $enviosExitosos envíos, $brigadasExitosas brigadas, $encuestasExitosas encuestas, $findriskExitosos tests FINDRISK, $afinamientosExitosos afinamientos, $tamizajesExitosos tamizajes, $archivosExitosos archivos sincronizados');
     } else {
       debugPrint('⚠️ Sincronización completa finalizada sin elementos para sincronizar en ${stopwatch.elapsedMilliseconds}ms');
     }

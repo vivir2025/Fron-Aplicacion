@@ -9,6 +9,7 @@ import 'package:fnpv_app/models/envio_muestra_model.dart';
 import 'package:fnpv_app/models/findrisk_test_model.dart';
 import 'package:fnpv_app/models/medicamento.dart';
 import 'package:fnpv_app/models/medicamento_con_indicaciones.dart';
+import 'package:fnpv_app/models/tamizaje_model.dart';
 import 'package:fnpv_app/models/visita_model.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
@@ -47,7 +48,7 @@ final path = join(dbPath, filePath);
 
 return await openDatabase(
   path,
-  version: 15, // 🚀 Incrementado a 15
+  version: 16, // 🚀 Incrementado a 16
   onCreate: _createDB,
   onUpgrade: _onUpgrade,
 );
@@ -364,6 +365,27 @@ await db.execute('''
     presion_diastolica_3 INTEGER,
     presion_sistolica_promedio REAL,
     presion_diastolica_promedio REAL,
+    conducta TEXT,
+    sync_status INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (idpaciente) REFERENCES pacientes (id) ON DELETE CASCADE,
+    FOREIGN KEY (idusuario) REFERENCES usuarios (id) ON DELETE CASCADE
+  )
+''');
+await db.execute('''
+  CREATE TABLE tamizajes (
+    id TEXT PRIMARY KEY,
+    idpaciente TEXT NOT NULL,
+    idusuario TEXT NOT NULL,
+    vereda_residencia TEXT NOT NULL,
+    telefono TEXT,
+    brazo_toma TEXT NOT NULL,
+    posicion_persona TEXT NOT NULL,
+    reposo_cinco_minutos TEXT NOT NULL,
+    fecha_primera_toma TEXT NOT NULL,
+    pa_sistolica INTEGER NOT NULL,
+    pa_diastolica INTEGER NOT NULL,
     conducta TEXT,
     sync_status INTEGER DEFAULT 0,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -812,6 +834,35 @@ if (oldVersion < 15) { // Incrementar número de versión
     debugPrint('✅ Tabla afinamientos creada en migración v15');
   } catch (e) {
     debugPrint('⚠️ Error en migración v15 (afinamientos): $e');
+  }
+}
+if (oldVersion < 16) { // Incrementar el número de versión
+  try {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS tamizajes (
+        id TEXT PRIMARY KEY,
+        idpaciente TEXT NOT NULL,
+        idusuario TEXT NOT NULL,
+        vereda_residencia TEXT NOT NULL,
+        telefono TEXT,
+        brazo_toma TEXT NOT NULL,
+        posicion_persona TEXT NOT NULL,
+        reposo_cinco_minutos TEXT NOT NULL,
+        fecha_primera_toma TEXT NOT NULL,
+        pa_sistolica INTEGER NOT NULL,
+        pa_diastolica INTEGER NOT NULL,
+        conducta TEXT,
+        sync_status INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (idpaciente) REFERENCES pacientes (id) ON DELETE CASCADE,
+        FOREIGN KEY (idusuario) REFERENCES usuarios (id) ON DELETE CASCADE
+      )
+    ''');
+
+    debugPrint('✅ Tabla tamizajes creada en migración v16');
+  } catch (e) {
+    debugPrint('⚠️ Error en migración v16 (tamizajes): $e');
   }
 }
 }
@@ -3470,5 +3521,354 @@ Future<Map<String, dynamic>> getAfinamientosEstadisticas() async {
     };
   }
 }
+
+// ==================== MÉTODOS PARA TAMIZAJES ====================
+
+// Generador de ID único para tamizajes
+String generarIdUnicoTamizaje() {
+  final uuid = Uuid();
+  final idUnico = uuid.v4();
+  return 'tamiz_$idUnico';
+}
+
+// Crear tamizaje
+Future<bool> createTamizaje(Tamizaje tamizaje) async {
+  try {
+    final db = await database;
+    
+    // Si no tiene ID, generar uno único
+    if (tamizaje.id.isEmpty) {
+      final nuevoId = generarIdUnicoTamizaje();
+      tamizaje = tamizaje.copyWith(
+        id: nuevoId,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+      debugPrint('✅ ID único generado para nuevo tamizaje: $nuevoId');
+    }
+    
+    final result = await db.insert(
+      'tamizajes',
+      tamizaje.toJson(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    
+    debugPrint('✅ Tamizaje guardado localmente con ID: ${tamizaje.id}');
+    return result > 0;
+  } catch (e) {
+    debugPrint('❌ Error al guardar tamizaje localmente: $e');
+    return false;
+  }
+}
+
+// Actualizar tamizaje
+Future<bool> updateTamizaje(Tamizaje tamizaje) async {
+  try {
+    final db = await database;
+    
+    final tamizajeData = tamizaje.toJson();
+    tamizajeData['updated_at'] = DateTime.now().toIso8601String();
+    
+    final result = await db.update(
+      'tamizajes',
+      tamizajeData,
+      where: 'id = ?',
+      whereArgs: [tamizaje.id],
+    );
+    
+    debugPrint('✅ Tamizaje actualizado: ${tamizaje.id}');
+    return result > 0;
+  } catch (e) {
+    debugPrint('❌ Error al actualizar tamizaje: $e');
+    return false;
+  }
+}
+
+// Obtener todos los tamizajes
+Future<List<Tamizaje>> getAllTamizajes() async {
+  try {
+    final db = await database;
+    final result = await db.query(
+      'tamizajes',
+      orderBy: 'fecha_primera_toma DESC',
+    );
+    
+    return result.map((json) => Tamizaje.fromJson(json)).toList();
+  } catch (e) {
+    debugPrint('Error al obtener todos los tamizajes: $e');
+    return [];
+  }
+}
+
+// Obtener tamizaje por ID
+Future<Tamizaje?> getTamizajeById(String id) async {
+  try {
+    final db = await database;
+    final result = await db.query(
+      'tamizajes',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    
+    if (result.isNotEmpty) {
+      return Tamizaje.fromJson(result.first);
+    }
+    return null;
+  } catch (e) {
+    debugPrint('Error al obtener tamizaje por ID: $e');
+    return null;
+  }
+}
+
+// Obtener tamizajes por paciente
+Future<List<Tamizaje>> getTamizajesByPaciente(String pacienteId) async {
+  try {
+    final db = await database;
+    final result = await db.query(
+      'tamizajes',
+      where: 'idpaciente = ?',
+      whereArgs: [pacienteId],
+      orderBy: 'fecha_primera_toma DESC',
+    );
+    
+    return result.map((json) => Tamizaje.fromJson(json)).toList();
+  } catch (e) {
+    debugPrint('Error al obtener tamizajes por paciente: $e');
+    return [];
+  }
+}
+
+// Obtener tamizajes por usuario
+Future<List<Tamizaje>> getTamizajesByUsuario(String usuarioId) async {
+  try {
+    final db = await database;
+    final result = await db.query(
+      'tamizajes',
+      where: 'idusuario = ?',
+      whereArgs: [usuarioId],
+      orderBy: 'fecha_primera_toma DESC',
+    );
+    
+    return result.map((json) => Tamizaje.fromJson(json)).toList();
+  } catch (e) {
+    debugPrint('Error al obtener tamizajes por usuario: $e');
+    return [];
+  }
+}
+
+// Obtener tamizajes no sincronizados
+Future<List<Tamizaje>> getTamizajesNoSincronizados() async {
+  try {
+    final db = await database;
+    final result = await db.query(
+      'tamizajes',
+      where: 'sync_status = ?',
+      whereArgs: [0],
+      orderBy: 'fecha_primera_toma DESC',
+    );
+    return result.map((json) => Tamizaje.fromJson(json)).toList();
+  } catch (e) {
+    debugPrint('Error al obtener tamizajes no sincronizados: $e');
+    return [];
+  }
+}
+
+// Obtener tamizajes con información del paciente
+Future<List<Map<String, dynamic>>> getTamizajesConPaciente() async {
+  try {
+    final db = await database;
+    final result = await db.rawQuery('''
+      SELECT 
+        t.*,
+        p.nombre || ' ' || p.apellido as nombre_paciente,
+        p.identificacion as identificacion_paciente,
+        p.fecnacimiento,
+        p.genero as sexo_paciente,
+        s.nombresede as sede_paciente,
+        u.nombre as promotor_vida
+      FROM tamizajes t
+      LEFT JOIN pacientes p ON t.idpaciente = p.id
+      LEFT JOIN sedes s ON p.idsede = s.id
+      LEFT JOIN usuarios u ON t.idusuario = u.id
+      ORDER BY t.fecha_primera_toma DESC
+    ''');
+    
+    return result.map((row) {
+      // Calcular edad del paciente
+      int? edadPaciente;
+      if (row['fecnacimiento'] != null) {
+        final fechaNacimiento = DateTime.parse(row['fecnacimiento'].toString());
+        edadPaciente = DateTime.now().difference(fechaNacimiento).inDays ~/ 365;
+      }
+      
+      final tamizajeData = Map<String, dynamic>.from(row);
+      tamizajeData['edad_paciente'] = edadPaciente;
+      
+      return tamizajeData;
+    }).toList();
+  } catch (e) {
+    debugPrint('Error al obtener tamizajes con paciente: $e');
+    return [];
+  }
+}
+
+// Eliminar tamizaje
+Future<bool> deleteTamizaje(String id) async {
+  try {
+    final db = await database;
+    final result = await db.delete(
+      'tamizajes',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    return result > 0;
+  } catch (e) {
+    debugPrint('Error al eliminar tamizaje: $e');
+    return false;
+  }
+}
+
+// Marcar tamizaje como sincronizado
+Future<bool> marcarTamizajeComoSincronizado(String id) async {
+  try {
+    final db = await database;
+    final result = await db.update(
+      'tamizajes',
+      {
+        'sync_status': 1,
+        'updated_at': DateTime.now().toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    
+    debugPrint('✅ Tamizaje $id marcado como sincronizado');
+    return result > 0;
+  } catch (e) {
+    debugPrint('❌ Error al marcar tamizaje como sincronizado: $e');
+    return false;
+  }
+}
+
+// Contar tamizajes por usuario
+Future<int> countTamizajesByUsuario(String usuarioId) async {
+  try {
+    final db = await database;
+    final result = await db.rawQuery(
+      'SELECT COUNT(*) FROM tamizajes WHERE idusuario = ?',
+      [usuarioId],
+    );
+    return Sqflite.firstIntValue(result) ?? 0;
+  } catch (e) {
+    debugPrint('Error al contar tamizajes: $e');
+    return 0;
+  }
+}
+
+// Obtener estadísticas de tamizajes
+Future<Map<String, dynamic>> getTamizajesEstadisticas() async {
+  try {
+    final db = await database;
+    
+    final totalResult = await db.rawQuery('SELECT COUNT(*) as count FROM tamizajes');
+    final total = Sqflite.firstIntValue(totalResult) ?? 0;
+    
+    final sincronizadosResult = await db.rawQuery('SELECT COUNT(*) as count FROM tamizajes WHERE sync_status = 1');
+    final sincronizados = Sqflite.firstIntValue(sincronizadosResult) ?? 0;
+    
+    final pendientesResult = await db.rawQuery('SELECT COUNT(*) as count FROM tamizajes WHERE sync_status = 0');
+    final pendientes = Sqflite.firstIntValue(pendientesResult) ?? 0;
+    
+    // Estadísticas de presión arterial
+    final normalResult = await db.rawQuery('SELECT COUNT(*) as count FROM tamizajes WHERE pa_sistolica < 120 AND pa_diastolica < 80');
+    final normal = Sqflite.firstIntValue(normalResult) ?? 0;
+    
+    final elevadaResult = await db.rawQuery('SELECT COUNT(*) as count FROM tamizajes WHERE pa_sistolica >= 120 AND pa_sistolica < 130 AND pa_diastolica < 80');
+    final elevada = Sqflite.firstIntValue(elevadaResult) ?? 0;
+    
+    final hipertension1Result = await db.rawQuery('SELECT COUNT(*) as count FROM tamizajes WHERE (pa_sistolica >= 130 AND pa_sistolica <= 139) OR (pa_diastolica >= 80 AND pa_diastolica <= 89)');
+    final hipertension1 = Sqflite.firstIntValue(hipertension1Result) ?? 0;
+    
+    final hipertension2Result = await db.rawQuery('SELECT COUNT(*) as count FROM tamizajes WHERE pa_sistolica >= 140 OR pa_diastolica >= 90');
+    final hipertension2 = Sqflite.firstIntValue(hipertension2Result) ?? 0;
+    
+    return {
+      'total': total,
+      'sincronizados': sincronizados,
+      'pendientes': pendientes,
+      'clasificacion_presion': {
+        'normal': normal,
+        'elevada': elevada,
+        'hipertension_etapa_1': hipertension1,
+        'hipertension_etapa_2': hipertension2,
+      }
+    };
+  } catch (e) {
+    debugPrint('Error al obtener estadísticas de tamizajes: $e');
+    return {
+      'total': 0,
+      'sincronizados': 0,
+      'pendientes': 0,
+      'clasificacion_presion': {
+        'normal': 0,
+        'elevada': 0,
+        'hipertension_etapa_1': 0,
+        'hipertension_etapa_2': 0,
+      }
+    };
+  }
+}
+// Agregar al DatabaseHelper.dart
+
+// Contar tamizajes
+Future<int> countTamizajes() async {
+  try {
+    final db = await database;
+    final result = await db.rawQuery('SELECT COUNT(*) FROM tamizajes');
+    return Sqflite.firstIntValue(result) ?? 0;
+  } catch (e) {
+    debugPrint('Error al contar tamizajes: $e');
+    return 0;
+  }
+}
+
+// Contar medicamentos pendientes
+Future<int> countMedicamentosPendientes() async {
+  try {
+    final db = await database;
+    final result = await db.rawQuery('SELECT COUNT(*) FROM medicamentos WHERE sync_status = 0');
+    return Sqflite.firstIntValue(result) ?? 0;
+  } catch (e) {
+    debugPrint('Error al contar medicamentos pendientes: $e');
+    return 0;
+  }
+}
+
+// Contar visitas
+Future<int> countVisitas() async {
+  try {
+    final db = await database;
+    final result = await db.rawQuery('SELECT COUNT(*) FROM visitas');
+    return Sqflite.firstIntValue(result) ?? 0;
+  } catch (e) {
+    debugPrint('Error al contar visitas: $e');
+    return 0;
+  }
+}
+
+
+// Contar pacientes
+Future<int> countPacientes() async {
+  try {
+    final db = await database;
+    final result = await db.rawQuery('SELECT COUNT(*) FROM pacientes');
+    return Sqflite.firstIntValue(result) ?? 0;
+  } catch (e) {
+    debugPrint('Error al contar pacientes: $e');
+    return 0;
+  }
+}
+
 
 } // Fin de la clase DatabaseHelper
