@@ -179,7 +179,7 @@ class _InitialSyncScreenState extends State<InitialSyncScreen> with SingleTicker
               bottom: 20,
               right: 20,
               child: Text(
-                'v1.0.0',
+                '',
                 style: TextStyle(
                   color: Colors.grey[600],
                   fontSize: 12,
