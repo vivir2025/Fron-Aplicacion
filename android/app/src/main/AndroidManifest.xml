@@ -7,7 +7,7 @@
     
     <application
        
-        android:label="FNPVI App"
+        android:label="App Fnpv"
         android:icon="@mipmap/ic_launcher">
         
         <activity
