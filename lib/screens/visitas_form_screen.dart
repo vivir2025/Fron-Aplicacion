@@ -859,8 +859,9 @@ Future<void> _saveVisita() async {
           'conductas': _conductas.isEmpty ? '' : _conductas.join(', '),
           'novedades': _novedadesController.text.isEmpty ? '' : _novedadesController.text,
           'proximo_control': _proximoControlController.text.isEmpty ? '' : _proximoControlController.text,
-          
-         
+           // 🆕 ¡AGREGAR ESTAS DOS LÍNEAS!
+          'latitud': _latitudController.text.isEmpty ? '' : _latitudController.text,
+          'longitud': _longitudController.text.isEmpty ? '' : _longitudController.text,
         };
         
         Map<String, dynamic>? resultado;

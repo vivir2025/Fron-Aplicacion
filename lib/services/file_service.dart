@@ -120,7 +120,7 @@ class FileService {
     }
   }
 
-  // ✅ MÉTODO PRINCIPAL - Crear visita completa con archivos (CORREGIDO)
+// ✅ MÉTODO PRINCIPAL - Crear visita completa con archivos (CORREGIDO)
 static Future<Map<String, dynamic>?> createVisitaCompleta({
   required Map<String, String> visitaData,
   required String token,
@@ -145,23 +145,55 @@ static Future<Map<String, dynamic>?> createVisitaCompleta({
     request.headers['Authorization'] = 'Bearer $token';
     request.headers['Accept'] = 'application/json';
     
+    // 🆕 VERIFICAR COORDENADAS ANTES DE AGREGAR CAMPOS
+    debugPrint('🔍 VERIFICACIÓN PRE-AGREGAR:');
+    debugPrint('   - visitaData contiene latitud: ${visitaData.containsKey('latitud')}');
+    debugPrint('   - visitaData contiene longitud: ${visitaData.containsKey('longitud')}');
+    debugPrint('   - visitaData[latitud]: "${visitaData['latitud']}"');
+    debugPrint('   - visitaData[longitud]: "${visitaData['longitud']}"');
+    
     // ✅ Agregar todos los campos de texto de la visita
     request.fields.addAll(visitaData);
     
-   // 🆕 CORREGIR ENVÍO DE MEDICAMENTOS - SOLO JSON STRING
-if (medicamentosData != null && medicamentosData.isNotEmpty) {
-  debugPrint('💊 Procesando ${medicamentosData.length} medicamentos...');
-  
-  // ✅ SOLO enviar como JSON string (lo que espera el servidor)
-  final medicamentosJson = json.encode(medicamentosData);
-  request.fields['medicamentos'] = medicamentosJson;
-  debugPrint('💊 Medicamentos como JSON: $medicamentosJson');
-  
-  // ❌ ELIMINAR ESTA PARTE (está causando el conflicto):
-  // NO enviar como campos individuales
-  
-  debugPrint('💊 Medicamentos enviados como JSON string');
-}
+    // 🆕 FORZAR COORDENADAS DESPUÉS DE addAll (CRÍTICO)
+    if (visitaData.containsKey('latitud') && visitaData['latitud']!.isNotEmpty) {
+      request.fields['latitud'] = visitaData['latitud']!;
+      debugPrint('🔧 FORZANDO latitud: ${visitaData['latitud']}');
+    }
+    
+    if (visitaData.containsKey('longitud') && visitaData['longitud']!.isNotEmpty) {
+      request.fields['longitud'] = visitaData['longitud']!;
+      debugPrint('🔧 FORZANDO longitud: ${visitaData['longitud']}');
+    }
+    
+    // 🆕 VERIFICACIÓN POST-AGREGAR (CRÍTICA)
+    debugPrint('🔍 VERIFICACIÓN POST-AGREGAR:');
+    debugPrint('   - request.fields contiene latitud: ${request.fields.containsKey('latitud')}');
+    debugPrint('   - request.fields contiene longitud: ${request.fields.containsKey('longitud')}');
+    debugPrint('   - request.fields[latitud]: "${request.fields['latitud']}"');
+    debugPrint('   - request.fields[longitud]: "${request.fields['longitud']}"');
+    
+    // 🆕 DEBUG: Mostrar todos los campos que se envían
+    debugPrint('📋 Todos los campos en request.fields:');
+    request.fields.forEach((key, value) {
+      if (key == 'latitud' || key == 'longitud') {
+        debugPrint('📍 $key: "$value"'); // Destacar coordenadas con comillas
+      } else {
+        debugPrint('  $key: $value');
+      }
+    });
+    
+    // ✅ CORREGIR ENVÍO DE MEDICAMENTOS - SOLO JSON STRING
+    if (medicamentosData != null && medicamentosData.isNotEmpty) {
+      debugPrint('💊 Procesando ${medicamentosData.length} medicamentos...');
+      
+      // ✅ SOLO enviar como JSON string (lo que espera el servidor)
+      final medicamentosJson = json.encode(medicamentosData);
+      request.fields['medicamentos'] = medicamentosJson;
+      debugPrint('💊 Medicamentos como JSON: $medicamentosJson');
+      
+      debugPrint('💊 Medicamentos enviados como JSON string');
+    }
     
     // ✅ Agregar foto de riesgo si existe
     if (riskPhotoPath != null && riskPhotoPath.isNotEmpty) {
@@ -197,7 +229,7 @@ if (medicamentosData != null && medicamentosData.isNotEmpty) {
     
     debugPrint('📤 Enviando request con ${request.files.length} archivos y ${request.fields.length} campos...');
     
-    // 🆕 AGREGAR TIMEOUT Y MEJOR MANEJO DE ERRORES
+    // ✅ AGREGAR TIMEOUT Y MEJOR MANEJO DE ERRORES
     final response = await request.send().timeout(
       const Duration(seconds: 60),
       onTimeout: () {
@@ -233,7 +265,7 @@ if (medicamentosData != null && medicamentosData.isNotEmpty) {
       debugPrint('❌ Error al crear visita: ${response.statusCode}');
       debugPrint('❌ Error body: $errorBody');
       
-      // 🆕 PARSEAR ERROR PARA MEJOR DEBUGGING
+      // ✅ PARSEAR ERROR PARA MEJOR DEBUGGING
       try {
         final errorJson = json.decode(errorBody);
         if (errorJson['errors'] != null) {
@@ -266,6 +298,7 @@ if (medicamentosData != null && medicamentosData.isNotEmpty) {
     return {'success': false, 'error': e.toString()};
   }
 }
+
 
 // 🆕 MÉTODO ACTUALIZADO PARA ACTUALIZAR VISITA - CORREGIDO
 static Future<Map<String, dynamic>?> updateVisitaCompleta({

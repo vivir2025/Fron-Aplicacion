@@ -200,6 +200,78 @@ class EnvioMuestraService {
       'total': enviosPendientes.length
     };
   }
+ // 🆕 MÉTODO PARA ELIMINAR ENVÍO
+  static Future<bool> eliminarEnvio(String envioId) async {
+    try {
+      debugPrint('🗑️ Iniciando eliminación de envío: $envioId');
+      
+      final db = DatabaseHelper.instance;
+      
+      // 1. Verificar que el envío existe
+      final envios = await db.getAllEnviosMuestras();
+      final envioExiste = envios.any((e) => e.id == envioId);
+      
+      if (!envioExiste) {
+        debugPrint('❌ Envío no encontrado: $envioId');
+        return false;
+      }
+      
+      // 2. Obtener información del envío antes de eliminar
+      final envio = envios.firstWhere((e) => e.id == envioId);
+      debugPrint('📋 Eliminando envío: ${envio.codigo} con ${envio.detalles.length} muestras');
+      
+      // 3. Eliminar de la base de datos local
+      final database = await db.database;
+      
+      await database.transaction((txn) async {
+        // Eliminar detalles primero (por la foreign key)
+        final detallesEliminados = await txn.delete(
+          'detalle_envio_muestras',
+          where: 'envio_muestra_id = ?',
+          whereArgs: [envioId],
+        );
+        
+        debugPrint('🗑️ Detalles eliminados: $detallesEliminados');
+        
+        // Eliminar envío principal
+        final envioEliminado = await txn.delete(
+          'envio_muestras',
+          where: 'id = ?',
+          whereArgs: [envioId],
+        );
+        
+        debugPrint('🗑️ Envío eliminado: $envioEliminado');
+        
+        if (envioEliminado == 0) {
+          throw Exception('No se pudo eliminar el envío de la base de datos');
+        }
+      });
+      
+      debugPrint('✅ Envío $envioId eliminado exitosamente de la base de datos local');
+      
+      // 4. Si el envío estaba sincronizado, intentar eliminarlo del servidor
+      if (envio.syncStatus == 1) {
+        debugPrint('🌐 Envío estaba sincronizado, intentando eliminar del servidor...');
+        
+        try {
+          // Aquí podrías agregar la llamada al API para eliminar del servidor
+          // Por ahora solo registramos que estaba sincronizado
+          debugPrint('ℹ️ Nota: El envío estaba sincronizado con el servidor');
+          debugPrint('ℹ️ Considera implementar eliminación en servidor si es necesario');
+        } catch (e) {
+          debugPrint('⚠️ Error al comunicarse con servidor para eliminación: $e');
+          // No fallar la operación local por error del servidor
+        }
+      }
+      
+      return true;
+      
+    } catch (e) {
+      debugPrint('💥 Error al eliminar envío $envioId: $e');
+      debugPrint('💥 Stack trace: ${StackTrace.current}');
+      return false;
+    }
+  }
 
   // Generar ID único para envío
   static String generarIdUnico() {

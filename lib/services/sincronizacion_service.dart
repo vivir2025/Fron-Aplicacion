@@ -957,7 +957,9 @@ static Future<Map<String, dynamic>> sincronizarVisitasPendientes(String token) a
     for (final visita in visitasPendientes) {
       try {
         debugPrint('🔄 Sincronizando visita ${visita.id}...');
-
+        
+        // ✅ DEBUG: Mostrar coordenadas de la visita
+        debugPrint('📍 Coordenadas de visita ${visita.id}: lat=${visita.latitud}, lng=${visita.longitud}');
            
         // 1. ✅ PRIMERO: Actualizar coordenadas del paciente si existen
         if (visita.latitud != null && visita.longitud != null) {
@@ -982,11 +984,11 @@ static Future<Map<String, dynamic>> sincronizarVisitasPendientes(String token) a
           }
         }
         
-        // 1. Obtener medicamentos asociados a esta visita
+        // 2. Obtener medicamentos asociados a esta visita
         final medicamentos = await dbHelper.getMedicamentosDeVisita(visita.id);
         debugPrint('💊 Encontrados ${medicamentos.length} medicamentos para visita ${visita.id}');
         
-        // 2. Preparar medicamentos para envío
+        // 3. Preparar medicamentos para envío
         List<Map<String, dynamic>> medicamentosData = [];
         for (var medicamentoConIndicaciones in medicamentos) {
           if (medicamentoConIndicaciones.isSelected) {
@@ -998,7 +1000,7 @@ static Future<Map<String, dynamic>> sincronizarVisitasPendientes(String token) a
           }
         }
         
-        // 3. Preparar datos para enviar al servidor
+        // 4. ✅ PREPARAR DATOS CON COORDENADAS INCLUIDAS
         Map<String, String> visitaData = {
           'id': visita.id,
           'nombre_apellido': visita.nombreApellido,
@@ -1027,9 +1029,15 @@ static Future<Map<String, dynamic>> sincronizarVisitasPendientes(String token) a
           'novedades': visita.novedades ?? '',
           'proximo_control': visita.proximoControl?.toIso8601String().split('T')[0] ?? '',
           
+          // 🆕 AGREGAR COORDENADAS AQUÍ:
+          'latitud': visita.latitud?.toString() ?? '',
+          'longitud': visita.longitud?.toString() ?? '',
         };
         
-        // 4. 🆕 USAR createVisitaCompleta PARA MANEJAR ARCHIVOS CORRECTAMENTE
+        // ✅ DEBUG: Confirmar que las coordenadas están en visitaData
+        debugPrint('📍 Coordenadas en visitaData: lat=${visitaData['latitud']}, lng=${visitaData['longitud']}');
+        
+        // 5. 🆕 USAR createVisitaCompleta PARA MANEJAR ARCHIVOS CORRECTAMENTE
         Map<String, dynamic>? resultado = await FileService.createVisitaCompleta(
           visitaData: visitaData,
           token: token,
@@ -1039,7 +1047,7 @@ static Future<Map<String, dynamic>> sincronizarVisitasPendientes(String token) a
         );
         
         if (resultado != null && resultado['success'] == true) {
-          // 5. Marcar como sincronizada
+          // 6. Marcar como sincronizada
           await dbHelper.marcarVisitaComoSincronizada(visita.id);
           exitosas++;
           debugPrint('✅ Visita ${visita.id} sincronizada exitosamente con archivos y medicamentos');
@@ -1077,6 +1085,7 @@ static Future<Map<String, dynamic>> sincronizarVisitasPendientes(String token) a
     'total': visitasPendientes.length
   };
 }
+
 
   static Future<Map<String, int>> obtenerEstadoSincronizacion() async {
     final dbHelper = DatabaseHelper.instance;

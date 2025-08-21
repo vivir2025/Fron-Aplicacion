@@ -1,4 +1,4 @@
-// screens/envio_muestras_screen.dart - VERSIÓN CORREGIDA
+// screens/envio_muestras_screen.dart - VERSIÓN CON BOTÓN ELIMINAR
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/envio_muestra_model.dart';
@@ -116,6 +116,194 @@ class _EnvioMuestrasScreenState extends State<EnvioMuestrasScreen> {
       setState(() => _isSyncing = false);
       debugPrint('💥 Error en sincronización: $e');
       _mostrarMensaje('❌ Error en sincronización: $e', isError: true);
+    }
+  }
+
+  // 🆕 MÉTODO PARA ELIMINAR ENVÍO
+  Future<void> _eliminarEnvio(EnvioMuestra envio) async {
+    // Mostrar diálogo de confirmación
+    final bool? confirmar = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red[100],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.delete_forever, color: Colors.red[700], size: 28),
+              ),
+              SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  'Eliminar Envío',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                    color: Colors.red[700],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Container(
+            constraints: BoxConstraints(maxWidth: 400),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Código: ${envio.codigo}',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                      SizedBox(height: 8),
+                      Text('📅 Fecha: ${envio.fecha.day}/${envio.fecha.month}/${envio.fecha.year}'),
+                      Text('📍 Lugar: ${envio.lugarTomaMuestras}'),
+                      Text('🧪 Muestras: ${envio.detalles.length}'),
+                      if (envio.syncStatus == 1) ...[
+                        SizedBox(height: 8),
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.green[100],
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.cloud_done, size: 16, color: Colors.green[700]),
+                              SizedBox(width: 4),
+                              Text(
+                                'Sincronizado',
+                                style: TextStyle(
+                                  color: Colors.green[700],
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                SizedBox(height: 16),
+                Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red[200]!),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning, color: Colors.red[600], size: 20),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '¿Estás seguro de que deseas eliminar este envío? Esta acción no se puede deshacer.',
+                          style: TextStyle(
+                            color: Colors.red[700],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              style: TextButton.styleFrom(
+                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: Text(
+                'Cancelar',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[600],
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 2,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.delete, size: 18),
+                  SizedBox(width: 8),
+                  Text(
+                    'Eliminar',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmar == true) {
+      // Mostrar indicador de carga
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Eliminando envío...'),
+            ],
+          ),
+        ),
+      );
+
+      try {
+        final resultado = await EnvioMuestraService.eliminarEnvio(envio.id);
+        
+        Navigator.of(context).pop(); // Cerrar diálogo de carga
+        
+        if (resultado) {
+          _mostrarMensaje('✅ Envío eliminado exitosamente');
+          await _cargarEnvios();
+          await _cargarEstadoSincronizacion();
+        } else {
+          _mostrarMensaje('❌ Error al eliminar el envío', isError: true);
+        }
+      } catch (e) {
+        Navigator.of(context).pop(); // Cerrar diálogo de carga
+        debugPrint('❌ Error eliminando envío: $e');
+        _mostrarMensaje('❌ Error al eliminar: $e', isError: true);
+      }
     }
   }
 
@@ -343,6 +531,7 @@ class _EnvioMuestrasScreenState extends State<EnvioMuestrasScreen> {
     );
   }
 
+  // 🆕 CARD DE ENVÍO MEJORADO CON BOTÓN ELIMINAR
   Widget _buildEnvioCard(EnvioMuestra envio) {
     final isSincronizado = envio.syncStatus == 1;
     final fechaFormateada = '${envio.fecha.day}/${envio.fecha.month}/${envio.fecha.year}';
@@ -395,21 +584,45 @@ class _EnvioMuestrasScreenState extends State<EnvioMuestrasScreen> {
             ],
           ],
         ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              isSincronizado ? Icons.check_circle : Icons.pending,
-              color: isSincronizado ? Colors.green : Colors.orange,
-            ),
-            SizedBox(height: 4),
-            Text(
-              isSincronizado ? 'Sync' : 'Pend',
-              style: TextStyle(
-                fontSize: 10,
-                color: isSincronizado ? Colors.green : Colors.orange,
-                fontWeight: FontWeight.bold,
+            // 🆕 BOTÓN ELIMINAR
+            Container(
+              margin: EdgeInsets.only(right: 8),
+              child: IconButton(
+                icon: Icon(
+                  Icons.delete_outline,
+                  color: Colors.red[600],
+                  size: 22,
+                ),
+                onPressed: () => _eliminarEnvio(envio),
+                tooltip: 'Eliminar envío',
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.red[50],
+                  padding: EdgeInsets.all(8),
+                  minimumSize: Size(36, 36),
+                ),
               ),
+            ),
+            // Estado de sincronización
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  isSincronizado ? Icons.check_circle : Icons.pending,
+                  color: isSincronizado ? Colors.green : Colors.orange,
+                ),
+                SizedBox(height: 4),
+                Text(
+                  isSincronizado ? 'Sync' : 'Pend',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: isSincronizado ? Colors.green : Colors.orange,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -472,7 +685,7 @@ class _EnvioMuestrasScreenState extends State<EnvioMuestrasScreen> {
                       if (detalle.talla != null && detalle.talla!.isNotEmpty) 
                         Text('Talla: ${detalle.talla}'),
                       
-                                            if (detalle.numMuestrasEnviadas != null && detalle.numMuestrasEnviadas!.isNotEmpty) 
+                      if (detalle.numMuestrasEnviadas != null && detalle.numMuestrasEnviadas!.isNotEmpty) 
                         Text('# Muestras: ${detalle.numMuestrasEnviadas}'),
                       
                       // Mostrar información de tubos si existe

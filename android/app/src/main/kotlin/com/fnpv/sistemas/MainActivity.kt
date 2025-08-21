@@ -1,4 +1,4 @@
-package com.example.fnpv_app
+package com.fnpv.sistemas
 
 import io.flutter.embedding.android.FlutterActivity
 

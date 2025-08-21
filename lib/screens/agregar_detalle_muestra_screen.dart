@@ -1,4 +1,4 @@
-// screens/agregar_detalle_muestra_screen.dart - VERSIÓN RESPONSIVA
+// screens/agregar_detalle_muestra_screen.dart - VERSIÓN CORREGIDA COMPLETA
 import 'package:flutter/material.dart';
 import 'package:fnpv_app/database/database_helper.dart';
 import 'package:fnpv_app/models/envio_muestra_model.dart';
@@ -84,6 +84,15 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
   // PACIENTES NEFRO - FORRADOS
   final _b12Controller = TextEditingController();
   final _acidoFolicoController = TextEditingController();
+
+  // ✅ FUNCIÓN HELPER PARA VALORES POR DEFECTO
+  String _obtenerValorTexto(TextEditingController controller) {
+    return controller.text.isEmpty ? 'x' : controller.text;
+  }
+
+  String _obtenerValorNumerico(TextEditingController controller) {
+    return controller.text.isEmpty ? '0' : controller.text;
+  }
 
   @override
   void initState() {
@@ -261,7 +270,7 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
             child: TextFormField(
               controller: controller,
               decoration: InputDecoration(
-                hintText: hint ?? '0',
+                hintText: hint ?? 'x (por defecto)', // ✅ Hint mejorado
                 hintStyle: TextStyle(
                   color: Colors.grey[400],
                   fontSize: isSmallScreen ? 12 : 14, // 🆕 Tamaño adaptativo
@@ -699,7 +708,7 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                               labelStyle: TextStyle(
                                 color: Color(0xFF6B7280),
                                 fontWeight: FontWeight.w600,
-                                fontSize: isSmallScreen ? 14 : 16, // 🆕 Tamaño adaptativo
+                                                                fontSize: isSmallScreen ? 14 : 16, // 🆕 Tamaño adaptativo
                               ),
                               hintText: 'Ej: 1234567890',
                               hintStyle: TextStyle(
@@ -709,7 +718,7 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                               prefixIcon: Container(
                                 margin: EdgeInsets.all(isSmallScreen ? 10 : 12), // 🆕 Margen adaptativo
                                 padding: EdgeInsets.all(isSmallScreen ? 6 : 8), // 🆕 Padding adaptativo
-                                                                decoration: BoxDecoration(
+                                decoration: BoxDecoration(
                                   gradient: LinearGradient(
                                     colors: [Color(0xFF10B981), Color(0xFF059669)],
                                   ),
@@ -1003,9 +1012,9 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                           _buildModernNumericField('BUNO24H', _buno24hController, accentColor: Color(0xFF059669)),
                         ]),
                         _buildFieldRow([
-                          _buildModernNumericField('PESO', _pesoController, hint: 'kg', accentColor: Color(0xFF059669)),
-                          _buildModernNumericField('TALLA', _tallaController, hint: 'm', accentColor: Color(0xFF059669)),
-                          _buildModernNumericField('VOLM', _volmController, hint: 'ml', accentColor: Color(0xFF059669)),
+                          _buildModernNumericField('PESO', _pesoController, hint: '0 kg', accentColor: Color(0xFF059669)), // ✅ CORREGIDO
+                          _buildModernNumericField('TALLA', _tallaController, hint: '0 m', accentColor: Color(0xFF059669)), // ✅ CORREGIDO
+                          _buildModernNumericField('VOLM', _volmController, hint: '0 ml', accentColor: Color(0xFF059669)), // ✅ CORREGIDO
                         ]),
                         
                         SizedBox(height: isSmallScreen ? 24 : 32), // 🆕 Espaciado adaptativo
@@ -1094,44 +1103,48 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                   envioMuestraId: '',
                   pacienteId: _pacienteSeleccionado?.id ?? '',
                   numeroOrden: widget.numeroOrden,
-                  dm: _dmController.text.isEmpty ? null : _dmController.text,
-                  hta: _htaController.text.isEmpty ? null : _htaController.text,
+                  
+                  // ✅ CAMPOS CON VALORES POR DEFECTO CORRECTOS
+                  dm: _obtenerValorTexto(_dmController),
+                  hta: _obtenerValorTexto(_htaController),
                   numMuestrasEnviadas: null,
                   tuboLila: null,
                   tuboAmarillo: null,
                   tuboAmarilloForrado: null,
-                  orinaEsp: _relacionCreaAlbController.text.isEmpty ? null : _relacionCreaAlbController.text,
+                  orinaEsp: _obtenerValorTexto(_relacionCreaAlbController),
                   orina24h: null,
-                  a: _aController.text.isEmpty ? null : _aController.text,
-                  m: _mController.text.isEmpty ? null : _mController.text,
-                  oe: _oeController.text.isEmpty ? null : _oeController.text,
-                  o24h: _o24hController.text.isEmpty ? null : _o24hController.text,
-                  po: _poController.text.isEmpty ? null : _poController.text,
-                  h3: _h3Controller.text.isEmpty ? null : _h3Controller.text,
-                  hba1c: _hba1cController.text.isEmpty ? null : _hba1cController.text,
-                  pth: _pthController.text.isEmpty ? null : _pthController.text,
-                  glu: _gluController.text.isEmpty ? null : _gluController.text,
-                  crea: _creaController.text.isEmpty ? null : _creaController.text,
-                  pl: _plController.text.isEmpty ? null : _plController.text,
-                  au: _auController.text.isEmpty ? null : _auController.text,
-                  bun: _bunController.text.isEmpty ? null : _bunController.text,
-                  relacionCreaAlb: _relacionCreaAlbController.text.isEmpty ? null : _relacionCreaAlbController.text,
-                  dcre24h: _dcre24hController.text.isEmpty ? null : _dcre24hController.text,
-                  alb24h: _alb24hController.text.isEmpty ? null : _alb24hController.text,
-                  buno24h: _buno24hController.text.isEmpty ? null : _buno24hController.text,
-                  fer: _ferController.text.isEmpty ? null : _ferController.text,
-                  tra: _traController.text.isEmpty ? null : _traController.text,
-                  fosfat: _fosfatController.text.isEmpty ? null : _fosfatController.text,
-                  alb: _albController.text.isEmpty ? null : _albController.text,
-                  fe: _feController.text.isEmpty ? null : _feController.text,
-                  tsh: _tshController.text.isEmpty ? null : _tshController.text,
-                  p: _pController.text.isEmpty ? null : _pController.text,
-                  ionograma: _ionogramaController.text.isEmpty ? null : _ionogramaController.text,
-                  b12: _b12Controller.text.isEmpty ? null : _b12Controller.text,
-                  acidoFolico: _acidoFolicoController.text.isEmpty ? null : _acidoFolicoController.text,
-                  peso: _pesoController.text.isEmpty ? null : _pesoController.text,
-                  talla: _tallaController.text.isEmpty ? null : _tallaController.text,
-                  volumen: _volmController.text.isEmpty ? null : _volmController.text,
+                  a: _obtenerValorTexto(_aController),
+                  m: _obtenerValorTexto(_mController),
+                  oe: _obtenerValorTexto(_oeController),
+                  o24h: _obtenerValorTexto(_o24hController),
+                  po: _obtenerValorTexto(_poController),
+                  h3: _obtenerValorTexto(_h3Controller),
+                  hba1c: _obtenerValorTexto(_hba1cController),
+                  pth: _obtenerValorTexto(_pthController),
+                  glu: _obtenerValorTexto(_gluController),
+                  crea: _obtenerValorTexto(_creaController),
+                  pl: _obtenerValorTexto(_plController),
+                  au: _obtenerValorTexto(_auController),
+                  bun: _obtenerValorTexto(_bunController),
+                  relacionCreaAlb: _obtenerValorTexto(_relacionCreaAlbController),
+                  dcre24h: _obtenerValorTexto(_dcre24hController),
+                  alb24h: _obtenerValorTexto(_alb24hController),
+                  buno24h: _obtenerValorTexto(_buno24hController),
+                  fer: _obtenerValorTexto(_ferController),
+                  tra: _obtenerValorTexto(_traController),
+                  fosfat: _obtenerValorTexto(_fosfatController),
+                  alb: _obtenerValorTexto(_albController),
+                  fe: _obtenerValorTexto(_feController),
+                  tsh: _obtenerValorTexto(_tshController),
+                  p: _obtenerValorTexto(_pController),
+                  ionograma: _obtenerValorTexto(_ionogramaController),
+                  b12: _obtenerValorTexto(_b12Controller),
+                  acidoFolico: _obtenerValorTexto(_acidoFolicoController),
+                  
+                  // ✅ CAMPOS NUMÉRICOS CON VALOR POR DEFECTO "0"
+                  peso: _obtenerValorNumerico(_pesoController),
+                  talla: _obtenerValorNumerico(_tallaController),
+                  volumen: _obtenerValorNumerico(_volmController),
                 );
                 
                 widget.onAgregar(detalle);
@@ -1258,4 +1271,4 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
   }
 }
 
-                                
+
