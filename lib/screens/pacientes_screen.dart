@@ -260,7 +260,107 @@ class _PacientesScreenState extends State<PacientesScreen> {
     );
   }
 
-  Widget _buildPacienteCard(Paciente paciente, ScreenType screenType) {
+  // NUEVA FUNCIÓN: Tarjeta optimizada para grid
+  Widget _buildPacienteGridCard(Paciente paciente, ScreenType screenType) {
+    final provider = Provider.of<PacienteProvider>(context, listen: false);
+    final isOffline = paciente.syncStatus == 0;
+
+    return Card(
+      elevation: 2,
+      margin: const EdgeInsets.all(4),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: LinearGradient(
+            colors: [Colors.white, lightGreen.withOpacity(0.05)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header con avatar y acciones
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: isOffline ? Colors.orange.shade700 : primaryGreen,
+                    child: isOffline
+                        ? const Icon(
+                            Iconsax.warning_2,
+                            color: Colors.white, 
+                            size: 16
+                          )
+                        : Text(
+                            paciente.nombre[0] + paciente.apellido[0],
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                  ),
+                  const Spacer(),
+                  _buildActionButtons(paciente, screenType),
+                ],
+              ),
+              const SizedBox(height: 12),
+              
+              // Información del paciente
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      paciente.nombreCompleto,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'ID: ${paciente.identificacion}',
+                      style: TextStyle(
+                        color: primaryGreen,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    if (provider.getSedeById(paciente.idsede) != null)
+                      Expanded(
+                        child: Text(
+                          'Sede: ${provider.getSedeById(paciente.idsede)?['nombresede'] ?? 'Desconocida'}',
+                          style: const TextStyle(
+                            fontStyle: FontStyle.italic,
+                            color: Colors.black54,
+                            fontSize: 11,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Tarjeta original para lista (mobile)
+  Widget _buildPacienteListCard(Paciente paciente, ScreenType screenType) {
     final provider = Provider.of<PacienteProvider>(context, listen: false);
     final isOffline = paciente.syncStatus == 0;
     final isCompact = screenType == ScreenType.mobile;
@@ -392,6 +492,7 @@ class _PacientesScreenState extends State<PacientesScreen> {
     );
   }
 
+  // FUNCIÓN CORREGIDA: Ahora usa diferentes tarjetas según el layout
   Widget _buildPacientesDisplay(List<Paciente> pacientesToShow, ScreenType screenType) {
     switch (screenType) {
       case ScreenType.mobile:
@@ -400,7 +501,7 @@ class _PacientesScreenState extends State<PacientesScreen> {
           itemCount: pacientesToShow.length,
           itemBuilder: (context, index) {
             final paciente = pacientesToShow[index];
-            return _buildPacienteCard(paciente, screenType);
+            return _buildPacienteListCard(paciente, screenType);
           },
         );
       
@@ -412,11 +513,11 @@ class _PacientesScreenState extends State<PacientesScreen> {
             crossAxisCount: 2,
             mainAxisSpacing: 16.0,
             crossAxisSpacing: 16.0,
-            childAspectRatio: 2.5,
+            childAspectRatio: 1.4, // Ajustado para mejor proporción
           ),
           itemBuilder: (context, index) {
             final paciente = pacientesToShow[index];
-            return _buildPacienteCard(paciente, screenType);
+            return _buildPacienteGridCard(paciente, screenType);
           },
         );
       
@@ -428,11 +529,11 @@ class _PacientesScreenState extends State<PacientesScreen> {
             crossAxisCount: 3,
             mainAxisSpacing: 20.0,
             crossAxisSpacing: 20.0,
-            childAspectRatio: 2.8,
+            childAspectRatio: 1.3, // Ajustado para mejor proporción
           ),
           itemBuilder: (context, index) {
             final paciente = pacientesToShow[index];
-            return _buildPacienteCard(paciente, screenType);
+            return _buildPacienteGridCard(paciente, screenType);
           },
         );
       
@@ -444,11 +545,11 @@ class _PacientesScreenState extends State<PacientesScreen> {
             crossAxisCount: 4,
             mainAxisSpacing: 24.0,
             crossAxisSpacing: 24.0,
-            childAspectRatio: 3.0,
+            childAspectRatio: 1.2, // Ajustado para mejor proporción
           ),
           itemBuilder: (context, index) {
             final paciente = pacientesToShow[index];
-            return _buildPacienteCard(paciente, screenType);
+            return _buildPacienteGridCard(paciente, screenType);
           },
         );
     }
@@ -754,7 +855,7 @@ class _PacientesScreenState extends State<PacientesScreen> {
                           decoration: InputDecoration(
                               labelText: 'Apellido',
                               border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8))),
+                                                                  borderRadius: BorderRadius.circular(8))),
                           validator: (v) => v?.isEmpty ?? true ? 'Requerido' : null,
                         ),
                         const SizedBox(height: 16),
@@ -831,7 +932,7 @@ class _PacientesScreenState extends State<PacientesScreen> {
                               nombre: nombreController.text.trim(),
                               apellido: apellidoController.text.trim(),
                               genero: genero,
-                                                           idsede: sedeSeleccionada!,
+                              idsede: sedeSeleccionada!,
                             );
                             try {
                               await provider.addPaciente(nuevoPaciente);
@@ -1195,3 +1296,4 @@ enum ScreenType {
   largeDesktop,
 }
 
+                                

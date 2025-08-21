@@ -1,4 +1,4 @@
-// screens/agregar_detalle_muestra_screen.dart - VERSIÓN CORREGIDA COMPLETA
+// screens/agregar_detalle_muestra_screen.dart - VERSIÓN CORREGIDA SIN VALORES POR DEFECTO
 import 'package:flutter/material.dart';
 import 'package:fnpv_app/database/database_helper.dart';
 import 'package:fnpv_app/models/envio_muestra_model.dart';
@@ -85,13 +85,10 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
   final _b12Controller = TextEditingController();
   final _acidoFolicoController = TextEditingController();
 
-  // ✅ FUNCIÓN HELPER PARA VALORES POR DEFECTO
-  String _obtenerValorTexto(TextEditingController controller) {
-    return controller.text.isEmpty ? 'x' : controller.text;
-  }
-
-  String _obtenerValorNumerico(TextEditingController controller) {
-    return controller.text.isEmpty ? '0' : controller.text;
+  // ✅ FUNCIÓN HELPER PARA VALORES OPCIONALES - SIN VALORES POR DEFECTO
+  String? _obtenerValorOpcional(TextEditingController controller) {
+    final valor = controller.text.trim();
+    return valor.isEmpty ? null : valor;
   }
 
   @override
@@ -208,8 +205,8 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
     }
   }
 
-  // 🆕 WIDGET PARA CAMPOS NUMÉRICOS ULTRA MODERNOS - RESPONSIVO
-  Widget _buildModernNumericField(String label, TextEditingController controller, {String? hint, Color? accentColor}) {
+  // 🆕 WIDGET PARA CAMPOS OPCIONALES ULTRA MODERNOS - RESPONSIVO
+  Widget _buildModernOptionalField(String label, TextEditingController controller, {String? hint, Color? accentColor}) {
     final color = accentColor ?? Color(0xFF6366F1);
     
     // 🆕 Obtener dimensiones para responsividad
@@ -270,7 +267,7 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
             child: TextFormField(
               controller: controller,
               decoration: InputDecoration(
-                hintText: hint ?? 'x (por defecto)', // ✅ Hint mejorado
+                hintText: hint ?? 'Opcional', // ✅ Hint mejorado sin valores por defecto
                 hintStyle: TextStyle(
                   color: Colors.grey[400],
                   fontSize: isSmallScreen ? 12 : 14, // 🆕 Tamaño adaptativo
@@ -295,7 +292,7 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                 filled: true,
                 fillColor: Colors.transparent,
               ),
-              keyboardType: TextInputType.text, // 🔄 CAMBIO: Teclado normal en lugar de numérico
+              keyboardType: TextInputType.text, // 🔄 Teclado normal
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: isSmallScreen ? 14 : 16, // 🆕 Tamaño adaptativo
@@ -303,6 +300,7 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                 color: Color(0xFF111827),
                 letterSpacing: 0.3,
               ),
+              // ✅ SIN VALIDACIÓN OBLIGATORIA - CAMPOS OPCIONALES
             ),
           ),
         ],
@@ -708,12 +706,12 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                               labelStyle: TextStyle(
                                 color: Color(0xFF6B7280),
                                 fontWeight: FontWeight.w600,
-                                                                fontSize: isSmallScreen ? 14 : 16, // 🆕 Tamaño adaptativo
+                                fontSize: isSmallScreen ? 14 : 16, // 🆕 Tamaño adaptativo
                               ),
                               hintText: 'Ej: 1234567890',
                               hintStyle: TextStyle(
                                 color: Colors.grey[400],
-                                fontSize: isSmallScreen ? 13 : 14, // 🆕 Tamaño adaptativo
+                                                                fontSize: isSmallScreen ? 13 : 14, // 🆕 Tamaño adaptativo
                               ),
                               prefixIcon: Container(
                                 margin: EdgeInsets.all(isSmallScreen ? 10 : 12), // 🆕 Margen adaptativo
@@ -929,8 +927,8 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                           secondaryColor: Color(0xFFDC2626)
                         ),
                         _buildFieldRow([
-                          _buildModernNumericField('DM', _dmController, accentColor: Color(0xFFEF4444)),
-                          _buildModernNumericField('HTA', _htaController, accentColor: Color(0xFFEF4444)),
+                          _buildModernOptionalField('DM', _dmController, accentColor: Color(0xFFEF4444)),
+                          _buildModernOptionalField('HTA', _htaController, accentColor: Color(0xFFEF4444)),
                         ]),
                         
                         SizedBox(height: isSmallScreen ? 24 : 32), // 🆕 Espaciado adaptativo
@@ -943,13 +941,13 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                           secondaryColor: Color(0xFF7C3AED)
                         ),
                         _buildFieldRow([
-                          _buildModernNumericField('A', _aController, accentColor: Color(0xFF8B5CF6)),
-                          _buildModernNumericField('M', _mController, accentColor: Color(0xFF8B5CF6)),
-                          _buildModernNumericField('OE', _oeController, accentColor: Color(0xFF8B5CF6)),
+                          _buildModernOptionalField('A', _aController, accentColor: Color(0xFF8B5CF6)),
+                          _buildModernOptionalField('M', _mController, accentColor: Color(0xFF8B5CF6)),
+                          _buildModernOptionalField('OE', _oeController, accentColor: Color(0xFF8B5CF6)),
                         ]),
                         _buildFieldRow([
-                          _buildModernNumericField('O24H', _o24hController, accentColor: Color(0xFF8B5CF6)),
-                          _buildModernNumericField('PO', _poController, accentColor: Color(0xFF8B5CF6)),
+                          _buildModernOptionalField('O24H', _o24hController, accentColor: Color(0xFF8B5CF6)),
+                          _buildModernOptionalField('PO', _poController, accentColor: Color(0xFF8B5CF6)),
                           Container(), // Espacio vacío
                         ]),
                         
@@ -963,9 +961,9 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                           secondaryColor: Color(0xFF9333EA)
                         ),
                         _buildFieldRow([
-                          _buildModernNumericField('H3', _h3Controller, accentColor: Color(0xFFA855F7)),
-                          _buildModernNumericField('HBA1C', _hba1cController, accentColor: Color(0xFFA855F7)),
-                          _buildModernNumericField('PTH', _pthController, accentColor: Color(0xFFA855F7)),
+                          _buildModernOptionalField('H3', _h3Controller, accentColor: Color(0xFFA855F7)),
+                          _buildModernOptionalField('HBA1C', _hba1cController, accentColor: Color(0xFFA855F7)),
+                          _buildModernOptionalField('PTH', _pthController, accentColor: Color(0xFFA855F7)),
                         ]),
                         
                         SizedBox(height: isSmallScreen ? 24 : 32), // 🆕 Espaciado adaptativo
@@ -978,13 +976,13 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                           secondaryColor: Color(0xFFD97706)
                         ),
                         _buildFieldRow([
-                          _buildModernNumericField('GLU', _gluController, accentColor: Color(0xFFF59E0B)),
-                          _buildModernNumericField('CREA', _creaController, accentColor: Color(0xFFF59E0B)),
-                          _buildModernNumericField('PL', _plController, accentColor: Color(0xFFF59E0B)),
+                          _buildModernOptionalField('GLU', _gluController, accentColor: Color(0xFFF59E0B)),
+                          _buildModernOptionalField('CREA', _creaController, accentColor: Color(0xFFF59E0B)),
+                          _buildModernOptionalField('PL', _plController, accentColor: Color(0xFFF59E0B)),
                         ]),
                         _buildFieldRow([
-                          _buildModernNumericField('AU', _auController, accentColor: Color(0xFFF59E0B)),
-                          _buildModernNumericField('BUN', _bunController, accentColor: Color(0xFFF59E0B)),
+                          _buildModernOptionalField('AU', _auController, accentColor: Color(0xFFF59E0B)),
+                          _buildModernOptionalField('BUN', _bunController, accentColor: Color(0xFFF59E0B)),
                           Container(),
                         ]),
                         
@@ -1000,21 +998,21 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                         
                         _buildModernSubTitle('ORINA ESP', color: Color(0xFF06B6D4)),
                         _buildFieldRow([
-                          _buildModernNumericField('RELACIÓN CREA/ALB', _relacionCreaAlbController, accentColor: Color(0xFF06B6D4)),
-                          _buildModernNumericField('PO', _po2Controller, accentColor: Color(0xFF06B6D4)),
+                          _buildModernOptionalField('RELACIÓN CREA/ALB', _relacionCreaAlbController, accentColor: Color(0xFF06B6D4)),
+                          _buildModernOptionalField('PO', _po2Controller, accentColor: Color(0xFF06B6D4)),
                           Container(),
                         ]),
                         
                         _buildModernSubTitle('ORINA 24H', color: Color(0xFF059669)),
                         _buildFieldRow([
-                          _buildModernNumericField('DCRE24H', _dcre24hController, accentColor: Color(0xFF059669)),
-                          _buildModernNumericField('ALB24H', _alb24hController, accentColor: Color(0xFF059669)),
-                          _buildModernNumericField('BUNO24H', _buno24hController, accentColor: Color(0xFF059669)),
+                          _buildModernOptionalField('DCRE24H', _dcre24hController, accentColor: Color(0xFF059669)),
+                          _buildModernOptionalField('ALB24H', _alb24hController, accentColor: Color(0xFF059669)),
+                          _buildModernOptionalField('BUNO24H', _buno24hController, accentColor: Color(0xFF059669)),
                         ]),
                         _buildFieldRow([
-                          _buildModernNumericField('PESO', _pesoController, hint: '0 kg', accentColor: Color(0xFF059669)), // ✅ CORREGIDO
-                          _buildModernNumericField('TALLA', _tallaController, hint: '0 m', accentColor: Color(0xFF059669)), // ✅ CORREGIDO
-                          _buildModernNumericField('VOLM', _volmController, hint: '0 ml', accentColor: Color(0xFF059669)), // ✅ CORREGIDO
+                          _buildModernOptionalField('PESO', _pesoController, hint: 'kg', accentColor: Color(0xFF059669)), // ✅ CORREGIDO
+                          _buildModernOptionalField('TALLA', _tallaController, hint: 'm', accentColor: Color(0xFF059669)), // ✅ CORREGIDO
+                          _buildModernOptionalField('VOLM', _volmController, hint: 'ml', accentColor: Color(0xFF059669)), // ✅ CORREGIDO
                         ]),
                         
                         SizedBox(height: isSmallScreen ? 24 : 32), // 🆕 Espaciado adaptativo
@@ -1029,25 +1027,25 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                         
                         _buildModernSubTitle('TUBO AMARILLO', color: Color(0xFF10B981)),
                         _buildFieldRow([
-                          _buildModernNumericField('FER', _ferController, accentColor: Color(0xFF10B981)),
-                          _buildModernNumericField('TRA', _traController, accentColor: Color(0xFF10B981)),
-                          _buildModernNumericField('FOSFAT', _fosfatController, accentColor: Color(0xFF10B981)),
+                          _buildModernOptionalField('FER', _ferController, accentColor: Color(0xFF10B981)),
+                          _buildModernOptionalField('TRA', _traController, accentColor: Color(0xFF10B981)),
+                          _buildModernOptionalField('FOSFAT', _fosfatController, accentColor: Color(0xFF10B981)),
                         ]),
                         _buildFieldRow([
-                          _buildModernNumericField('ALB', _albController, accentColor: Color(0xFF10B981)),
-                          _buildModernNumericField('FE', _feController, accentColor: Color(0xFF10B981)),
-                          _buildModernNumericField('TSH', _tshController, accentColor: Color(0xFF10B981)),
+                          _buildModernOptionalField('ALB', _albController, accentColor: Color(0xFF10B981)),
+                          _buildModernOptionalField('FE', _feController, accentColor: Color(0xFF10B981)),
+                          _buildModernOptionalField('TSH', _tshController, accentColor: Color(0xFF10B981)),
                         ]),
                         _buildFieldRow([
-                          _buildModernNumericField('P', _pController, accentColor: Color(0xFF10B981)),
-                          _buildModernNumericField('IONOGRAMA', _ionogramaController, accentColor: Color(0xFF10B981)),
+                          _buildModernOptionalField('P', _pController, accentColor: Color(0xFF10B981)),
+                          _buildModernOptionalField('IONOGRAMA', _ionogramaController, accentColor: Color(0xFF10B981)),
                           Container(),
                         ]),
                         
                         _buildModernSubTitle('FORRADOS', color: Color(0xFF6B7280)),
                         _buildFieldRow([
-                          _buildModernNumericField('B12', _b12Controller, accentColor: Color(0xFF6B7280)),
-                          _buildModernNumericField('Á. FÓLICO', _acidoFolicoController, accentColor: Color(0xFF6B7280)),
+                          _buildModernOptionalField('B12', _b12Controller, accentColor: Color(0xFF6B7280)),
+                          _buildModernOptionalField('Á. FÓLICO', _acidoFolicoController, accentColor: Color(0xFF6B7280)),
                           Container(),
                         ]),
                       ],
@@ -1104,47 +1102,47 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                   pacienteId: _pacienteSeleccionado?.id ?? '',
                   numeroOrden: widget.numeroOrden,
                   
-                  // ✅ CAMPOS CON VALORES POR DEFECTO CORRECTOS
-                  dm: _obtenerValorTexto(_dmController),
-                  hta: _obtenerValorTexto(_htaController),
+                  // ✅ CAMPOS OPCIONALES - PUEDEN SER NULL
+                  dm: _obtenerValorOpcional(_dmController),
+                  hta: _obtenerValorOpcional(_htaController),
                   numMuestrasEnviadas: null,
                   tuboLila: null,
                   tuboAmarillo: null,
                   tuboAmarilloForrado: null,
-                  orinaEsp: _obtenerValorTexto(_relacionCreaAlbController),
+                  orinaEsp: _obtenerValorOpcional(_relacionCreaAlbController),
                   orina24h: null,
-                  a: _obtenerValorTexto(_aController),
-                  m: _obtenerValorTexto(_mController),
-                  oe: _obtenerValorTexto(_oeController),
-                  o24h: _obtenerValorTexto(_o24hController),
-                  po: _obtenerValorTexto(_poController),
-                  h3: _obtenerValorTexto(_h3Controller),
-                  hba1c: _obtenerValorTexto(_hba1cController),
-                  pth: _obtenerValorTexto(_pthController),
-                  glu: _obtenerValorTexto(_gluController),
-                  crea: _obtenerValorTexto(_creaController),
-                  pl: _obtenerValorTexto(_plController),
-                  au: _obtenerValorTexto(_auController),
-                  bun: _obtenerValorTexto(_bunController),
-                  relacionCreaAlb: _obtenerValorTexto(_relacionCreaAlbController),
-                  dcre24h: _obtenerValorTexto(_dcre24hController),
-                  alb24h: _obtenerValorTexto(_alb24hController),
-                  buno24h: _obtenerValorTexto(_buno24hController),
-                  fer: _obtenerValorTexto(_ferController),
-                  tra: _obtenerValorTexto(_traController),
-                  fosfat: _obtenerValorTexto(_fosfatController),
-                  alb: _obtenerValorTexto(_albController),
-                  fe: _obtenerValorTexto(_feController),
-                  tsh: _obtenerValorTexto(_tshController),
-                  p: _obtenerValorTexto(_pController),
-                  ionograma: _obtenerValorTexto(_ionogramaController),
-                  b12: _obtenerValorTexto(_b12Controller),
-                  acidoFolico: _obtenerValorTexto(_acidoFolicoController),
+                  a: _obtenerValorOpcional(_aController),
+                  m: _obtenerValorOpcional(_mController),
+                  oe: _obtenerValorOpcional(_oeController),
+                  o24h: _obtenerValorOpcional(_o24hController),
+                  po: _obtenerValorOpcional(_poController),
+                  h3: _obtenerValorOpcional(_h3Controller),
+                  hba1c: _obtenerValorOpcional(_hba1cController),
+                  pth: _obtenerValorOpcional(_pthController),
+                  glu: _obtenerValorOpcional(_gluController),
+                  crea: _obtenerValorOpcional(_creaController),
+                  pl: _obtenerValorOpcional(_plController),
+                  au: _obtenerValorOpcional(_auController),
+                  bun: _obtenerValorOpcional(_bunController),
+                  relacionCreaAlb: _obtenerValorOpcional(_relacionCreaAlbController),
+                  dcre24h: _obtenerValorOpcional(_dcre24hController),
+                  alb24h: _obtenerValorOpcional(_alb24hController),
+                  buno24h: _obtenerValorOpcional(_buno24hController),
+                  fer: _obtenerValorOpcional(_ferController),
+                  tra: _obtenerValorOpcional(_traController),
+                  fosfat: _obtenerValorOpcional(_fosfatController),
+                  alb: _obtenerValorOpcional(_albController),
+                  fe: _obtenerValorOpcional(_feController),
+                  tsh: _obtenerValorOpcional(_tshController),
+                  p: _obtenerValorOpcional(_pController),
+                  ionograma: _obtenerValorOpcional(_ionogramaController),
+                  b12: _obtenerValorOpcional(_b12Controller),
+                  acidoFolico: _obtenerValorOpcional(_acidoFolicoController),
                   
-                  // ✅ CAMPOS NUMÉRICOS CON VALOR POR DEFECTO "0"
-                  peso: _obtenerValorNumerico(_pesoController),
-                  talla: _obtenerValorNumerico(_tallaController),
-                  volumen: _obtenerValorNumerico(_volmController),
+                  // ✅ CAMPOS NUMÉRICOS OPCIONALES - PUEDEN SER NULL
+                  peso: _obtenerValorOpcional(_pesoController),
+                  talla: _obtenerValorOpcional(_tallaController),
+                  volumen: _obtenerValorOpcional(_volmController),
                 );
                 
                 widget.onAgregar(detalle);
@@ -1270,5 +1268,3 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
     );
   }
 }
-
-
