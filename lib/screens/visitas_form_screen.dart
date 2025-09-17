@@ -264,21 +264,54 @@ void _loadVisitaForEdit(Visita visita) async {
     _calculateIMC();
   }
 
-  // ✅ MÉTODO MEJORADO PARA TOMAR FOTO
-  Future<void> _tomarFoto() async {
+  // ✅ MÉTODO MEJORADO PARA SELECCIONAR ORIGEN DE IMAGEN
+  Future<void> _seleccionarImagen() async {
+    // Desactivar foco y ocultar teclado
+    FocusScope.of(context).unfocus();
+    
+    // Mostrar diálogo de opciones
+    final ImageSource? source = await showDialog<ImageSource>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Seleccionar imagen'),
+          content: const Text('¿Cómo desea obtener la imagen?'),
+          actions: [
+            TextButton.icon(
+              onPressed: () => Navigator.of(context).pop(ImageSource.camera),
+              icon: const Icon(Icons.camera_alt),
+              label: const Text('Cámara'),
+            ),
+            TextButton.icon(
+              onPressed: () => Navigator.of(context).pop(ImageSource.gallery),
+              icon: const Icon(Icons.photo_library),
+              label: const Text('Galería'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancelar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    // Si el usuario canceló, no hacer nada
+    if (source == null) return;
+
     try {
       final ImagePicker picker = ImagePicker();
-      final XFile? photo = await picker.pickImage(
-        source: ImageSource.camera,
+      final XFile? image = await picker.pickImage(
+        source: source,
         maxWidth: 800,
         maxHeight: 600,
         imageQuality: 80,
       );
       
-      if (photo != null) {
-        // 🆕 Usar FileService para guardar la foto
+      if (image != null) {
+        // 🆕 Usar FileService para guardar la imagen
         final visitaId = _currentVisitaId ?? 'temp_${DateTime.now().millisecondsSinceEpoch}';
-        final savedPath = await FileService.saveRiskPhoto(File(photo.path), visitaId);
+        final savedPath = await FileService.saveRiskPhoto(File(image.path), visitaId);
         
         if (savedPath != null) {
           setState(() {
@@ -286,28 +319,110 @@ void _loadVisitaForEdit(Visita visita) async {
             _fotoRiesgoPath = savedPath;
           });
           
-          debugPrint('✅ Foto guardada en: $savedPath');
+          debugPrint('✅ Imagen guardada en: $savedPath');
           
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Foto capturada correctamente'),
+            SnackBar(
+              content: Text(
+                source == ImageSource.camera 
+                    ? 'Foto capturada correctamente' 
+                    : 'Imagen seleccionada correctamente'
+              ),
               backgroundColor: Colors.green,
             ),
           );
         } else {
-          throw Exception('No se pudo guardar la foto');
+          throw Exception('No se pudo guardar la imagen');
         }
       }
     } catch (e) {
-      debugPrint('❌ Error al tomar foto: $e');
+      debugPrint('❌ Error al obtener imagen: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error al tomar foto: $e'),
+          content: Text('Error al obtener imagen: $e'),
           backgroundColor: Colors.red,
         ),
       );
     }
   }
+
+// ✅ MÉTODO PARA TOMAR FOTO DIRECTAMENTE
+Future<void> _tomarFotoDirecta() async {
+  try {
+    final ImagePicker picker = ImagePicker();
+    final XFile? photo = await picker.pickImage(
+      source: ImageSource.camera,
+      maxWidth: 800,
+      maxHeight: 600,
+      imageQuality: 80,
+    );
+    
+    if (photo != null) {
+      await _procesarImagenSeleccionada(photo, 'Foto capturada correctamente');
+    }
+  } catch (e) {
+    _mostrarErrorImagen('Error al tomar foto: $e');
+  }
+}
+
+// ✅ MÉTODO PARA SELECCIONAR DE GALERÍA
+Future<void> _seleccionarDeGaleria() async {
+  try {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 800,
+      maxHeight: 600,
+      imageQuality: 80,
+    );
+    
+    if (image != null) {
+      await _procesarImagenSeleccionada(image, 'Imagen seleccionada correctamente');
+    }
+  } catch (e) {
+    _mostrarErrorImagen('Error al seleccionar imagen: $e');
+  }
+}
+
+  // ✅ MÉTODO COMÚN PARA PROCESAR IMAGEN
+  Future<void> _procesarImagenSeleccionada(XFile image, String mensajeExito) async {
+    try {
+      final visitaId = _currentVisitaId ?? 'temp_${DateTime.now().millisecondsSinceEpoch}';
+      final savedPath = await FileService.saveRiskPhoto(File(image.path), visitaId);
+      
+      if (savedPath != null) {
+        setState(() {
+          _fotoRiesgo = File(savedPath);
+          _fotoRiesgoPath = savedPath;
+        });
+        
+        debugPrint('✅ Imagen guardada en: $savedPath');
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(mensajeExito),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        throw Exception('No se pudo guardar la imagen');
+      }
+    } catch (e) {
+      _mostrarErrorImagen('Error al procesar imagen: $e');
+    }
+  }
+
+  // ✅ MÉTODO PARA MOSTRAR ERRORES
+  void _mostrarErrorImagen(String mensaje) {
+    debugPrint('❌ $mensaje');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(mensaje),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+
 
   // ✅ MÉTODO MEJORADO PARA MANEJAR FIRMA
   void _mostrarDialogoFirma() {
@@ -1636,68 +1751,100 @@ void _showMultipleSelectionDialog({
   );
 }
 
-  // Widget para sección de foto
-  Widget _buildPhotoSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Riesgo Fotográfico',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
+// Widget para sección de foto - VERSIÓN MEJORADA
+Widget _buildPhotoSection() {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text(
+        'Riesgo Fotográfico',
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      const SizedBox(height: 8),
+      
+      if (_fotoRiesgo != null)
+        Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade300),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.file(
+              _fotoRiesgo!,
+              height: 200,
+              width: double.infinity,
+              fit: BoxFit.cover,
+            ),
           ),
         ),
-        const SizedBox(height: 8),
-        
-        if (_fotoRiesgo != null)
-          Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade300),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.file(
-                _fotoRiesgo!,
-                height: 200,
-                width: double.infinity,
-                fit: BoxFit.cover,
-              ),
-            ),
-          ),
-        
+      
+      // ✅ BOTONES ACTUALIZADOS
+      if (_fotoRiesgo == null) ...[
+        // Mostrar botones separados cuando no hay imagen
         Row(
           children: [
             Expanded(
               child: ElevatedButton.icon(
-                onPressed: _tomarFoto,
+                onPressed: () => _tomarFotoDirecta(),
                 icon: const Icon(Icons.camera_alt),
-                label: Text(_fotoRiesgo == null ? 'Tomar Foto' : 'Cambiar Foto'),
+                label: const Text('Cámara'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green[700],
                   foregroundColor: Colors.white,
                 ),
               ),
             ),
-            if (_fotoRiesgo != null) ...[
-              const SizedBox(width: 8),
-              IconButton(
-                onPressed: () => setState(() {
-                  _fotoRiesgo = null;
-                  _fotoRiesgoPath = null;
-                }),
-                icon: const Icon(Icons.delete),
-                color: Colors.red,
-                tooltip: 'Eliminar foto',
+            const SizedBox(width: 8),
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () => _seleccionarDeGaleria(),
+                icon: const Icon(Icons.photo_library),
+                label: const Text('Galería'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue[700],
+                  foregroundColor: Colors.white,
+                ),
               ),
-            ],
+            ),
+          ],
+        ),
+      ] else ...[
+        // Mostrar botón de opciones cuando ya hay imagen
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: _seleccionarImagen,
+                icon: const Icon(Icons.edit),
+                label: const Text('Cambiar Imagen'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange[700],
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton(
+              onPressed: () => setState(() {
+                _fotoRiesgo = null;
+                _fotoRiesgoPath = null;
+              }),
+              icon: const Icon(Icons.delete),
+              color: Colors.red,
+              tooltip: 'Eliminar imagen',
+            ),
           ],
         ),
       ],
-    );
-  }
+    ],
+  );
+}
+
 
   // Widget para sección de firma
   Widget _buildSignatureSection() {

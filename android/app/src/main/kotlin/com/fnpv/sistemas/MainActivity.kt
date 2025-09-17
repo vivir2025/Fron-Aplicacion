@@ -1,4 +1,4 @@
-package com.fnpv.sistemas
+package com.fnpv.sistema
 
 import io.flutter.embedding.android.FlutterActivity
 
