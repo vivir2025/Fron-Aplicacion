@@ -356,6 +356,359 @@ static Future<Map<String, dynamic>> sincronizacionCompleta(String token) async {
   
   return resultado;
 }
+// services/sincronizacion_service.dart - MÉTODO CORREGIDO
+// services/sincronizacion_service.dart - MÉTODO CORREGIDO
+static Future<Map<String, dynamic>> sincronizarSoloPacientes(String token) async {
+  debugPrint('👥 Iniciando sincronización específica de pacientes...');
+  
+  final Map<String, dynamic> resultado = {
+    'pacientes': {'exitosas': 0, 'fallidas': 0, 'errores': <String>[]}, // ✅ CORREGIDO: Tipo explícito
+    'tiempo_total': 0,
+    'exito_general': false,
+  };
+  
+  final stopwatch = Stopwatch()..start();
+  
+  try {
+    final hasConnection = await ApiService.verificarConectividad();
+    if (!hasConnection) {
+      throw Exception('No hay conexión a internet disponible');
+    }
+    
+    debugPrint('✅ Conexión verificada, procediendo con sincronización...');
+    
+    // ✅ SINCRONIZAR PACIENTES OFFLINE PENDIENTES
+    debugPrint('📤 Sincronizando pacientes offline pendientes...');
+    final pacientesOfflineResult = await sincronizarPacientesOfflinePendientes(token);
+    
+    // ✅ CARGAR PACIENTES FALTANTES DESDE SERVIDOR
+    debugPrint('📥 Cargando pacientes faltantes desde servidor...');
+    final pacientesFaltantesResult = await cargarPacientesFaltantesDesdeServidor(token);
+    
+    // ✅ CONSOLIDAR RESULTADOS CON TIPOS CORRECTOS
+    final pacientesSubidos = pacientesOfflineResult['exitosas'] ?? 0;
+    final pacientesCargados = pacientesFaltantesResult['cargados'] ?? 0;
+    
+    // ✅ MANEJO SEGURO DE ERRORES
+    List<String> erroresSubida = [];
+    List<String> erroresCarga = [];
+    
+    if (pacientesOfflineResult['errores'] != null) {
+      erroresSubida = (pacientesOfflineResult['errores'] as List)
+          .map((e) => e.toString())
+          .toList();
+    }
+    
+    if (pacientesFaltantesResult['errores'] != null) {
+      erroresCarga = (pacientesFaltantesResult['errores'] as List)
+          .map((e) => e.toString())
+          .toList();
+    }
+    
+    resultado['pacientes'] = {
+      'exitosas': pacientesSubidos + pacientesCargados,
+      'fallidas': (pacientesOfflineResult['fallidas'] ?? 0),
+      'errores': [...erroresSubida, ...erroresCarga],
+      'subidos': pacientesSubidos,
+      'descargados': pacientesCargados,
+    };
+    
+    stopwatch.stop();
+    resultado['tiempo_total'] = stopwatch.elapsedMilliseconds;
+    resultado['exito_general'] = (pacientesSubidos + pacientesCargados) > 0;
+    
+    if (pacientesSubidos > 0) {
+      debugPrint('📤 $pacientesSubidos pacientes offline sincronizados al servidor');
+    }
+    
+    if (pacientesCargados > 0) {
+      debugPrint('📥 $pacientesCargados pacientes nuevos descargados del servidor');
+    }
+    
+    if (resultado['exito_general']) {
+      debugPrint('🎉 Sincronización de pacientes finalizada exitosamente en ${stopwatch.elapsedMilliseconds}ms');
+    } else {
+      debugPrint('⚠️ Sincronización de pacientes finalizada sin elementos para procesar');
+    }
+    
+  } catch (e) {
+    stopwatch.stop();
+    resultado['tiempo_total'] = stopwatch.elapsedMilliseconds;
+    resultado['error_general'] = e.toString();
+    
+    // ✅ MANEJO SEGURO DE ERRORES.
+    if (resultado['pacientes']['errores'] is List) {
+      (resultado['pacientes']['errores'] as List<String>).add('Error general: $e');
+    }
+    
+    debugPrint('💥 Error en sincronización de pacientes: $e');
+  }
+  
+  return resultado;
+}
+
+// services/sincronizacion_service.dart - MÉTODO MEJORADO PARA MANEJAR DUPLICADOS
+static Future<Map<String, dynamic>> sincronizarPacientesOfflinePendientes(String token) async {
+  final dbHelper = DatabaseHelper.instance;
+  
+  final pacientesLocales = await dbHelper.readAllPacientes();
+  final pacientesOffline = pacientesLocales.where((p) => 
+    p.id.startsWith('offline_') || p.syncStatus == 0
+  ).toList();
+
+  int exitosas = 0;
+  int fallidas = 0;
+  List<String> errores = [];
+
+  debugPrint('📤 Sincronizando ${pacientesOffline.length} pacientes offline...');
+
+  for (final paciente in pacientesOffline) {
+    try {
+      debugPrint('📡 Procesando paciente offline: ${paciente.identificacion}');
+      
+      final pacienteData = {
+        'identificacion': paciente.identificacion,
+        'nombre': paciente.nombre,
+        'apellido': paciente.apellido,
+        'fecnacimiento': paciente.fecnacimiento.toIso8601String().split('T')[0],
+        'genero': paciente.genero,
+        'idsede': paciente.idsede,
+        'latitud': paciente.latitud?.toString() ?? '',
+        'longitud': paciente.longitud?.toString() ?? '',
+      };
+      
+      Map<String, dynamic>? serverData;
+      bool pacienteProcessed = false;
+      
+      if (paciente.id.startsWith('offline_')) {
+        try {
+          // ✅ INTENTAR CREAR NUEVO PACIENTE
+          debugPrint('🆕 Creando paciente offline en servidor: ${paciente.identificacion}');
+          serverData = await ApiService.createPaciente(token, pacienteData);
+          
+          if (serverData != null) {
+            await dbHelper.deletePaciente(paciente.id);
+            final nuevoPaciente = Paciente.fromJson({
+              ...serverData,
+              'sync_status': 1,
+            });
+            await dbHelper.upsertPaciente(nuevoPaciente);
+            exitosas++;
+            pacienteProcessed = true;
+            debugPrint('✅ Paciente offline creado en servidor: ${paciente.identificacion}');
+          }
+        } catch (e) {
+          if (e.toString().contains('422') && e.toString().contains('already been taken')) {
+            // ✅ PACIENTE YA EXISTE - BUSCAR EN SERVIDOR Y SINCRONIZAR
+            debugPrint('⚠️ Paciente ${paciente.identificacion} ya existe en servidor, sincronizando...');
+            
+            try {
+              // Obtener pacientes del servidor para encontrar el ID correcto
+              final pacientesServidor = await ApiService.getPacientes(token);
+              final pacienteExistente = pacientesServidor.firstWhere(
+                (p) => p['identificacion'].toString() == paciente.identificacion,
+                orElse: () => null,
+              );
+              
+              if (pacienteExistente != null) {
+                // Eliminar versión offline y crear versión del servidor
+                await dbHelper.deletePaciente(paciente.id);
+                final pacienteSincronizado = Paciente.fromJson({
+                  ...pacienteExistente,
+                  'sync_status': 1,
+                });
+                await dbHelper.upsertPaciente(pacienteSincronizado);
+                exitosas++;
+                pacienteProcessed = true;
+                debugPrint('✅ Paciente offline sincronizado con versión del servidor: ${paciente.identificacion}');
+              }
+            } catch (syncError) {
+              debugPrint('❌ Error sincronizando paciente duplicado: $syncError');
+              errores.add('Error sincronizando duplicado ${paciente.identificacion}: $syncError');
+              fallidas++;
+            }
+          } else {
+            // Otro tipo de error
+            throw e;
+          }
+        }
+      } else {
+        // ✅ ACTUALIZAR PACIENTE EXISTENTE
+        debugPrint('🔄 Actualizando paciente existente: ${paciente.identificacion}');
+        serverData = await ApiService.actualizarPaciente(token, paciente.id, pacienteData);
+        
+        if (serverData != null) {
+          await dbHelper.markPacientesAsSynced([paciente.id]);
+          exitosas++;
+          pacienteProcessed = true;
+          debugPrint('✅ Paciente actualizado en servidor: ${paciente.identificacion}');
+        }
+      }
+      
+      // ✅ SINCRONIZAR COORDENADAS SI EL PACIENTE FUE PROCESADO
+      if (pacienteProcessed && paciente.latitud != null && paciente.longitud != null) {
+        try {
+          String pacienteId;
+          if (paciente.id.startsWith('offline_') && serverData != null) {
+            pacienteId = serverData['id'].toString();
+          } else {
+            pacienteId = paciente.id;
+          }
+          
+          final coordenadasResult = await ApiService.updatePacienteCoordenadas(
+            token,
+            pacienteId,
+            paciente.latitud!,
+            paciente.longitud!,
+          );
+          
+          if (coordenadasResult != null) {
+            debugPrint('📍 Coordenadas sincronizadas para ${paciente.identificacion}');
+          }
+        } catch (coordError) {
+          debugPrint('⚠️ Error sincronizando coordenadas: $coordError');
+        }
+      }
+      
+      if (!pacienteProcessed) {
+        fallidas++;
+        errores.add('No se pudo procesar paciente ${paciente.identificacion}');
+        debugPrint('❌ Falló procesamiento de ${paciente.identificacion}');
+      }
+      
+      await Future.delayed(const Duration(milliseconds: 300));
+      
+    } catch (e) {
+      fallidas++;
+      errores.add('Error en ${paciente.identificacion}: $e');
+      debugPrint('💥 Error procesando ${paciente.identificacion}: $e');
+    }
+  }
+
+  return {
+    'exitosas': exitosas,
+    'fallidas': fallidas,
+    'errores': errores,
+    'total': pacientesOffline.length,
+  };
+}
+
+// services/sincronizacion_service.dart - MÉTODO MEJORADO
+static Future<Map<String, dynamic>> cargarPacientesFaltantesDesdeServidor(String token) async {
+  try {
+    final dbHelper = DatabaseHelper.instance;
+    
+    // ✅ 1. OBTENER IDENTIFICACIONES DE PACIENTES LOCALES
+    final pacientesLocales = await dbHelper.readAllPacientes();
+    final identificacionesLocales = pacientesLocales.map((p) => p.identificacion).toSet();
+    
+    debugPrint('📋 Pacientes locales: ${identificacionesLocales.length}');
+    
+    // ✅ 2. OBTENER PACIENTES DEL SERVIDOR
+    List<Map<String, dynamic>> pacientesServidor = [];
+    
+    try {
+      final pacientesResponse = await ApiService.getPacientes(token);
+      
+      pacientesServidor = pacientesResponse.map((paciente) {
+        if (paciente is Map<String, dynamic>) {
+          return paciente;
+        } else {
+          return Map<String, dynamic>.from(paciente as Map);
+        }
+      }).toList();
+      
+      debugPrint('📋 Pacientes en servidor: ${pacientesServidor.length}');
+      
+    } catch (e) {
+      debugPrint('❌ Error obteniendo pacientes del servidor: $e');
+      return {
+        'cargados': 0, 
+        'errores': ['Error de conexión con servidor: $e']
+      };
+    }
+    
+    if (pacientesServidor.isEmpty) {
+      debugPrint('⚠️ No se obtuvieron pacientes del servidor');
+      return {
+        'cargados': 0, 
+        'errores': [],
+        'mensaje': 'No hay pacientes en el servidor'
+      };
+    }
+    
+    // ✅ 3. FILTRAR PACIENTES FALTANTES
+    final pacientesFaltantes = pacientesServidor.where((pacienteData) {
+      final identificacion = pacienteData['identificacion']?.toString() ?? '';
+      return identificacion.isNotEmpty && !identificacionesLocales.contains(identificacion);
+    }).toList();
+    
+    debugPrint('📥 Pacientes faltantes encontrados: ${pacientesFaltantes.length}');
+    
+    if (pacientesFaltantes.isEmpty) {
+      debugPrint('✅ No hay pacientes faltantes - base local actualizada');
+      return {
+        'cargados': 0,
+        'errores': [],
+        'total_servidor': pacientesServidor.length,
+        'total_locales': identificacionesLocales.length,
+        'mensaje': 'Todos los pacientes del servidor ya están localmente'
+      };
+    }
+    
+    // ✅ 4. GUARDAR PACIENTES FALTANTES LOCALMENTE
+    int cargados = 0;
+    List<String> errores = [];
+    
+    for (final pacienteData in pacientesFaltantes) {
+      try {
+        // ✅ CREAR PACIENTE CON DATOS COMPLETOS
+        final paciente = Paciente.fromJson({
+          'id': pacienteData['id']?.toString() ?? '',
+          'identificacion': pacienteData['identificacion']?.toString() ?? '',
+          'nombre': pacienteData['nombre']?.toString() ?? '',
+          'apellido': pacienteData['apellido']?.toString() ?? '',
+          'fecnacimiento': pacienteData['fecnacimiento']?.toString() ?? DateTime.now().toIso8601String(),
+          'genero': pacienteData['genero']?.toString() ?? 'M',
+          'idsede': pacienteData['idsede']?.toString() ?? '',
+          'latitud': pacienteData['latitud'],
+          'longitud': pacienteData['longitud'],
+          'sync_status': 1, // ✅ Marcar como sincronizado desde servidor
+        });
+        
+        await dbHelper.upsertPaciente(paciente);
+        cargados++;
+        
+        if (cargados <= 5) {
+          debugPrint('✅ Paciente cargado: ${paciente.nombreCompleto} (${paciente.identificacion})');
+        }
+        
+      } catch (e) {
+        errores.add('Error cargando paciente ${pacienteData['identificacion']}: $e');
+        debugPrint('❌ Error cargando paciente: $e');
+      }
+    }
+    
+    if (cargados > 5) {
+      debugPrint('✅ ... y ${cargados - 5} pacientes más cargados exitosamente');
+    }
+    
+    return {
+      'cargados': cargados,
+      'errores': errores,
+      'total_servidor': pacientesServidor.length,
+      'total_locales': identificacionesLocales.length,
+      'faltantes_encontrados': pacientesFaltantes.length,
+    };
+    
+  } catch (e) {
+    debugPrint('❌ Error general cargando pacientes faltantes: $e');
+    return {
+      'cargados': 0,
+      'errores': ['Error general: $e'],
+    };
+  }
+}
 
 
 
@@ -381,23 +734,21 @@ Future<void> scheduleSync() async {
   try {
     _isListening = true;
     
-    // ✅ CORRECTO PARA connectivity_plus ^6.1.4
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen(
       (List<ConnectivityResult> results) async {
-        // Tomar el primer resultado (el más relevante)
         final result = results.isNotEmpty ? results.first : ConnectivityResult.none;
         
         debugPrint('📶 Cambio de conectividad detectado: $result');
-        debugPrint('📶 Todos los resultados: $results');
         
         if (result == ConnectivityResult.wifi || result == ConnectivityResult.mobile) {
-          debugPrint('🌐 Detectada conexión a internet. Verificando conexión real...');
+          debugPrint('🌐 Detectada conexión a internet.');
           
+          // ✅ SOLO VERIFICAR CONEXIÓN, NO SINCRONIZAR AUTOMÁTICAMENTE
           try {
             final hasRealConnection = await _checkRealConnection();
             if (hasRealConnection) {
-              debugPrint('✅ Conexión real confirmada. Iniciando sincronización automática...');
-              await _startSyncProcess();
+              debugPrint('✅ Conexión real confirmada. Esperando sincronización manual...');
+              // ❌ ELIMINADO: await _startSyncProcess();
             } else {
               debugPrint('⚠️ Sin conexión real a pesar del cambio detectado');
             }
@@ -413,7 +764,7 @@ Future<void> scheduleSync() async {
       },
     ) as StreamSubscription<ConnectivityResult>?;
     
-    // ✅ VERIFICAR CONEXIÓN INICIAL - CORRECTO PARA ^6.1.4
+    // ✅ VERIFICAR CONEXIÓN INICIAL SIN SINCRONIZAR
     try {
       final List<ConnectivityResult> currentConnectivity = await Connectivity().checkConnectivity();
       final ConnectivityResult firstResult = currentConnectivity.isNotEmpty 
@@ -421,22 +772,10 @@ Future<void> scheduleSync() async {
           : ConnectivityResult.none;
       
       debugPrint('📶 Conectividad inicial: $firstResult');
-      debugPrint('📶 Todas las conexiones iniciales: $currentConnectivity');
       
       if (firstResult == ConnectivityResult.wifi || firstResult == ConnectivityResult.mobile) {
-        debugPrint('🌐 Ya hay conexión disponible. Verificando conexión real...');
-        
-        try {
-          final hasRealConnection = await _checkRealConnection();
-          if (hasRealConnection) {
-            debugPrint('✅ Conexión real confirmada. Iniciando sincronización inmediata...');
-            await _startSyncProcess();
-          } else {
-            debugPrint('⚠️ Sin conexión real detectada inicialmente');
-          }
-        } catch (connectionError) {
-          debugPrint('❌ Error verificando conexión real inicial: $connectionError');
-        }
+        debugPrint('🌐 Ya hay conexión disponible. Esperando sincronización manual...');
+        // ❌ ELIMINADO: Sincronización automática
       } else {
         debugPrint('📵 Sin conexión detectada actualmente');
       }
@@ -448,10 +787,8 @@ Future<void> scheduleSync() async {
   } catch (e) {
     _isListening = false;
     debugPrint('❌ Error al programar sincronización: $e');
-    debugPrint('❌ Stack trace: ${e.toString()}');
   }
 }
-
   // Método para verificar conexión real (no solo estado del adaptador)
   Future<bool> _checkRealConnection() async {
     try {

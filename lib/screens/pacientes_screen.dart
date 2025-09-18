@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/paciente_provider.dart';
 import '../models/paciente_model.dart';
+import '../services/sincronizacion_service.dart';
 
 class PacientesScreen extends StatefulWidget {
   final VoidCallback onLogout;
@@ -33,20 +34,55 @@ class _PacientesScreenState extends State<PacientesScreen> {
   static const double kTabletBreakpoint = 900.0;
   static const double kDesktopBreakpoint = 1200.0;
 
-  @override
-  void initState() {
-    super.initState();
-    _searchController.addListener(_onSearchChanged);
+@override
+void initState() {
+  super.initState();
+  _searchController.addListener(_onSearchChanged);
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final provider = Provider.of<PacienteProvider>(context, listen: false);
-      if (!provider.isLoaded) {
-        _refreshPacientesFromServer();
-      } else {
-        _loadPacientesFromProvider();
-      }
-    });
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    final provider = Provider.of<PacienteProvider>(context, listen: false);
+    
+    // ✅ SOLO CARGAR DESDE BASE DE DATOS LOCAL
+    _loadPacientesFromProvider();
+    
+    // ✅ VERIFICAR PACIENTES PENDIENTES SIN SINCRONIZAR AUTOMÁTICAMENTE
+    _checkPendingPacientesQuietly();
+  });
+}
+
+// ✅ MÉTODO SILENCIOSO PARA VERIFICAR PENDIENTES
+Future<void> _checkPendingPacientesQuietly() async {
+  final provider = Provider.of<PacienteProvider>(context, listen: false);
+  final dbHelper = DatabaseHelper.instance;
+  
+  try {
+    // Contar pacientes offline
+    final pacientesLocales = await dbHelper.readAllPacientes();
+    final pacientesOffline = pacientesLocales.where((p) => 
+      p.id.startsWith('offline_') || p.syncStatus == 0
+    ).length;
+    
+    if (pacientesOffline > 0 && mounted) {
+      debugPrint('ℹ️ Hay $pacientesOffline pacientes offline pendientes de sincronización');
+      
+      // ✅ MOSTRAR NOTIFICACIÓN DISCRETA (OPCIONAL)
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('ℹ️ Tienes $pacientesOffline pacientes offline'),
+          backgroundColor: Colors.blue,
+          action: SnackBarAction(
+            label: 'Sincronizar',
+            textColor: Colors.white,
+            onPressed: _syncPacientesOnly,
+          ),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  } catch (e) {
+    debugPrint('❌ Error verificando pacientes pendientes: $e');
   }
+}
 
   void _onSearchChanged() {
     _filterPacientes();
@@ -70,17 +106,141 @@ class _PacientesScreenState extends State<PacientesScreen> {
       _filterPacientes();
     });
   }
+// screens/pacientes_screen.dart - MÉTODO MEJORADO
+// screens/pacientes_screen.dart - BOTÓN MEJORADO
+Future<void> _syncPacientesOnly() async {
+  if (!mounted) return;
 
-  Future<void> _refreshPacientesFromServer() async {
-    if (!mounted) return;
+  final authProvider = Provider.of<AuthProvider>(context, listen: false);
+  if (!authProvider.isAuthenticated) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('No hay sesión activa'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
+  }
 
-    final provider = Provider.of<PacienteProvider>(context, listen: false);
-    await provider.forceReloadAll();
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => AlertDialog(
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const CircularProgressIndicator(),
+          const SizedBox(height: 16),
+          Text(
+            'Sincronizando pacientes...',
+            style: TextStyle(color: primaryGreen),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Subiendo pacientes offline y descargando faltantes',
+            style: TextStyle(fontSize: 12, color: Colors.grey),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    ),
+  );
+
+  try {
+    final resultado = await SincronizacionService.sincronizarSoloPacientes(
+      authProvider.token!
+    );
 
     if (mounted) {
-      _loadPacientesFromProvider();
+      Navigator.of(context).pop();
+
+      final exitosas = resultado['pacientes']['exitosas'] ?? 0;
+      final subidos = resultado['pacientes']['subidos'] ?? 0;
+      final descargados = resultado['pacientes']['descargados'] ?? 0;
+      final fallidas = resultado['pacientes']['fallidas'] ?? 0;
+      final tiempo = resultado['tiempo_total'] ?? 0;
+
+      if (resultado['exito_general'] == true) {
+        // ✅ RECARGAR SOLO DESDE DB LOCAL
+        final provider = Provider.of<PacienteProvider>(context, listen: false);
+        await provider.loadPacientesFromDB();
+        _loadPacientesFromProvider();
+        
+        String mensaje = '✅ Sincronización completada en ${tiempo}ms\n';
+        if (subidos > 0) mensaje += '📤 $subidos pacientes offline sincronizados\n';
+        if (descargados > 0) mensaje += '📥 $descargados pacientes nuevos descargados\n';
+        if (subidos == 0 && descargados == 0) mensaje += 'ℹ️ Todo estaba actualizado';
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(mensaje.trim()),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      } else if (fallidas > 0) {
+        // ✅ MANEJO SEGURO DE ERRORES
+        final errores = resultado['pacientes']['errores'];
+        String errorMessage = 'Error desconocido';
+        
+        if (errores is List && errores.isNotEmpty) {
+          errorMessage = errores.first.toString();
+        }
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('⚠️ $fallidas pacientes fallaron: $errorMessage'),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('ℹ️ No hay pacientes pendientes por sincronizar'),
+            backgroundColor: Colors.blue,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  } catch (e) {
+    if (mounted) {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Error de sincronización: $e'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
+      );
     }
   }
+}
+
+
+  
+  // MÉTODO OPCIONAL: Verificar pacientes pendientes al cargar la pantalla
+Future<void> _checkPendingPacientes() async {
+  final provider = Provider.of<PacienteProvider>(context, listen: false);
+  final pendingCount = await provider.getUnsyncedPacientesCount();
+  
+  if (pendingCount > 0 && mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('⚠️ Tienes $pendingCount pacientes pendientes de sincronizar'),
+        backgroundColor: Colors.orange,
+        action: SnackBarAction(
+          label: 'Sincronizar',
+          textColor: Colors.white,
+          onPressed: _syncPacientesOnly,
+        ),
+        duration: const Duration(seconds: 5),
+      ),
+    );
+  }
+}
+
 
   List<Paciente> _removeDuplicates(List<Paciente> pacientes) {
     final Map<String, Paciente> uniqueMap = {};
@@ -647,155 +807,155 @@ class _PacientesScreenState extends State<PacientesScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final screenType = _getScreenType(constraints.maxWidth);
-        final isCompact = screenType == ScreenType.mobile;
-        
-        return Scaffold(
-          backgroundColor: Colors.white,
-          appBar: AppBar(
-            backgroundColor: primaryGreen,
-            foregroundColor: Colors.white,
-            title: Text(
-              'Pacientes',
-              style: TextStyle(fontSize: isCompact ? 18 : 20),
+Widget build(BuildContext context) {
+  return LayoutBuilder(
+    builder: (context, constraints) {
+      final screenType = _getScreenType(constraints.maxWidth);
+      final isCompact = screenType == ScreenType.mobile;
+      
+      return Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          backgroundColor: primaryGreen,
+          foregroundColor: Colors.white,
+          title: Text(
+            'Pacientes',
+            style: TextStyle(fontSize: isCompact ? 18 : 20),
+          ),
+          actions: [
+            // SOLO EL BOTÓN DE SINCRONIZACIÓN DE PACIENTES
+            IconButton(
+              icon: const Icon(Iconsax.arrow_swap_horizontal),
+              onPressed: _syncPacientesOnly,
+              tooltip: 'Sincronizar pacientes pendientes',
             ),
-            actions: [
-              IconButton(
-                icon: const Icon(Iconsax.refresh),
-                onPressed: _refreshPacientesFromServer,
-                tooltip: 'Actualizar',
-              ),
-              IconButton(
-                icon: const Icon(Iconsax.logout),
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Cerrar sesión'),
-                      content: const Text('¿Estás seguro de que quieres cerrar sesión?'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('Cancelar'),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            widget.onLogout();
-                          },
-                          child: const Text('Cerrar sesión', style: TextStyle(color: Colors.red)),
-                        ),
-                      ],
-                    ),
+            IconButton(
+              icon: const Icon(Iconsax.logout),
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Cerrar sesión'),
+                    content: const Text('¿Estás seguro de que quieres cerrar sesión?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancelar'),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          widget.onLogout();
+                        },
+                        child: const Text('Cerrar sesión', style: TextStyle(color: Colors.red)),
+                      ),
+                    ],
+                  ),
+                );
+              },
+              tooltip: 'Cerrar sesión',
+            ),
+          ],
+        ),
+        body: Column(
+          children: [
+            _buildSearchBar(screenType),
+            Expanded(
+              child: Consumer<PacienteProvider>(
+                builder: (context, provider, child) {
+                  if (provider.isLoading && !provider.isLoaded) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  final pacientesToShow = _getPaginatedPacientes();
+
+                  if (_filteredPacientes.isEmpty && _isSearching) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Iconsax.search_normal,
+                            size: isCompact ? 40 : 50, 
+                            color: Colors.grey
+                          ),
+                          SizedBox(height: isCompact ? 12 : 16),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 32),
+                            child: Text(
+                              'No se encontraron pacientes con "${_searchController.text}"',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: isCompact ? 14 : 16,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  if (_uniquePacientes.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Iconsax.people,
+                            size: isCompact ? 40 : 50, 
+                            color: Colors.grey
+                          ),
+                          SizedBox(height: isCompact ? 12 : 16),
+                          Text(
+                            'No hay pacientes registrados',
+                            style: TextStyle(fontSize: isCompact ? 14 : 16),
+                          ),
+                          SizedBox(height: isCompact ? 12 : 16),
+                          ElevatedButton.icon(
+                            onPressed: () => _showAddPacienteDialog(context),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: primaryGreen,
+                              foregroundColor: Colors.white,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: isCompact ? 16 : 24,
+                                vertical: isCompact ? 8 : 12,
+                              ),
+                            ),
+                            icon: const Icon(Iconsax.add, size: 20),
+                            label: const Text('Agregar Paciente'),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return Column(
+                    children: [
+                      _buildStatsBar(screenType),
+                      Expanded(
+                        // ELIMINADO: RefreshIndicator - Sin deslizar para actualizar
+                        child: _buildPacientesDisplay(pacientesToShow, screenType),
+                      ),
+                      _buildPagination(screenType),
+                    ],
                   );
                 },
-                tooltip: 'Cerrar sesión',
               ),
-            ],
-          ),
-          body: Column(
-            children: [
-              _buildSearchBar(screenType),
-              Expanded(
-                child: Consumer<PacienteProvider>(
-                  builder: (context, provider, child) {
-                    if (provider.isLoading && !provider.isLoaded) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
+            ),
+          ],
+        ),
+        floatingActionButton: FloatingActionButton(
+          backgroundColor: primaryGreen,
+          foregroundColor: Colors.white,
+          child: const Icon(Iconsax.add),
+          onPressed: () => _showAddPacienteDialog(context),
+        ),
+      );
+    },
+  );
+}
 
-                    final pacientesToShow = _getPaginatedPacientes();
-
-                    if (_filteredPacientes.isEmpty && _isSearching) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Iconsax.search_normal,
-                              size: isCompact ? 40 : 50, 
-                              color: Colors.grey
-                            ),
-                            SizedBox(height: isCompact ? 12 : 16),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 32),
-                              child: Text(
-                                'No se encontraron pacientes con "${_searchController.text}"',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: isCompact ? 14 : 16,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    if (_uniquePacientes.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Iconsax.people,
-                              size: isCompact ? 40 : 50, 
-                              color: Colors.grey
-                            ),
-                            SizedBox(height: isCompact ? 12 : 16),
-                            Text(
-                              'No hay pacientes registrados',
-                              style: TextStyle(fontSize: isCompact ? 14 : 16),
-                            ),
-                            SizedBox(height: isCompact ? 12 : 16),
-                            ElevatedButton.icon(
-                              onPressed: () => _showAddPacienteDialog(context),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: primaryGreen,
-                                foregroundColor: Colors.white,
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: isCompact ? 16 : 24,
-                                  vertical: isCompact ? 8 : 12,
-                                ),
-                              ),
-                              icon: const Icon(Iconsax.add, size: 20),
-                              label: const Text('Agregar Paciente'),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    return Column(
-                      children: [
-                        _buildStatsBar(screenType),
-                        Expanded(
-                          child: RefreshIndicator(
-                            onRefresh: _refreshPacientesFromServer,
-                            child: _buildPacientesDisplay(pacientesToShow, screenType),
-                          ),
-                        ),
-                        _buildPagination(screenType),
-                      ],
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-          floatingActionButton: FloatingActionButton(
-            backgroundColor: primaryGreen,
-            foregroundColor: Colors.white,
-            child: const Icon(Iconsax.add),
-            onPressed: () => _showAddPacienteDialog(context),
-          ),
-        );
-      },
-    );
-  }
 
   // Mantener los métodos de diálogo existentes sin cambios...
   Future<void> _showAddPacienteDialog(BuildContext context) async {
