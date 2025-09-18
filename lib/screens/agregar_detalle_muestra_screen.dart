@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:fnpv_app/database/database_helper.dart';
 import 'package:fnpv_app/models/envio_muestra_model.dart';
 import 'package:fnpv_app/models/paciente_model.dart';
+import '../providers/paciente_provider.dart';
+import '../models/paciente_model.dart';
+import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 
 class AgregarDetalleMuestraScreen extends StatefulWidget {
@@ -84,6 +87,227 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
   // PACIENTES NEFRO - FORRADOS
   final _b12Controller = TextEditingController();
   final _acidoFolicoController = TextEditingController();
+
+  // ✅ MÉTODO PARA MOSTRAR DIÁLOGO DE AGREGAR PACIENTE
+Future<void> _mostrarDialogoAgregarPaciente() async {
+  final formKey = GlobalKey<FormState>();
+  final nombreController = TextEditingController();
+  final apellidoController = TextEditingController();
+  final identificacionNuevaController = TextEditingController(
+    text: _identificacionController.text.trim() // Pre-llenar con la identificación buscada
+  );
+  DateTime? fechaNacimiento;
+  String genero = 'Masculino';
+  String? sedeSeleccionada;
+  bool isSaving = false;
+
+  // Obtener provider de pacientes
+  final pacienteProvider = Provider.of<PacienteProvider>(context, listen: false);
+  
+  // Cargar sedes si no están cargadas
+  if (pacienteProvider.sedes.isEmpty) {
+    await pacienteProvider.loadSedes();
+  }
+  
+  final sedes = pacienteProvider.sedes;
+  
+  if (sedes.isEmpty) {
+    _showModernSnackBar(
+      context,
+      'No se pudieron cargar las sedes. Verifique su conexión.',
+      Color(0xFFEF4444),
+      Icons.error_rounded,
+      isError: true,
+    );
+    return;
+  }
+
+  // Obtener sede del usuario actual
+  final db = DatabaseHelper.instance;
+  final currentUser = await db.getLoggedInUser();
+  if (currentUser != null && currentUser['sede_id'] != null) {
+    sedeSeleccionada = currentUser['sede_id'].toString();
+  }
+
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) {
+      return StatefulBuilder(
+        builder: (context, setDialogState) {
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 500),
+              child: AlertDialog(
+                title: Text(
+                  'Crear Nuevo Paciente',
+                  style: TextStyle(color: Color(0xFF10B981)),
+                ),
+                content: SingleChildScrollView(
+                  child: Form(
+                    key: formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextFormField(
+                          controller: nombreController,
+                          decoration: InputDecoration(
+                            labelText: 'Nombre *',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            prefixIcon: Icon(Icons.person),
+                          ),
+                          validator: (v) => v?.isEmpty ?? true ? 'Requerido' : null,
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: apellidoController,
+                          decoration: InputDecoration(
+                            labelText: 'Apellido *',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            prefixIcon: Icon(Icons.person_outline),
+                          ),
+                          validator: (v) => v?.isEmpty ?? true ? 'Requerido' : null,
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: identificacionNuevaController,
+                          decoration: InputDecoration(
+                            labelText: 'Identificación *',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            prefixIcon: Icon(Icons.badge),
+                          ),
+                          validator: (v) => v?.isEmpty ?? true ? 'Requerido' : null,
+                        ),
+                        const SizedBox(height: 16),
+                        DropdownButtonFormField<String>(
+                          value: genero,
+                          items: ['Masculino', 'Femenino', 'Otro']
+                              .map((g) => DropdownMenuItem(value: g, child: Text(g)))
+                              .toList(),
+                          onChanged: (v) => setDialogState(() => genero = v!),
+                          decoration: InputDecoration(
+                            labelText: 'Género',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        DropdownButtonFormField<String>(
+                          value: sedeSeleccionada,
+                          items: sedes.map<DropdownMenuItem<String>>((s) =>
+                              DropdownMenuItem<String>(
+                                  value: s['id'].toString(),
+                                  child: Text(s['nombresede'] ?? ''))).toList(),
+                          onChanged: (v) => setDialogState(() => sedeSeleccionada = v),
+                          decoration: InputDecoration(
+                            labelText: 'Sede',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          validator: (v) => v == null ? 'Requerido' : null,
+                        ),
+                        const SizedBox(height: 16),
+                        ListTile(
+                          title: const Text('Fecha de Nacimiento'),
+                          subtitle: Text(fechaNacimiento == null
+                              ? 'Seleccionar fecha'
+                              : '${fechaNacimiento!.day}/${fechaNacimiento!.month}/${fechaNacimiento!.year}'),
+                          trailing: Icon(Icons.calendar_today, color: Color(0xFF10B981)),
+                          onTap: () async {
+                            final date = await showDatePicker(
+                                context: context,
+                                initialDate: DateTime.now(),
+                                firstDate: DateTime(1900),
+                                lastDate: DateTime.now());
+                            if (date != null) setDialogState(() => fechaNacimiento = date);
+                          },
+                        ),
+                        if (isSaving)
+                          const Padding(
+                              padding: EdgeInsets.all(16.0),
+                              child: LinearProgressIndicator()),
+                      ],
+                    ),
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                      onPressed: isSaving ? null : () => Navigator.pop(context),
+                      child: const Text('Cancelar')),
+                  ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: Color(0xFF10B981),
+                          foregroundColor: Colors.white),
+                      onPressed: isSaving ? null : () async {
+                        if (formKey.currentState!.validate() && fechaNacimiento != null && sedeSeleccionada != null) {
+                          setDialogState(() => isSaving = true);
+                          
+                          final nuevoPaciente = Paciente(
+                            id: '',
+                            identificacion: identificacionNuevaController.text.trim(),
+                            fecnacimiento: fechaNacimiento!,
+                            nombre: nombreController.text.trim(),
+                            apellido: apellidoController.text.trim(),
+                            genero: genero == 'Masculino' ? 'M' : (genero == 'Femenino' ? 'F' : 'O'),
+                            idsede: sedeSeleccionada!,
+                          );
+                          
+                          try {
+                            await pacienteProvider.addPaciente(nuevoPaciente);
+                            
+                            // ✅ BUSCAR EL PACIENTE RECIÉN CREADO Y SELECCIONARLO
+                            final pacienteCreado = await DatabaseHelper.instance
+                                .getPacienteByIdentificacion(identificacionNuevaController.text.trim());
+                            
+                            if (mounted) {
+                              Navigator.pop(context);
+                              
+                              // ✅ SELECCIONAR AUTOMÁTICAMENTE EL PACIENTE CREADO
+                              setState(() {
+                                _pacienteSeleccionado = pacienteCreado;
+                              });
+                              
+                              _showModernSnackBar(
+                                context,
+                                'Paciente creado y seleccionado exitosamente',
+                                Color(0xFF10B981),
+                                Icons.check_circle_rounded,
+                              );
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              _showModernSnackBar(
+                                context,
+                                'Error: ${e.toString().replaceAll("Exception: ", "")}',
+                                Color(0xFFEF4444),
+                                Icons.error_rounded,
+                                isError: true,
+                              );
+                            }
+                          } finally {
+                            if (mounted) setDialogState(() => isSaving = false);
+                          }
+                        }
+                      },
+                      child: const Text('Crear Paciente')),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
 
   // ✅ FUNCIÓN HELPER PARA VALORES OPCIONALES - SIN VALORES POR DEFECTO
   String? _obtenerValorOpcional(TextEditingController controller) {
@@ -861,53 +1085,98 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
                               ],
                             ),
                           ),
-                        ] else if (_identificacionController.text.isNotEmpty && !_buscandoPaciente) ...[
-                          SizedBox(height: isSmallScreen ? 16 : 24), // 🆕 Espaciado adaptativo
-                          Container(
-                            width: double.infinity, // 🆕 Asegurar ancho completo
-                            padding: EdgeInsets.all(isSmallScreen ? 16 : 24), // 🆕 Padding adaptativo
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Color(0xFFF59E0B).withOpacity(0.1),
-                                  Color(0xFFD97706).withOpacity(0.05),
+                          ] else if (_identificacionController.text.isNotEmpty && !_buscandoPaciente) ...[
+                            SizedBox(height: isSmallScreen ? 16 : 24),
+                            Container(
+                              width: double.infinity,
+                              padding: EdgeInsets.all(isSmallScreen ? 16 : 24),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Color(0xFFF59E0B).withOpacity(0.1),
+                                    Color(0xFFD97706).withOpacity(0.05),
+                                  ],
+                                ),
+                                border: Border.all(color: Color(0xFFF59E0B).withOpacity(0.3), width: 2),
+                                borderRadius: BorderRadius.circular(isSmallScreen ? 16 : 20),
+                              ),
+                              child: Column(
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: EdgeInsets.all(isSmallScreen ? 10 : 12),
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                                          ),
+                                          borderRadius: BorderRadius.circular(isSmallScreen ? 12 : 14),
+                                        ),
+                                        child: Icon(
+                                          Icons.warning_rounded,
+                                          color: Colors.white,
+                                          size: isSmallScreen ? 24 : 28,
+                                        ),
+                                      ),
+                                      SizedBox(width: isSmallScreen ? 16 : 20),
+                                      Expanded(
+                                        child: Text(
+                                          'Paciente no encontrado con esta identificación',
+                                          style: TextStyle(
+                                            color: Color(0xFF111827),
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: isSmallScreen ? 14 : 16,
+                                          ),
+                                          overflow: TextOverflow.visible,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  
+                                  // ✅ BOTÓN PARA AGREGAR NUEVO PACIENTE
+                                  SizedBox(height: isSmallScreen ? 16 : 20),
+                                  Container(
+                                    width: double.infinity,
+                                    child: ElevatedButton.icon(
+                                      onPressed: () => _mostrarDialogoAgregarPaciente(),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Color(0xFF10B981),
+                                        foregroundColor: Colors.white,
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: isSmallScreen ? 20 : 24,
+                                          vertical: isSmallScreen ? 12 : 16,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(isSmallScreen ? 12 : 16),
+                                        ),
+                                        elevation: 4,
+                                      ),
+                                      icon: Container(
+                                        padding: EdgeInsets.all(4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.2),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Icon(
+                                          Icons.person_add_rounded,
+                                          size: isSmallScreen ? 18 : 20,
+                                        ),
+                                      ),
+                                      label: Text(
+                                        'Crear Nuevo Paciente',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: isSmallScreen ? 14 : 16,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                                 ],
                               ),
-                              border: Border.all(color: Color(0xFFF59E0B).withOpacity(0.3), width: 2),
-                              borderRadius: BorderRadius.circular(isSmallScreen ? 16 : 20), // 🆕 Border radius adaptativo
                             ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: EdgeInsets.all(isSmallScreen ? 10 : 12), // 🆕 Padding adaptativo
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
-                                    ),
-                                    borderRadius: BorderRadius.circular(isSmallScreen ? 12 : 14), // 🆕 Border radius adaptativo
-                                  ),
-                                  child: Icon(
-                                    Icons.warning_rounded,
-                                    color: Colors.white,
-                                    size: isSmallScreen ? 24 : 28, // 🆕 Tamaño adaptativo
-                                  ),
-                                ),
-                                SizedBox(width: isSmallScreen ? 16 : 20), // 🆕 Espaciado adaptativo
-                                Expanded( // 🆕 Expandir para evitar overflow
-                                  child: Text(
-                                    'Paciente no encontrado con esta identificación',
-                                    style: TextStyle(
-                                      color: Color(0xFF111827),
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: isSmallScreen ? 14 : 16, // 🆕 Tamaño adaptativo
-                                    ),
-                                    overflow: TextOverflow.visible, // 🆕 Permitir múltiples líneas
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                          ],
+
                       ],
                     ),
                   ),
