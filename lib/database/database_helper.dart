@@ -3849,10 +3849,22 @@ Future<int> countMedicamentosPendientes() async {
 Future<int> countVisitas() async {
   try {
     final db = await database;
-    final result = await db.rawQuery('SELECT COUNT(*) FROM visitas');
+    final now = DateTime.now();
+    final year = now.year;
+    final month = now.month;
+
+    // Asumiendo que la columna 'fecha' está en formato ISO 8601 (yyyy-MM-dd o similar)
+    // Usamos LIKE para filtrar por año y mes
+    final monthStr = month.toString().padLeft(2, '0'); // Ej: '04' para abril
+    final datePattern = '$year-$monthStr%';
+
+    final result = await db.rawQuery(
+      'SELECT COUNT(*) FROM visitas WHERE fecha LIKE ?',
+      [datePattern],
+    );
     return Sqflite.firstIntValue(result) ?? 0;
   } catch (e) {
-    debugPrint('Error al contar visitas: $e');
+    debugPrint('Error al contar visitas del mes actual: $e');
     return 0;
   }
 }
@@ -3869,6 +3881,75 @@ Future<int> countPacientes() async {
     return 0;
   }
 }
+Future<void> limpiarDatosUsuarioObsoletos(String usuario) async {
+  final db = await database;
+  try {
+    // Limpiar token y sesión del usuario específico
+    await db.update(
+      'usuarios',
+      {
+        'token': null,
+        'is_logged_in': 0,
+        'last_sync': null,
+      },
+      where: 'usuario = ?',
+      whereArgs: [usuario],
+    );
+    debugPrint('✅ Datos de sesión obsoletos limpiados para usuario: $usuario');
+  } catch (e) {
+    debugPrint('❌ Error limpiando datos obsoletos: $e');
+  }
+}
 
+// Método para verificar si el token es válido (por fecha)
+Future<bool> isTokenExpired(String usuario) async {
+  final db = await database;
+  try {
+    final result = await db.query(
+      'usuarios',
+      where: 'usuario = ?',
+      whereArgs: [usuario],
+      limit: 1,
+    );
+    
+    if (result.isEmpty) return true;
+    
+    final user = result.first;
+    final lastLogin = user['last_login'] as String?;
+    
+    if (lastLogin == null) return true;
+    
+    // Considerar token expirado después de 30 días
+    final lastLoginDate = DateTime.parse(lastLogin);
+    final daysSinceLogin = DateTime.now().difference(lastLoginDate).inDays;
+    
+    return daysSinceLogin > 30; // Token expira después de 30 días
+  } catch (e) {
+    debugPrint('Error verificando expiración de token: $e');
+    return true;
+  }
+}
+
+// Método para limpiar todos los tokens expirados
+Future<void> limpiarTokensExpirados() async {
+  final db = await database;
+  try {
+    final thirtyDaysAgo = DateTime.now().subtract(Duration(days: 30));
+    
+    await db.update(
+      'usuarios',
+      {
+        'token': null,
+        'is_logged_in': 0,
+      },
+      where: 'last_login < ?',
+      whereArgs: [thirtyDaysAgo.toIso8601String()],
+    );
+    
+    debugPrint('✅ Tokens expirados limpiados');
+  } catch (e) {
+    debugPrint('❌ Error limpiando tokens expirados: $e');
+  }
+}
 
 } // Fin de la clase DatabaseHelper
