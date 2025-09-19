@@ -49,26 +49,27 @@ void initState() {
     _checkPendingPacientesQuietly();
   });
 }
-
-// ✅ MÉTODO SILENCIOSO PARA VERIFICAR PENDIENTES
+// ✅ MÉTODO CORREGIDO EN PACIENTE PROVIDER
 Future<void> _checkPendingPacientesQuietly() async {
-  final provider = Provider.of<PacienteProvider>(context, listen: false);
   final dbHelper = DatabaseHelper.instance;
   
   try {
-    // Contar pacientes offline
-    final pacientesLocales = await dbHelper.readAllPacientes();
-    final pacientesOffline = pacientesLocales.where((p) => 
-      p.id.startsWith('offline_') || p.syncStatus == 0
-    ).length;
+    // ✅ CAMBIO AQUÍ: Usar query directa sin filtro de 'offline_%'
+    final db = await dbHelper.database;
+    final pacientesOffline = await db.query(
+      'pacientes',
+      where: 'sync_status = 0', // ✅ SIN filtro de 'offline_%'
+    );
     
-    if (pacientesOffline > 0 && mounted) {
-      debugPrint('ℹ️ Hay $pacientesOffline pacientes offline pendientes de sincronización');
+    // ✅ DEBUG OPCIONAL
+    await dbHelper.debugPacientesSyncStatus();
+    
+    if (pacientesOffline.isNotEmpty && mounted) {
+      debugPrint('ℹ️ Hay ${pacientesOffline.length} pacientes offline pendientes de sincronización');
       
-      // ✅ MOSTRAR NOTIFICACIÓN DISCRETA (OPCIONAL)
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('ℹ️ Tienes $pacientesOffline pacientes offline'),
+          content: Text('ℹ️ Tienes ${pacientesOffline.length} pacientes offline'),
           backgroundColor: Colors.blue,
           action: SnackBarAction(
             label: 'Sincronizar',
@@ -78,6 +79,8 @@ Future<void> _checkPendingPacientesQuietly() async {
           duration: const Duration(seconds: 3),
         ),
       );
+    } else {
+      debugPrint('✅ No hay pacientes offline pendientes de sincronización');
     }
   } catch (e) {
     debugPrint('❌ Error verificando pacientes pendientes: $e');

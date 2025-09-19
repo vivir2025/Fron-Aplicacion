@@ -446,7 +446,6 @@ static Future<Map<String, dynamic>> sincronizarSoloPacientes(String token) async
   
   return resultado;
 }
-
 // services/sincronizacion_service.dart - MÉTODO MEJORADO PARA MANEJAR DUPLICADOS
 static Future<Map<String, dynamic>> sincronizarPacientesOfflinePendientes(String token) async {
   final dbHelper = DatabaseHelper.instance;
@@ -493,6 +492,10 @@ static Future<Map<String, dynamic>> sincronizarPacientesOfflinePendientes(String
               'sync_status': 1,
             });
             await dbHelper.upsertPaciente(nuevoPaciente);
+            
+            // ✅ MARCAR COMO SINCRONIZADO
+            await dbHelper.markPacientesAsSynced([nuevoPaciente.id]);
+            
             exitosas++;
             pacienteProcessed = true;
             debugPrint('✅ Paciente offline creado en servidor: ${paciente.identificacion}');
@@ -518,6 +521,10 @@ static Future<Map<String, dynamic>> sincronizarPacientesOfflinePendientes(String
                   'sync_status': 1,
                 });
                 await dbHelper.upsertPaciente(pacienteSincronizado);
+                
+                // ✅ MARCAR COMO SINCRONIZADO
+                await dbHelper.markPacientesAsSynced([pacienteSincronizado.id]);
+                
                 exitosas++;
                 pacienteProcessed = true;
                 debugPrint('✅ Paciente offline sincronizado con versión del servidor: ${paciente.identificacion}');
@@ -585,13 +592,31 @@ static Future<Map<String, dynamic>> sincronizarPacientesOfflinePendientes(String
     }
   }
 
+  // ✅ LIMPIAR DUPLICADOS AL FINAL SI HUBO SINCRONIZACIONES EXITOSAS
+  if (exitosas > 0) {
+    try {
+      await dbHelper.limpiarPacientesDuplicadosDespuesSincronizacion();
+      debugPrint('🧹 Limpieza de duplicados completada');
+    } catch (e) {
+      debugPrint('⚠️ Error en limpieza de duplicados: $e');
+    }
+  }
+
+  if (exitosas > 0) {
+    debugPrint('🎉 $exitosas pacientes sincronizados exitosamente');
+  }
+  if (fallidas > 0) {
+    debugPrint('⚠️ $fallidas pacientes fallaron en la sincronización');
+  }
+
   return {
     'exitosas': exitosas,
     'fallidas': fallidas,
     'errores': errores,
-    'total': pacientesOffline.length,
+    'total': pacientesOffline.length, // ✅ CORREGIDO: era pacientesPendientes.length
   };
 }
+
 
 // services/sincronizacion_service.dart - MÉTODO MEJORADO
 static Future<Map<String, dynamic>> cargarPacientesFaltantesDesdeServidor(String token) async {

@@ -971,24 +971,141 @@ return await db.insert(
 );
 }
 
+// ✅ MÉTODO CORREGIDO - SOLO PACIENTES REALMENTE OFFLINE
 Future<List<Paciente>> getUnsyncedPacientes() async {
-final db = await database;
-final result = await db.query(
-  'pacientes', 
-  where: 'sync_status = 0 AND (latitud IS NOT NULL OR longitud IS NOT NULL)',
-);
-return result.map((json) => Paciente.fromJson(json)).toList();
+  final db = await database;
+  try {
+    // ✅ FILTRAR CORRECTAMENTE: Solo pacientes offline O con coordenadas no sincronizadas
+    final result = await db.query(
+      'pacientes', 
+      where: '''
+        (id LIKE 'offline_%' AND sync_status = 0) OR 
+        (sync_status = 0 AND (latitud IS NOT NULL OR longitud IS NOT NULL))
+      ''',
+      orderBy: 'identificacion ASC',
+    );
+    
+    final pacientes = result.map((json) => Paciente.fromJson(json)).toList();
+    
+    debugPrint('📊 Pacientes no sincronizados encontrados: ${pacientes.length}');
+    for (final p in pacientes) {
+      debugPrint('   - ${p.identificacion} (ID: ${p.id}, Status: ${p.syncStatus})');
+    }
+    
+    return pacientes;
+  } catch (e) {
+    debugPrint('❌ Error obteniendo pacientes no sincronizados: $e');
+    return [];
+  }
+}
+// ✅ MÉTODO CORREGIDO - SIN updated_at
+Future<void> markPacientesAsSynced(List<String> pacienteIds) async {
+  if (pacienteIds.isEmpty) return;
+  
+  final db = await database;
+  try {
+    await db.transaction((txn) async {
+      for (final id in pacienteIds) {
+        final result = await txn.update(
+          'pacientes',
+          {
+            'sync_status': 1, // ✅ SOLO sync_status, SIN updated_at
+          },
+          where: 'id = ?',
+          whereArgs: [id],
+        );
+        
+        if (result > 0) {
+          debugPrint('✅ Paciente $id marcado como sincronizado');
+        } else {
+          debugPrint('⚠️ No se pudo marcar paciente $id como sincronizado');
+        }
+      }
+    });
+    
+    // ✅ VERIFICAR QUE SE MARCARON CORRECTAMENTE
+    final verificacion = await db.query(
+      'pacientes',
+      where: 'id IN (${List.filled(pacienteIds.length, '?').join(',')}) AND sync_status = 1',
+      whereArgs: pacienteIds,
+    );
+    
+    debugPrint('✅ Verificación: ${verificacion.length}/${pacienteIds.length} pacientes marcados correctamente');
+    
+  } catch (e) {
+    debugPrint('❌ Error marcando pacientes como sincronizados: $e');
+    rethrow;
+  }
 }
 
-Future<void> markPacientesAsSynced(List<String> pacienteIds) async {
-final db = await database;
-await db.update(
-  'pacientes',
-  {'sync_status': 1},
-  where: 'id IN (${List.filled(pacienteIds.length, '?').join(',')})',
-  whereArgs: pacienteIds,
-);
+// 🆕 MÉTODO PARA LIMPIAR PACIENTES DUPLICADOS DESPUÉS DE SINCRONIZACIÓN
+Future<void> limpiarPacientesDuplicadosDespuesSincronizacion() async {
+  final db = await database;
+  try {
+    debugPrint('🧹 Iniciando limpieza de pacientes duplicados...');
+    
+    // Obtener todos los pacientes
+    final todosPacientes = await db.query('pacientes');
+    
+    // Agrupar por identificación
+    Map<String, List<Map<String, dynamic>>> grupos = {};
+    for (final paciente in todosPacientes) {
+      final identificacion = paciente['identificacion'] as String;
+      grupos.putIfAbsent(identificacion, () => []).add(paciente);
+    }
+    
+    int eliminados = 0;
+    
+    // Procesar cada grupo de pacientes con la misma identificación
+    for (final entrada in grupos.entries) {
+      final identificacion = entrada.key;
+      final pacientesGrupo = entrada.value;
+      
+      if (pacientesGrupo.length > 1) {
+        debugPrint('🔍 Encontrados ${pacientesGrupo.length} pacientes con identificación $identificacion');
+        
+        // Encontrar el mejor paciente (prioridad: sincronizado > no offline > más reciente)
+        Map<String, dynamic>? mejorPaciente;
+        
+        for (final paciente in pacientesGrupo) {
+          final id = paciente['id'] as String;
+          final syncStatus = paciente['sync_status'] as int? ?? 0;
+          final isOffline = id.startsWith('offline_');
+          
+          if (mejorPaciente == null) {
+            mejorPaciente = paciente;
+          } else {
+            final mejorId = mejorPaciente['id'] as String;
+            final mejorSyncStatus = mejorPaciente['sync_status'] as int? ?? 0;
+            final mejorIsOffline = mejorId.startsWith('offline_');
+            
+            // Prioridad: sincronizado > no offline
+            if (syncStatus == 1 && mejorSyncStatus == 0) {
+              mejorPaciente = paciente;
+            } else if (syncStatus == mejorSyncStatus && !isOffline && mejorIsOffline) {
+              mejorPaciente = paciente;
+            }
+          }
+        }
+        
+        // Eliminar duplicados (mantener solo el mejor)
+        for (final paciente in pacientesGrupo) {
+          if (paciente['id'] != mejorPaciente!['id']) {
+            await db.delete('pacientes', where: 'id = ?', whereArgs: [paciente['id']]);
+            eliminados++;
+            debugPrint('🗑️ Eliminado paciente duplicado: ${paciente['id']} (${paciente['identificacion']})');
+          }
+        }
+      }
+    }
+    
+    debugPrint('✅ Limpieza completada: $eliminados pacientes duplicados eliminados');
+    
+  } catch (e) {
+    debugPrint('❌ Error en limpieza de duplicados: $e');
+  }
 }
+
 
 Future<int> deletePaciente(String id) async {
 final db = await instance.database;
@@ -1347,6 +1464,50 @@ Future<int> updatePacienteGeolocalizacion(String pacienteId, double latitud, dou
     rethrow;
   }
 }
+// 🆕 MÉTODO PARA DEBUG Y VERIFICACIÓN DE ESTADO
+Future<void> debugPacientesSyncStatus() async {
+  final db = await database;
+  try {
+    debugPrint('📊 === ESTADO DE SINCRONIZACIÓN DE PACIENTES ===');
+    
+    final todosPacientes = await db.query('pacientes', orderBy: 'identificacion');
+    
+    int sincronizados = 0;
+    int pendientes = 0;
+    int offline = 0;
+    
+    for (final paciente in todosPacientes) {
+      final id = paciente['id'] as String;
+      final identificacion = paciente['identificacion'] as String;
+      final syncStatus = paciente['sync_status'] as int? ?? 0;
+      final latitud = paciente['latitud'];
+      final longitud = paciente['longitud'];
+      final isOffline = id.startsWith('offline_');
+      
+      if (isOffline) {
+        offline++;
+        debugPrint('🔴 OFFLINE: $identificacion (ID: $id, Sync: $syncStatus)');
+      } else if (syncStatus == 0) {
+        pendientes++;
+        debugPrint('🟡 PENDIENTE: $identificacion (ID: $id, Coords: $latitud,$longitud)');
+      } else {
+        sincronizados++;
+        debugPrint('🟢 SINCRONIZADO: $identificacion (ID: $id)');
+      }
+    }
+    
+    debugPrint('📊 RESUMEN:');
+    debugPrint('   - Total: ${todosPacientes.length}');
+    debugPrint('   - Sincronizados: $sincronizados');
+    debugPrint('   - Pendientes: $pendientes');
+    debugPrint('   - Offline: $offline');
+    debugPrint('📊 === FIN ESTADO SINCRONIZACIÓN ===');
+    
+  } catch (e) {
+    debugPrint('❌ Error en debug de estado: $e');
+  }
+}
+
 // ✅ MÉTODO PARA VERIFICAR Y AGREGAR COLUMNAS NECESARIAS
 Future<void> verificarYAgregarColumnasGeolocalizacion() async {
   final db = await database;
