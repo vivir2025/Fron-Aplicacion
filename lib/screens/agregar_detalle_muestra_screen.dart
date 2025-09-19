@@ -65,6 +65,8 @@ class _AgregarDetalleMuestraScreenState extends State<AgregarDetalleMuestraScree
   
   // MUESTRA DE ORINA - ORINA ESP
   final _relacionCreaAlbController = TextEditingController();
+  final _microoController = TextEditingController();
+  final _creaoriController = TextEditingController();
   
   // MUESTRA DE ORINA - ORINA24H
   final _dcre24hController = TextEditingController();
@@ -371,6 +373,8 @@ Future<void> _mostrarDialogoAgregarPaciente() async {
       _pesoController.dispose();
       _tallaController.dispose();
       _volmController.dispose();
+      _microoController.dispose();
+      _creaoriController.dispose();
       _ferController.dispose();
       _traController.dispose();
       _fosfatController.dispose();
@@ -1269,6 +1273,8 @@ Future<void> _mostrarDialogoAgregarPaciente() async {
                         _buildFieldRow([
                           _buildModernOptionalField('RELACIÓN CREA/ALB', _relacionCreaAlbController, accentColor: Color(0xFF06B6D4)),
                           _buildModernOptionalField('PO', _po2Controller, accentColor: Color(0xFF06B6D4)),
+                           _buildModernOptionalField('MICRO', _microoController, accentColor: Color(0xFF06B6D4)),
+                            _buildModernOptionalField('CREA/ORINA', _creaoriController, accentColor: Color(0xFF06B6D4)),
                           Container(),
                         ]),
                         
@@ -1412,6 +1418,8 @@ Future<void> _mostrarDialogoAgregarPaciente() async {
                   peso: _obtenerValorOpcional(_pesoController),
                   talla: _obtenerValorOpcional(_tallaController),
                   volumen: _obtenerValorOpcional(_volmController),
+                  microo: _obtenerValorOpcional(_microoController),
+                  creaori: _obtenerValorOpcional(_creaoriController),
                 );
                 
                 widget.onAgregar(detalle);

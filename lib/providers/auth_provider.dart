@@ -17,11 +17,13 @@ class AuthProvider with ChangeNotifier {
   Map<String, dynamic>? get user => _user;
   Map<String, dynamic>? get sede => _sede;
   bool get isAuthenticated => _token != null;
+  
   void setUserId(String id) {
     _userId = id;
     notifyListeners();
   }
- Future<bool> login(String usuario, String contrasena) async {
+
+  Future<bool> login(String usuario, String contrasena) async {
     bool needsInitialSync = false; // Flag para saber si se necesita la carga inicial
 
     try {
@@ -67,7 +69,21 @@ class AuthProvider with ChangeNotifier {
       }
     }
   }
- // 👇 CAMBIO 3: Renombramos y hacemos público el método de cargar medicamentos
+
+  // Agregar este método a tu AuthProvider
+  Future<void> limpiarTokensExpirados() async {
+    try {
+      await _dbHelper.limpiarTokensExpirados();
+      await _dbHelper.clearOldSessions();
+      _resetAuthState();
+      debugPrint('✅ Tokens expirados limpiados desde AuthProvider');
+    } catch (e) {
+      debugPrint('❌ Error limpiando tokens desde AuthProvider: $e');
+      rethrow;
+    }
+  }
+
+  // 👇 CAMBIO 3: Renombramos y hacemos público el método de cargar medicamentos
   Future<void> loadInitialMedicamentos() async {
     try {
       if (_token != null) {
@@ -94,7 +110,6 @@ class AuthProvider with ChangeNotifier {
       rethrow;
     }
   }
-
 
   Future<void> _tryOfflineFallback(String usuario, String contrasena) async {
     try {
@@ -185,27 +200,35 @@ class AuthProvider with ChangeNotifier {
     });
   }
 
+  // ✅ MÉTODO _resetAuthState CORREGIDO - SIEMPRE NOTIFICA
   void _resetAuthState() {
+    debugPrint('🔄 AuthProvider: Reseteando estado de autenticación...');
     _token = null;
     _user = null;
     _sede = null;
-    notifyListeners();
+    _userId = null;
+    debugPrint('🔄 AuthProvider: Notificando cambios a listeners...');
+    notifyListeners(); // ✅ ESTO ES CRÍTICO
+    debugPrint('✅ Estado reseteado y listeners notificados');
   }
 
   Future<void> autoLogin() async {
     try {
       final localUser = await _dbHelper.getLoggedInUser();
       if (localUser == null) {
+        debugPrint('❌ No hay usuario logueado localmente');
         _resetAuthState();
         return;
       }
 
       if (localUser['token'] == null || localUser['id'] == null) {
+        debugPrint('❌ Token o ID de usuario inválido');
         await _dbHelper.updateUserLoginStatus(localUser['id'].toString(), false);
         _resetAuthState();
         return;
       }
 
+      debugPrint('✅ Auto-login exitoso para usuario: ${localUser['nombre']}');
       _token = localUser['token'];
       _user = {
         'id': localUser['id'],
@@ -217,7 +240,7 @@ class AuthProvider with ChangeNotifier {
       
       notifyListeners();
     } catch (e) {
-      debugPrint('Error en autoLogin: $e');
+      debugPrint('❌ Error en autoLogin: $e');
       _resetAuthState();
     }
   }
@@ -316,26 +339,57 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  // ✅ MÉTODO LOGOUT COMPLETAMENTE CORREGIDO
   Future<void> logout() async {
     try {
+      debugPrint('🔄 AuthProvider: Iniciando proceso de logout...');
+      
       final userId = _user?['id']?.toString();
       final connectivityResult = await _connectivity.checkConnectivity();
       
+      // Intentar logout en servidor si hay conexión
       if (connectivityResult != ConnectivityResult.none && _token != null) {
         try {
+          debugPrint('🌐 Intentando logout en servidor...');
           await ApiService.logout(_token!);
+          debugPrint('✅ Logout exitoso en servidor');
         } catch (e) {
-          debugPrint('Error al hacer logout en servidor: $e');
+          debugPrint('⚠️ Error al hacer logout en servidor: $e');
+          // Continuar con logout local aunque falle el servidor
         }
       }
       
+      // Actualizar estado en base de datos local
       if (userId != null) {
-        await _dbHelper.updateUserLoginStatus(userId, false);
+        try {
+          await _dbHelper.updateUserLoginStatus(userId, false);
+          debugPrint('✅ Estado de usuario actualizado en DB local');
+        } catch (e) {
+          debugPrint('⚠️ Error actualizando estado en DB: $e');
+        }
       }
+      
+      // Limpiar tokens expirados
+      try {
+        await _dbHelper.limpiarTokensExpirados();
+        debugPrint('✅ Tokens expirados limpiados');
+      } catch (e) {
+        debugPrint('⚠️ Error limpiando tokens: $e');
+      }
+      
     } catch (e) {
-      debugPrint('Error en logout: $e');
+      debugPrint('❌ Error en logout: $e');
+    } finally {
+      // SIEMPRE resetear el estado, incluso si hay errores
+      debugPrint('🔄 Reseteando estado de autenticación...');
+      _resetAuthState();
+      debugPrint('✅ Logout completado');
     }
-    
+  }
+
+  // ✅ MÉTODO ADICIONAL PARA FORZAR LOGOUT SI ES NECESARIO
+  Future<void> forceLogout() async {
+    debugPrint('🚨 Forzando logout inmediato...');
     _resetAuthState();
   }
 
@@ -360,28 +414,28 @@ class AuthProvider with ChangeNotifier {
   }
 
   // Agrega estos métodos en tu AuthProvider
-Future<String?> getCurrentUserId() async {
-  if (_user != null && _user!['id'] != null) {
-    return _user!['id'].toString();
+  Future<String?> getCurrentUserId() async {
+    if (_user != null && _user!['id'] != null) {
+      return _user!['id'].toString();
+    }
+    
+    // Fallback a SQLite si no está en memoria
+    final localUser = await _dbHelper.getLoggedInUser();
+    return localUser?['id']?.toString();
   }
-  
-  // Fallback a SQLite si no está en memoria
-  final localUser = await _dbHelper.getLoggedInUser();
-  return localUser?['id']?.toString();
-}
 
-Future<bool> canCreateVisitas() async {
-  if (!isAuthenticated) return false;
-  
-  // Verificar permisos del usuario si es necesario
-  final user = await getCurrentUserData();
-  return user != null; // O alguna lógica específica de permisos
-}
+  Future<bool> canCreateVisitas() async {
+    if (!isAuthenticated) return false;
+    
+    // Verificar permisos del usuario si es necesario
+    final user = await getCurrentUserData();
+    return user != null; // O alguna lógica específica de permisos
+  }
 
-Future<Map<String, dynamic>?> getCurrentUserData() async {
-  if (_user != null) return _user;
-  
-  final localUser = await _dbHelper.getLoggedInUser();
-  return localUser;
-}
+  Future<Map<String, dynamic>?> getCurrentUserData() async {
+    if (_user != null) return _user;
+    
+    final localUser = await _dbHelper.getLoggedInUser();
+    return localUser;
+  }
 }

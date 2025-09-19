@@ -60,12 +60,18 @@ class _VisitasFormScreenState extends State<VisitasFormScreen> {
   final _proximoControlController = TextEditingController();
   final _latitudController = TextEditingController();
   final _longitudController = TextEditingController();
+  final TextEditingController _otraFactorRiesgoController = TextEditingController();
+  final TextEditingController _otraMotivoController = TextEditingController();
+  final TextEditingController _otraConductaController = TextEditingController();
 
   // Variables de estado
   bool _showGeolocalizacion = false;
   bool _isGettingLocation = false;
   bool _isLoading = false;
   bool _isEditing = false;
+  bool _mostrarCampoOtraFactorRiesgo = false;
+  bool _mostrarCampoOtraMotivo = false;
+  bool _mostrarCampoOtraConducta = false;
   String? _currentVisitaId;
   double? _imcValue;
   int? _edad;
@@ -98,7 +104,8 @@ class _VisitasFormScreenState extends State<VisitasFormScreen> {
     'No quiere',
     'Olvido',
     'Tratamiento Alternativo',
-    'Tiene medicamentos'
+    'Tiene medicamentos',
+    'Otra' // ✅ Agregar
   ];
 
   final List<String> _opcionesFactoresRiesgo = [
@@ -109,14 +116,16 @@ class _VisitasFormScreenState extends State<VisitasFormScreen> {
     'Sangrado nasal',
     'Hinchazon de pies',
     'Ganas de orinar constante',
-    'Cansancio o Debilidad'
+    'Cansancio o Debilidad',
+    'Otra' // ✅ Agregar
   ];
 
   final List<String> _opcionesConductas = [
     'Educacion',
     'Alimentacion',
     'Actividad fisica',
-    'Tratamiento Farmacologico'
+    'Tratamiento Farmacologico',
+    'Otra' // ✅ Agregar
   ];
 
   @override
@@ -156,6 +165,9 @@ class _VisitasFormScreenState extends State<VisitasFormScreen> {
     _latitudController.dispose();
     _longitudController.dispose();
     _signatureController.dispose();
+    _otraFactorRiesgoController.dispose();
+    _otraMotivoController.dispose();
+    _otraConductaController.dispose();
     super.dispose();
   }
     Future<void> _loadMedicamentosIfNeeded() async {
@@ -1192,6 +1204,12 @@ Future<void> _saveVisita() async {
       _proximoControlController.clear();
       _latitudController.clear();
       _longitudController.clear();
+      _otraFactorRiesgoController.clear();
+      _otraMotivoController.clear();
+      _otraConductaController.clear();
+      _mostrarCampoOtraFactorRiesgo = false;
+      _mostrarCampoOtraMotivo = false;
+      _mostrarCampoOtraConducta = false;
     });
     _signatureController.clear();
   }
@@ -1399,7 +1417,7 @@ Widget build(BuildContext context) {
                           child: TextFormField(
                             controller: _glucometriaController,
                             decoration: const InputDecoration(labelText: 'Glucometría (mg/dL)'),
-                            keyboardType: TextInputType.number,
+                            keyboardType: TextInputType.text,
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -1599,6 +1617,7 @@ Widget build(BuildContext context) {
   }
 
   // Widget para selección múltiple - VERSIÓN FINAL
+// ✅ MÉTODO ACTUALIZADO CON FUNCIONALIDAD "OTRA"
 Widget _buildMultipleSelectionField({
   required String title,
   required List<String> selectedItems,
@@ -1627,7 +1646,7 @@ Widget _buildMultipleSelectionField({
       ),
       const SizedBox(height: 8),
       
-      // Mostrar elementos seleccionados
+      // ✅ MOSTRAR ELEMENTOS SELECCIONADOS COMO CHIPS
       if (selectedItems.isNotEmpty)
         Container(
           padding: const EdgeInsets.all(12),
@@ -1653,6 +1672,23 @@ Widget _buildMultipleSelectionField({
                     onDeleted: () {
                       final newList = List<String>.from(selectedItems);
                       newList.remove(item);
+                      
+                      // ✅ Si elimina "Otra", ocultar el campo correspondiente
+                      if (item == 'Otra') {
+                        setState(() {
+                          if (title == 'Factores de Riesgo') {
+                            _mostrarCampoOtraFactorRiesgo = false;
+                            _otraFactorRiesgoController.clear();
+                          } else if (title == 'Motivo de No Asistencia') {
+                            _mostrarCampoOtraMotivo = false;
+                            _otraMotivoController.clear();
+                          } else if (title == 'Conductas') {
+                            _mostrarCampoOtraConducta = false;
+                            _otraConductaController.clear();
+                          }
+                        });
+                      }
+                      
                       onChanged(newList);
                     },
                     deleteIcon: const Icon(Icons.close, size: 18),
@@ -1665,14 +1701,13 @@ Widget _buildMultipleSelectionField({
       
       const SizedBox(height: 8),
       
-      // Botón para abrir diálogo de selección
+      // ✅ BOTÓN PARA ABRIR DIÁLOGO
       OutlinedButton.icon(
         onPressed: () {
-          // Desactivar foco y ocultar teclado
           FocusScope.of(context).unfocus();
           Future.delayed(const Duration(milliseconds: 100), () {
             if (mounted) {
-              _showMultipleSelectionDialog(
+              _showMultipleSelectionDialogWithOtra(
                 title: title,
                 options: options,
                 selectedItems: selectedItems,
@@ -1688,17 +1723,31 @@ Widget _buildMultipleSelectionField({
   );
 }
 
+
 // Diálogo para selección múltiple - VERSIÓN FINAL
-void _showMultipleSelectionDialog({
+// ✅ NUEVO MÉTODO PARA DIÁLOGO CON FUNCIONALIDAD "OTRA"
+void _showMultipleSelectionDialogWithOtra({
   required String title,
   required List<String> options,
   required List<String> selectedItems,
   required Function(List<String>) onChanged,
 }) {
-  // Asegurar que no hay foco activo
   FocusScope.of(context).unfocus();
   
   List<String> tempSelected = List.from(selectedItems);
+  bool showOtraField = tempSelected.contains('Otra');
+  
+  // Determinar qué controlador usar
+  TextEditingController otraController;
+  if (title == 'Factores de Riesgo') {
+    otraController = _otraFactorRiesgoController;
+  } else if (title == 'Motivo de No Asistencia') {
+    otraController = _otraMotivoController;
+  } else if (title == 'Conductas') {
+    otraController = _otraConductaController;
+  } else {
+    otraController = TextEditingController(); // Fallback
+  }
   
   showDialog(
     context: context,
@@ -1708,29 +1757,97 @@ void _showMultipleSelectionDialog({
         title: Text('Seleccionar $title'),
         content: SizedBox(
           width: double.maxFinite,
-          child: ListView(
-            shrinkWrap: true,
-            children: options.map((option) {
-              return CheckboxListTile(
-                title: Text(option),
-                value: tempSelected.contains(option),
-                onChanged: (bool? value) {
-                  setDialogState(() {
-                    if (value == true) {
-                      tempSelected.add(option);
-                    } else {
-                      tempSelected.remove(option);
-                    }
-                  });
-                },
-              );
-            }).toList(),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // ✅ LISTA DE OPCIONES
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: options.map((option) {
+                    return CheckboxListTile(
+                      title: Text(option),
+                      value: tempSelected.contains(option),
+                      onChanged: (bool? value) {
+                        setDialogState(() {
+                          if (value == true) {
+                            tempSelected.add(option);
+                            
+                            // ✅ Si selecciona "Otra", mostrar campo
+                            if (option == 'Otra') {
+                              showOtraField = true;
+                            }
+                          } else {
+                            tempSelected.remove(option);
+                            
+                            // ✅ Si deselecciona "Otra", ocultar campo
+                            if (option == 'Otra') {
+                              showOtraField = false;
+                              otraController.clear();
+                              
+                              // Remover valores personalizados
+                              tempSelected.removeWhere((item) => 
+                                !options.contains(item) && item != 'Otra'
+                              );
+                            }
+                          }
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+              ),
+              
+              // ✅ CAMPO DE TEXTO PARA "OTRA"
+              if (showOtraField)
+                Padding(
+                  padding: const EdgeInsets.only(top: 16.0),
+                  child: TextField(
+                    controller: otraController,
+                    decoration: InputDecoration(
+                      labelText: 'Especifique otra opción',
+                      hintText: 'Escriba aquí...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.add, color: Colors.green),
+                        onPressed: () {
+                          final texto = otraController.text.trim();
+                          if (texto.isNotEmpty) {
+                            setDialogState(() {
+                              if (!tempSelected.contains(texto)) {
+                                tempSelected.add(texto);
+                              }
+                              otraController.clear();
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                    onSubmitted: (texto) {
+                      if (texto.trim().isNotEmpty) {
+                        setDialogState(() {
+                          if (!tempSelected.contains(texto.trim())) {
+                            tempSelected.add(texto.trim());
+                          }
+                          otraController.clear();
+                        });
+                      }
+                    },
+                  ),
+                ),
+            ],
           ),
         ),
         actions: [
           TextButton(
             onPressed: () {
-              setDialogState(() => tempSelected.clear());
+              setDialogState(() {
+                tempSelected.clear();
+                showOtraField = false;
+                otraController.clear();
+              });
             },
             child: const Text('Limpiar Todo'),
           ),
@@ -1740,6 +1857,17 @@ void _showMultipleSelectionDialog({
           ),
           ElevatedButton(
             onPressed: () {
+              // ✅ ACTUALIZAR ESTADO GLOBAL AL ACEPTAR
+              setState(() {
+                if (title == 'Factores de Riesgo') {
+                  _mostrarCampoOtraFactorRiesgo = showOtraField;
+                } else if (title == 'Motivo de No Asistencia') {
+                  _mostrarCampoOtraMotivo = showOtraField;
+                } else if (title == 'Conductas') {
+                  _mostrarCampoOtraConducta = showOtraField;
+                }
+              });
+              
               onChanged(tempSelected);
               Navigator.of(context).pop();
             },

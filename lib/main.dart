@@ -9,10 +9,8 @@ import 'providers/paciente_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/profile_screen.dart';
-// Removido ya que PacientesScreen no se usa directamente en las rutas
-// import 'screens/pacientes_screen.dart'; 
 import 'screens/home_screen.dart';
-import 'screens/initial_sync_screen.dart'; // ✅ IMPORT AÑADIDO
+import 'screens/initial_sync_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -141,11 +139,70 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     });
   }
 
+  // ✅ MÉTODO DE LOGOUT MEJORADO CON NAVEGACIÓN FORZADA
+  Future<void> _handleLogout() async {
+    try {
+      debugPrint('🔘 main.dart: Iniciando logout...');
+      
+      // Ejecutar logout en el AuthProvider
+      await _authProvider.logout();
+      
+      debugPrint('✅ main.dart: Logout completado, AuthProvider actualizado');
+      
+      // ✅ FORZAR NAVEGACIÓN AL LOGIN INMEDIATAMENTE
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (navigatorKey.currentContext != null) {
+          debugPrint('🔄 Forzando navegación al LoginScreen...');
+          
+          // Opción 1: Usar Navigator.pushAndRemoveUntil
+          Navigator.of(navigatorKey.currentContext!).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (context) => LoginScreen(
+                authProvider: _authProvider,
+                onLoginSuccess: () {},
+              ),
+            ),
+            (route) => false, // Remover todas las rutas anteriores
+          );
+          
+          debugPrint('✅ Navegación forzada completada');
+        }
+      });
+      
+    } catch (e) {
+      debugPrint('❌ main.dart: Error en logout: $e');
+      
+      // Aún así, forzar logout local por seguridad
+      try {
+        await _authProvider.forceLogout();
+        debugPrint('✅ main.dart: Logout forzado completado');
+        
+        // También forzar navegación en caso de error
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (navigatorKey.currentContext != null) {
+            Navigator.of(navigatorKey.currentContext!).pushAndRemoveUntil(
+              MaterialPageRoute(
+                builder: (context) => LoginScreen(
+                  authProvider: _authProvider,
+                  onLoginSuccess: () {},
+                ),
+              ),
+              (route) => false,
+            );
+          }
+        });
+        
+      } catch (forceError) {
+        debugPrint('❌ main.dart: Error en logout forzado: $forceError');
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => _authProvider),
+        ChangeNotifierProvider.value(value: _authProvider),
         ChangeNotifierProvider(create: (_) => PacienteProvider(_authProvider)),
       ],
       child: MaterialApp(
@@ -156,38 +213,48 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ),
         navigatorKey: navigatorKey,
         
-        // ✅ LÓGICA DE NAVEGACIÓN ACTUALIZADA
-        // Esta lógica es robusta para decidir la pantalla inicial.
+        // ✅ CONSUMER CON LOGS MEJORADOS Y DETECCIÓN DE CAMBIOS
         home: Consumer<AuthProvider>(
           builder: (context, auth, _) {
+            // ✅ LOG DETALLADO DEL ESTADO ACTUAL
+            debugPrint('🔍 Consumer rebuild - Auth: ${auth.isAuthenticated}, Token: ${auth.token != null ? "presente" : "null"}, User: ${auth.user != null ? auth.user!['nombre'] : "null"}, Initialized: $_isInitialized, ShowSplash: $_showSplash');
+            
+            // Mostrar splash mientras inicializa
             if (!_isInitialized || (_showSplash && !_hasShownSplash)) {
-              return SplashScreen(); // Muestra el splash mientras inicializa.
+              debugPrint('📱 Mostrando SplashScreen');
+              return SplashScreen();
             }
-            if (auth.isAuthenticated) {
-              return HomeScreen(onLogout: () => auth.logout());
+            
+            // ✅ VERIFICACIÓN MÁS ESTRICTA DE AUTENTICACIÓN
+            if (auth.isAuthenticated && auth.token != null && auth.user != null) {
+              debugPrint('✅ Usuario autenticado, mostrando HomeScreen');
+              return HomeScreen(
+                onLogout: _handleLogout,
+              );
             }
-            // Aquí pasamos `onLoginSuccess` como un callback vacío porque
-            // la navegación a la pantalla de sync o home ahora se maneja
-            // dentro de la propia LoginScreen.
+            
+            // Si no está autenticado, mostrar login
+            debugPrint('❌ Usuario no autenticado, mostrando LoginScreen');
             return LoginScreen(
               authProvider: _authProvider,
-              onLoginSuccess: () {},
+              onLoginSuccess: () {
+                debugPrint('✅ Login exitoso detectado en main.dart');
+              },
             );
           },
         ),
 
-        // ✅ RUTAS DEFINIDAS CLARAMENTE PARA NAVEGACIÓN NOMBRADA
         routes: {
-          '/home': (context) => HomeScreen(onLogout: () {
-                Provider.of<AuthProvider>(context, listen: false).logout();
-              }),
+          '/home': (context) => HomeScreen(
+            onLogout: _handleLogout,
+          ),
           '/profile': (context) => ProfileScreen(
-                authProvider: _authProvider,
-                onLogout: () {
-                  Provider.of<AuthProvider>(context, listen: false).logout();
-                },
-              ),
-          '/visitas': (context) => VisitasScreen(onLogout: () {}),
+            authProvider: _authProvider,
+            onLogout: _handleLogout,
+          ),
+          '/visitas': (context) => VisitasScreen(
+            onLogout: _handleLogout,
+          ),
           '/initial-sync': (context) => const InitialSyncScreen(),
         },
       ),
@@ -197,8 +264,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    // No es necesario drenar el stream de esta manera, el `listen` se cancela solo.
-    // _connectivity.onConnectivityChanged.drain(); 
     super.dispose();
   }
 }

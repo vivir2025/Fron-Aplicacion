@@ -226,6 +226,8 @@ class DetalleEnvioMuestra {
   final String? peso;
   final String? talla;
   final String? volumen;
+  final String? microo;
+  final String? creaori;
 
   // ✅ MÉTODO ESTÁTICO PARA GENERAR ID CORTO
   static String generarIdCorto() {
@@ -278,6 +280,8 @@ class DetalleEnvioMuestra {
     this.peso,
     this.talla,
     this.volumen,
+    this.microo,
+    this.creaori,
   }) : id = id ?? generarIdCorto(); // ✅ GENERAR ID AUTOMÁTICAMENTE SI NO SE PROPORCIONA
 
   factory DetalleEnvioMuestra.fromJson(Map<String, dynamic> json) {
@@ -324,6 +328,8 @@ class DetalleEnvioMuestra {
       peso: json['peso']?.toString(),
       talla: json['talla']?.toString(),
       volumen: json['volumen']?.toString(),
+      microo: json['microo']?.toString(),
+      creaori: json['creaori']?.toString(),
     );
   }
 
@@ -371,6 +377,8 @@ class DetalleEnvioMuestra {
       'peso': peso,
       'talla': talla,
       'volumen': volumen,
+      'microo': microo,
+      'creaori': creaori,
     };
   }
 
@@ -418,6 +426,8 @@ class DetalleEnvioMuestra {
       'peso': peso?.toString() ?? '',
       'talla': talla?.toString() ?? '',
       'volumen': volumen?.toString() ?? '',
+      'microo': microo?.toString() ?? '',
+      'creaori': creaori?.toString() ?? '',
     };
   }
 }

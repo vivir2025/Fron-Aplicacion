@@ -3,6 +3,7 @@ import '../providers/auth_provider.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:provider/provider.dart';
 import 'initial_sync_screen.dart';
+import '../database/database_helper.dart'; // ✅ AGREGAR IMPORT
 
 class LoginScreen extends StatefulWidget {
   final AuthProvider authProvider;
@@ -24,6 +25,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _contrasenaController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _isCleaningTokens = false; // ✅ NUEVA VARIABLE
 
   // Colores del tema
   static const Color primaryGreen = Color(0xFF2E7D32);
@@ -39,28 +41,167 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  // ✅ MÉTODO PARA LIMPIAR TOKENS
+  Future<void> _limpiarTokens() async {
+    setState(() => _isCleaningTokens = true);
+    
+    try {
+      final dbHelper = DatabaseHelper.instance;
+      
+      // Limpiar todos los tokens expirados
+      await dbHelper.limpiarTokensExpirados();
+      
+      // Limpiar sesiones activas
+      await dbHelper.clearOldSessions();
+      
+      // Resetear el estado del AuthProvider
+      await widget.authProvider.logout();
+      
+      if (mounted) {
+        _mostrarMensajeExito('Tokens limpiados exitosamente. Ahora puedes iniciar sesión nuevamente.');
+      }
+    } catch (e) {
+      if (mounted) {
+        _mostrarError('Error al limpiar tokens: $e');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isCleaningTokens = false);
+      }
+    }
+  }
+
+  // ✅ MÉTODO PARA MOSTRAR DIÁLOGO DE CONFIRMACIÓN
+  Future<void> _mostrarDialogoLimpiarTokens() async {
+    final resultado = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.orange[100],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.cleaning_services,
+                color: Colors.orange[700],
+                size: 24,
+              ),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Limpiar Tokens',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: primaryGreen,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Esta acción eliminará todos los tokens de autenticación guardados localmente.',
+              style: TextStyle(fontSize: 16),
+            ),
+            SizedBox(height: 12),
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue[200]!),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '¿Cuándo usar esta opción?',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue[800],
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    '• Cuando el token ha expirado\n'
+                    '• Error de autenticación persistente\n'
+                    '• Problemas de inicio de sesión offline',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.blue[700],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 12),
+            Text(
+              '¿Deseas continuar?',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(
+              'Cancelar',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange[600],
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text('Limpiar Tokens'),
+          ),
+        ],
+      ),
+    );
+
+    if (resultado == true) {
+      await _limpiarTokens();
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
-      // Captura el resultado del login que indica si necesita sincronización
       final bool needsSync = await widget.authProvider.login(
         _usuarioController.text.trim(),
         _contrasenaController.text.trim(),
       );
 
-      // Es importante verificar si el widget sigue "montado" antes de navegar
       if (!mounted) return;
 
       if (needsSync) {
-        // Si necesita sincronización, vamos a la nueva pantalla
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const InitialSyncScreen()),
         );
       } else {
-        // Si no necesita sincronización, usamos el callback para ir a la pantalla principal
         WidgetsBinding.instance.addPostFrameCallback((_) {
           widget.onLoginSuccess();
         });
@@ -107,6 +248,47 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  // ✅ MÉTODO PARA MOSTRAR MENSAJE DE ÉXITO
+  void _mostrarMensajeExito(String mensaje) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.white),
+            SizedBox(width: 8),
+            Expanded(child: Text(mensaje)),
+          ],
+        ),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    );
+  }
+
+  void _mostrarError(String mensaje) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.error, color: Colors.white),
+            SizedBox(width: 8),
+            Expanded(child: Text(mensaje)),
+          ],
+        ),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    );
+  }
+
   Color _getSnackbarColor(dynamic e) {
     if (e.toString().contains('SocketException') || 
         e.toString().contains('No hay conexión')) {
@@ -121,10 +303,10 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: backgroundColor,
       body: Column(
         children: [
-          // Header con gradiente verde que cubre toda la parte superior incluyendo status bar
+          // Header con gradiente verde
           Container(
             width: double.infinity,
-            height: 290, // Tamaño original más pequeño
+            height: 290,
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
@@ -272,7 +454,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                     color: primaryGreen,
                                   ),
                                   onPressed: () {
-                                    
                                     setState(() {
                                       _obscurePassword = !_obscurePassword;
                                     });
@@ -364,21 +545,43 @@ class _LoginScreenState extends State<LoginScreen> {
                                       ),
                                     ),
                             ),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 16),
                             
-                            // Enlace de recuperación
-                            TextButton(
-                              onPressed: () {
-                                // Navegar a pantalla de recuperación de contraseña
-                              },
-                              child: const Text(
-                                '¿Olvidaste tu contraseña?',
-                                style: TextStyle(
-                                  color: primaryGreen,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
+                            // ✅ ENLACE PARA LIMPIAR TOKENS (REEMPLAZA "¿Olvidaste tu contraseña?")
+                            _isCleaningTokens
+                                ? Center(
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor: AlwaysStoppedAnimation<Color>(const Color.fromARGB(255, 35, 207, 61)!),
+                                          ),
+                                        ),
+                                        SizedBox(width: 8),
+                                        Text(
+                                          'Limpiando tokens...',
+                                          style: TextStyle(
+                                            color: const Color.fromARGB(255, 29, 181, 13),
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                : TextButton(
+                                    onPressed: _mostrarDialogoLimpiarTokens,
+                                    child: Text(
+                                      'Limpiar Tokens de Autenticación',
+                                      style: TextStyle(
+                                        color: const Color.fromARGB(255, 9, 134, 15),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
                           ],
                         ),
                       ),

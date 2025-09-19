@@ -132,6 +132,8 @@ class EnvioMuestraService {
         'peso': detalle.peso,
         'talla': detalle.talla,
         'volumen': detalle.volumen,
+        'microo': detalle.microo,
+        'creaori': detalle.creaori,
       });
     }
 

@@ -801,36 +801,195 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
     );
   }
 
-  Widget _buildMuestraCard(DetalleEnvioMuestra detalle, int index) {
-    return Card(
-      margin: EdgeInsets.only(bottom: 8),
+// ✅ MÉTODO ACTUALIZADO PARA MOSTRAR IDENTIFICACIÓN Y NOMBRE
+Widget _buildMuestraCard(DetalleEnvioMuestra detalle, int index) {
+  // ✅ Buscar información del paciente
+  Paciente? pacienteInfo;
+  try {
+    pacienteInfo = _pacientes.firstWhere((p) => p.id == detalle.pacienteId);
+  } catch (e) {
+    debugPrint('⚠️ Paciente no encontrado para ID: ${detalle.pacienteId}');
+  }
+
+  return Card(
+    margin: EdgeInsets.only(bottom: 8),
+    elevation: 2,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        gradient: LinearGradient(
+          colors: [
+            Colors.white,
+            Colors.blue[50]!.withOpacity(0.3),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
       child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: Colors.blue[800],
-          child: Text(
-            '${detalle.numeroOrden}',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        contentPadding: EdgeInsets.all(16),
+        leading: Container(
+          width: 50,
+          height: 50,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.blue[800]!, Colors.blue[600]!],
+            ),
+            borderRadius: BorderRadius.circular(25),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.blue.withOpacity(0.3),
+                blurRadius: 8,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Center(
+            child: Text(
+              '${detalle.numeroOrden}',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
           ),
         ),
-        title: Text('Muestra #${detalle.numeroOrden}'),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Paciente ID: ${detalle.pacienteId}'),
-            if (detalle.dm?.isNotEmpty == true || detalle.hta?.isNotEmpty == true)
-              Text('Diagnóstico: ${[detalle.dm, detalle.hta].where((e) => e?.isNotEmpty == true).join(', ')}'),
-            if (detalle.numMuestrasEnviadas?.isNotEmpty == true)
-              Text('# Muestras: ${detalle.numMuestrasEnviadas}'),
-          ],
+        title: Text(
+          'Muestra #${detalle.numeroOrden}',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            color: Colors.blue[800],
+          ),
         ),
-        trailing: IconButton(
-          icon: Icon(Icons.delete, color: Colors.red),
-          onPressed: () => _eliminarMuestra(index),
+        subtitle: Container(
+          margin: EdgeInsets.only(top: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ✅ MOSTRAR IDENTIFICACIÓN Y NOMBRE DEL PACIENTE
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.green[50],
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.green[200]!),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.person,
+                      size: 16,
+                      color: Colors.green[700],
+                    ),
+                    SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        pacienteInfo != null
+                            ? '${pacienteInfo.identificacion} - ${pacienteInfo.nombre} ${pacienteInfo.apellido}'
+                            : 'ID: ${detalle.pacienteId} (Paciente no encontrado)',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.green[700],
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // ✅ MOSTRAR DIAGNÓSTICO SI EXISTE
+              if (detalle.dm?.isNotEmpty == true || detalle.hta?.isNotEmpty == true) ...[
+                SizedBox(height: 6),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.orange[50],
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.orange[200]!),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.medical_services,
+                        size: 16,
+                        color: Colors.orange[700],
+                      ),
+                      SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          'Diagnóstico: ${[detalle.dm, detalle.hta].where((e) => e?.isNotEmpty == true).join(', ')}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.orange[700],
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              
+              // ✅ MOSTRAR NÚMERO DE MUESTRAS SI EXISTE
+              if (detalle.numMuestrasEnviadas?.isNotEmpty == true) ...[
+                SizedBox(height: 6),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.purple[50],
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.purple[200]!),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.science,
+                        size: 16,
+                        color: Colors.purple[700],
+                      ),
+                      SizedBox(width: 6),
+                      Text(
+                        '# Muestras: ${detalle.numMuestrasEnviadas}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.purple[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        trailing: Container(
+          decoration: BoxDecoration(
+            color: Colors.red[50],
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: IconButton(
+            icon: Icon(Icons.delete_rounded, color: Colors.red[600]),
+            onPressed: () => _eliminarMuestra(index),
+            tooltip: 'Eliminar muestra',
+          ),
         ),
         onTap: () => _editarMuestra(index),
       ),
-    );
-  }
+    ),
+  );
+}
 
   void _agregarMuestra() async {
     if (_sedeSeleccionada == null) {
@@ -917,6 +1076,8 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
                     peso: _detalles[i].peso,
                     talla: _detalles[i].talla,
                     volumen: _detalles[i].volumen,
+                    microo: _detalles[i].microo,
+                    creaori: _detalles[i].creaori,
                   );
                 }
               });
