@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/paciente_provider.dart';
+import '../services/sincronizacion_service.dart';
 import 'dart:ui';
 
 class InitialSyncScreen extends StatefulWidget {
@@ -40,25 +41,46 @@ class _InitialSyncScreenState extends State<InitialSyncScreen> with SingleTicker
     final pacienteProvider = Provider.of<PacienteProvider>(context, listen: false);
 
     try {
+      // ✅ PASO 1: Cargar sedes
       setState(() {
         _statusMessage = 'Cargando sedes...';
-        _progress = 0.25;
+        _progress = 0.20;
       });
       await pacienteProvider.loadSedes();
 
+      // ✅ PASO 2: Sincronizar pacientes desde servidor
       setState(() {
-        _statusMessage = 'Cargando pacientes...';
-        _progress = 0.50;
+        _statusMessage = 'Sincronizando pacientes desde servidor...';
+        _progress = 0.40;
       });
-      pacienteProvider.resetLoadState(); 
-      await pacienteProvider.loadPacientes();
+      
+      if (authProvider.isAuthenticated && authProvider.token != null) {
+        // 🆕 USAR EL MÉTODO DE SINCRONIZACIÓN COMPLETA DE PACIENTES
+        await pacienteProvider.syncPacientesFromServer();
+        
+        setState(() {
+          _statusMessage = 'Pacientes sincronizados correctamente';
+          _progress = 0.60;
+        });
+      } else {
+        // Si no hay token, solo cargar desde DB local
+        debugPrint('⚠️ Sin token, cargando pacientes desde DB local');
+        await pacienteProvider.loadPacientesFromDB();
+        
+        setState(() {
+          _statusMessage = 'Pacientes cargados desde almacenamiento local';
+          _progress = 0.60;
+        });
+      }
 
+      // ✅ PASO 3: Cargar medicamentos
       setState(() {
         _statusMessage = 'Cargando medicamentos...';
-        _progress = 0.75;
+        _progress = 0.80;
       });
       await authProvider.loadInitialMedicamentos();
 
+      // ✅ PASO 4: Finalización
       setState(() {
         _statusMessage = '¡Sincronización completa!';
         _progress = 1.0;
@@ -71,15 +93,48 @@ class _InitialSyncScreenState extends State<InitialSyncScreen> with SingleTicker
       }
 
     } catch (e) {
-      debugPrint("Error durante la sincronización inicial: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al sincronizar datos: $e'),
-            backgroundColor: Colors.red[700],
-          ),
-        );
-        await authProvider.logout();
+      debugPrint("❌ Error durante la sincronización inicial: $e");
+      
+      // ✅ EN CASO DE ERROR, INTENTAR CARGAR SOLO DESDE DB LOCAL
+      try {
+        setState(() {
+          _statusMessage = 'Error de conexión, cargando datos locales...';
+          _progress = 0.70;
+        });
+        
+        await pacienteProvider.loadPacientesFromDB();
+        
+        setState(() {
+          _statusMessage = 'Datos locales cargados correctamente';
+          _progress = 1.0;
+        });
+        
+        await Future.delayed(const Duration(milliseconds: 800));
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('⚠️ Modo offline: usando datos locales'),
+              backgroundColor: Colors.orange[700],
+              duration: const Duration(seconds: 3),
+            ),
+          );
+          Navigator.of(context).pushReplacementNamed('/home');
+        }
+        
+      } catch (localError) {
+        debugPrint("❌ Error crítico cargando datos locales: $localError");
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('❌ Error crítico: $localError'),
+              backgroundColor: Colors.red[700],
+              duration: const Duration(seconds: 5),
+            ),
+          );
+          await authProvider.logout();
+        }
       }
     }
   }
@@ -140,7 +195,7 @@ class _InitialSyncScreenState extends State<InitialSyncScreen> with SingleTicker
                           child: const Icon(
                             Icons.medical_services_outlined,
                             size: 50,
-                            color: Color(0xFF1E8449), // Verde más profesional
+                            color: Color(0xFF1E8449),
                           ),
                         ),
                         const SizedBox(height: 25),
@@ -151,7 +206,7 @@ class _InitialSyncScreenState extends State<InitialSyncScreen> with SingleTicker
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF1E8449), // Verde más profesional
+                            color: Color(0xFF1E8449),
                             letterSpacing: 0.5,
                           ),
                         ),
@@ -159,6 +214,24 @@ class _InitialSyncScreenState extends State<InitialSyncScreen> with SingleTicker
                         // Indicadores de progreso
                         _buildStatusIndicator(),
                         const SizedBox(height: 30),
+                        // Mensaje de estado actual
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            _statusMessage,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF2E86C1),
+                              fontWeight: FontWeight.w500,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        const SizedBox(height: 15),
                         // Mensaje de espera
                         Text(
                           'Esto solo tomará un momento',
@@ -196,11 +269,11 @@ class _InitialSyncScreenState extends State<InitialSyncScreen> with SingleTicker
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildStepIndicator('Cargando sedes', Icons.business_outlined, 0.25),
+        _buildStepIndicator('Cargando sedes', Icons.business_outlined, 0.20),
         const SizedBox(height: 12),
-        _buildStepIndicator('Cargando pacientes', Icons.people_outline, 0.50),
+        _buildStepIndicator('Sincronizando pacientes', Icons.people_outline, 0.40),
         const SizedBox(height: 12),
-        _buildStepIndicator('Cargando medicamentos', Icons.medication_outlined, 0.75),
+        _buildStepIndicator('Cargando medicamentos', Icons.medication_outlined, 0.80),
         const SizedBox(height: 12),
         _buildStepIndicator('Sincronización completa', Icons.check_circle_outline, 1.0),
         const SizedBox(height: 25),
@@ -223,8 +296,8 @@ class _InitialSyncScreenState extends State<InitialSyncScreen> with SingleTicker
                   borderRadius: BorderRadius.circular(5),
                   gradient: const LinearGradient(
                     colors: [
-                      Color(0xFF2E86C1), // Azul profesional
-                      Color(0xFF1E8449), // Verde profesional
+                      Color(0xFF2E86C1),
+                      Color(0xFF1E8449),
                     ],
                   ),
                 ),
@@ -238,7 +311,7 @@ class _InitialSyncScreenState extends State<InitialSyncScreen> with SingleTicker
 
   Widget _buildStepIndicator(String message, IconData icon, double progress) {
     final isCompleted = _progress >= progress;
-    final isInProgress = _progress < progress && _progress > progress - 0.25;
+    final isInProgress = _progress < progress && _progress > progress - 0.20;
     
     return Row(
       children: [
@@ -268,16 +341,18 @@ class _InitialSyncScreenState extends State<InitialSyncScreen> with SingleTicker
           ),
         ),
         const SizedBox(width: 12),
-        Text(
-          message,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: isCompleted || isInProgress ? FontWeight.w500 : FontWeight.normal,
-            color: isCompleted 
-                ? const Color(0xFF1E8449)
-                : isInProgress 
-                    ? const Color(0xFF2E86C1)
-                    : Colors.grey[600],
+        Expanded(
+          child: Text(
+            message,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: isCompleted || isInProgress ? FontWeight.w500 : FontWeight.normal,
+              color: isCompleted 
+                  ? const Color(0xFF1E8449)
+                  : isInProgress 
+                      ? const Color(0xFF2E86C1)
+                      : Colors.grey[600],
+            ),
           ),
         ),
       ],
@@ -285,16 +360,15 @@ class _InitialSyncScreenState extends State<InitialSyncScreen> with SingleTicker
   }
 }
 
-// Pintor personalizado para el fondo con patrones
+// Pintor personalizado para el fondo con patrones (sin cambios)
 class BackgroundPatternPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFF2E86C1).withOpacity(0.05) // Azul muy transparente
+      ..color = const Color(0xFF2E86C1).withOpacity(0.05)
       ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
       
-    // Dibujar círculos y líneas decorativas
     for (int i = 0; i < 5; i++) {
       final radius = (i + 1) * 50.0;
       canvas.drawCircle(
@@ -310,9 +384,8 @@ class BackgroundPatternPainter extends CustomPainter {
       );
     }
     
-    // Dibujar líneas decorativas
     final linePaint = Paint()
-      ..color = const Color(0xFF1E8449).withOpacity(0.05) // Verde muy transparente
+      ..color = const Color(0xFF1E8449).withOpacity(0.05)
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke;
       
