@@ -617,6 +617,64 @@ static Future<Map<String, dynamic>> sincronizarPacientesOfflinePendientes(String
   };
 }
 
+// 🆕 MÉTODO PARA ACTUALIZAR VISITAS EXISTENTES
+static Future<Map<String, dynamic>> actualizarVisitaExistente(
+  Visita visita, 
+  String token,
+  List<Map<String, dynamic>> medicamentosData
+) async {
+  try {
+    debugPrint('🔄 Actualizando visita existente: ${visita.id}');
+    
+    // ✅ PREPARAR DATOS IGUAL QUE EN CREATE
+    Map<String, String> visitaData = {
+      'id': visita.id,
+      'nombre_apellido': visita.nombreApellido,
+      'identificacion': visita.identificacion,
+      'fecha': visita.fecha.toIso8601String().split('T')[0],
+      'idusuario': visita.idusuario,
+      'idpaciente': visita.idpaciente,
+      'hta': visita.hta ?? '',
+      'dm': visita.dm ?? '',
+      'telefono': visita.telefono ?? '',
+      'zona': visita.zona ?? '',
+      'peso': visita.peso?.toString() ?? '',
+      'talla': visita.talla?.toString() ?? '',
+      'imc': visita.imc?.toString() ?? '',
+      'perimetro_abdominal': visita.perimetroAbdominal?.toString() ?? '',
+      'frecuencia_cardiaca': visita.frecuenciaCardiaca?.toString() ?? '',
+      'frecuencia_respiratoria': visita.frecuenciaRespiratoria?.toString() ?? '',
+      'tension_arterial': visita.tensionArterial ?? '',
+      'glucometria': visita.glucometria?.toString() ?? '',
+      'temperatura': visita.temperatura?.toString() ?? '',
+      'familiar': visita.familiar ?? '',
+      'abandono_social': visita.abandonoSocial ?? '',
+      'motivo': visita.motivo ?? '',
+      'factores': visita.factores ?? '',
+      'conductas': visita.conductas ?? '',
+      'novedades': visita.novedades ?? '',
+      'proximo_control': visita.proximoControl?.toIso8601String().split('T')[0] ?? '',
+      'latitud': visita.latitud?.toString() ?? '',
+      'longitud': visita.longitud?.toString() ?? '',
+    };
+    
+    // ✅ USAR updateVisitaCompleta CORREGIDO
+    final resultado = await FileService.updateVisitaCompleta(
+      visitaId: visita.id,
+      visitaData: visitaData,
+      token: token,
+      riskPhotoPath: visita.riesgoFotografico,
+      signaturePath: visita.firmaPath ?? visita.firma,
+      medicamentosData: medicamentosData,
+    );
+    
+    return resultado ?? {'success': false, 'error': 'No response from server'};
+    
+  } catch (e) {
+    debugPrint('❌ Error actualizando visita existente: $e');
+    return {'success': false, 'error': e.toString()};
+  }
+}
 
 // services/sincronizacion_service.dart - MÉTODO MEJORADO
 static Future<Map<String, dynamic>> cargarPacientesFaltantesDesdeServidor(String token) async {
@@ -1298,7 +1356,7 @@ if (resultado['exito_general'] == true) {
   );
 }
 
- // services/sincronizacion_service.dart - MÉTODO CORREGIDO
+// services/sincronizacion_service.dart - MÉTODO COMPLETAMENTE CORREGIDO
 static Future<Map<String, dynamic>> sincronizarVisitasPendientes(String token) async {
   final dbHelper = DatabaseHelper.instance;
   final visitasPendientes = await dbHelper.getVisitasNoSincronizadas();
@@ -1362,61 +1420,57 @@ static Future<Map<String, dynamic>> sincronizarVisitasPendientes(String token) a
           }
         }
         
-        // 4. ✅ PREPARAR DATOS CON COORDENADAS INCLUIDAS
-        Map<String, String> visitaData = {
-          'id': visita.id,
-          'nombre_apellido': visita.nombreApellido,
-          'identificacion': visita.identificacion,
-          'fecha': visita.fecha.toIso8601String().split('T')[0],
-          'idusuario': visita.idusuario,
-          'idpaciente': visita.idpaciente,
-          'hta': visita.hta ?? '',
-          'dm': visita.dm ?? '',
-          'telefono': visita.telefono ?? '',
-          'zona': visita.zona ?? '',
-          'peso': visita.peso?.toString() ?? '',
-          'talla': visita.talla?.toString() ?? '',
-          'imc': visita.imc?.toString() ?? '',
-          'perimetro_abdominal': visita.perimetroAbdominal?.toString() ?? '',
-          'frecuencia_cardiaca': visita.frecuenciaCardiaca?.toString() ?? '',
-          'frecuencia_respiratoria': visita.frecuenciaRespiratoria?.toString() ?? '',
-          'tension_arterial': visita.tensionArterial ?? '',
-          'glucometria': visita.glucometria?.toString() ?? '',
-          'temperatura': visita.temperatura?.toString() ?? '',
-          'familiar': visita.familiar ?? '',
-          'abandono_social': visita.abandonoSocial ?? '',
-          'motivo': visita.motivo ?? '',
-          'factores': visita.factores ?? '',
-          'conductas': visita.conductas ?? '',
-          'novedades': visita.novedades ?? '',
-          'proximo_control': visita.proximoControl?.toIso8601String().split('T')[0] ?? '',
-          
-          // 🆕 AGREGAR COORDENADAS AQUÍ:
-          'latitud': visita.latitud?.toString() ?? '',
-          'longitud': visita.longitud?.toString() ?? '',
-        };
+        // 4. ✅ PREPARAR DATOS CON COORDENADAS INCLUIDAS (FUNCIÓN AUXILIAR)
+        Map<String, String> visitaData = _prepararDatosVisita(visita);
         
         // ✅ DEBUG: Confirmar que las coordenadas están en visitaData
         debugPrint('📍 Coordenadas en visitaData: lat=${visitaData['latitud']}, lng=${visitaData['longitud']}');
         
-        // 5. 🆕 USAR createVisitaCompleta PARA MANEJAR ARCHIVOS CORRECTAMENTE
-        Map<String, dynamic>? resultado = await FileService.createVisitaCompleta(
-          visitaData: visitaData,
-          token: token,
-          riskPhotoPath: visita.riesgoFotografico, // 🆕 Pasar ruta de foto
-          signaturePath: visita.firmaPath ?? visita.firma, // 🆕 Pasar ruta de firma
-          medicamentosData: medicamentosData,
-        );
+       // 5. ✅ DECIDIR SI ES CREATE O UPDATE
+Map<String, dynamic>? resultado;
+
+// ✅ VERIFICAR SI LA VISITA YA EXISTE EN EL SERVIDOR
+try {
+  debugPrint('🔍 Verificando si la visita ${visita.id} existe en el servidor...');
+  final visitaExiste = await ApiService.getVisitaById(token, visita.id);
+  
+  if (visitaExiste != null) {
+    // ✅ LA VISITA EXISTE - USAR UPDATE (AHORA FUNCIONA)
+    debugPrint('🔄 Visita existe en servidor, actualizando...');
+    resultado = await _actualizarVisitaExistente(visita, token, medicamentosData, visitaData);
+  } else {
+    // ✅ LA VISITA NO EXISTE - USAR CREATE
+    debugPrint('🆕 Visita no existe en servidor, creando...');
+    resultado = await FileService.createVisitaCompleta(
+      visitaData: visitaData,
+      token: token,
+      riskPhotoPath: visita.riesgoFotografico,
+      signaturePath: visita.firmaPath ?? visita.firma,
+      medicamentosData: medicamentosData,
+    );
+  }
+} catch (verificacionError) {
+  // ✅ SI HAY ERROR AL VERIFICAR, USAR CREATE COMO FALLBACK
+  debugPrint('⚠️ Error verificando existencia, usando create como fallback: $verificacionError');
+  resultado = await FileService.createVisitaCompleta(
+    visitaData: visitaData,
+    token: token,
+    riskPhotoPath: visita.riesgoFotografico,
+    signaturePath: visita.firmaPath ?? visita.firma,
+    medicamentosData: medicamentosData,
+  );
+}
         
+        // 6. ✅ PROCESAR RESULTADO
         if (resultado != null && resultado['success'] == true) {
-          // 6. Marcar como sincronizada
           await dbHelper.marcarVisitaComoSincronizada(visita.id);
           exitosas++;
           debugPrint('✅ Visita ${visita.id} sincronizada exitosamente con archivos y medicamentos');
         } else {
           fallidas++;
-          errores.add('Servidor respondió con error para visita ${visita.id}');
-          debugPrint('❌ Falló sincronización de visita ${visita.id}');
+          final error = resultado?['error'] ?? 'Servidor respondió con error';
+          errores.add('Error en visita ${visita.id}: $error');
+          debugPrint('❌ Falló sincronización de visita ${visita.id}: $error');
         }
         
         // Pequeña pausa entre sincronizaciones para no saturar
@@ -1446,6 +1500,69 @@ static Future<Map<String, dynamic>> sincronizarVisitasPendientes(String token) a
     'errores': errores,
     'total': visitasPendientes.length
   };
+}
+
+// 🆕 FUNCIÓN AUXILIAR PARA PREPARAR DATOS DE VISITA
+static Map<String, String> _prepararDatosVisita(Visita visita) {
+  return {
+    'id': visita.id,
+    'nombre_apellido': visita.nombreApellido,
+    'identificacion': visita.identificacion,
+    'fecha': visita.fecha.toIso8601String().split('T')[0],
+    'idusuario': visita.idusuario,
+    'idpaciente': visita.idpaciente,
+    'hta': visita.hta ?? '',
+    'dm': visita.dm ?? '',
+    'telefono': visita.telefono ?? '',
+    'zona': visita.zona ?? '',
+    'peso': visita.peso?.toString() ?? '',
+    'talla': visita.talla?.toString() ?? '',
+    'imc': visita.imc?.toString() ?? '',
+    'perimetro_abdominal': visita.perimetroAbdominal?.toString() ?? '',
+    'frecuencia_cardiaca': visita.frecuenciaCardiaca?.toString() ?? '',
+    'frecuencia_respiratoria': visita.frecuenciaRespiratoria?.toString() ?? '',
+    'tension_arterial': visita.tensionArterial ?? '',
+    'glucometria': visita.glucometria?.toString() ?? '',
+    'temperatura': visita.temperatura?.toString() ?? '',
+    'familiar': visita.familiar ?? '',
+    'abandono_social': visita.abandonoSocial ?? '',
+    'motivo': visita.motivo ?? '',
+    'factores': visita.factores ?? '',
+    'conductas': visita.conductas ?? '',
+    'novedades': visita.novedades ?? '',
+    'proximo_control': visita.proximoControl?.toIso8601String().split('T')[0] ?? '',
+    // 🆕 COORDENADAS INCLUIDAS:
+    'latitud': visita.latitud?.toString() ?? '',
+    'longitud': visita.longitud?.toString() ?? '',
+  };
+}
+
+// 🆕 FUNCIÓN AUXILIAR PARA ACTUALIZAR VISITA EXISTENTE - CORREGIDA
+static Future<Map<String, dynamic>?> _actualizarVisitaExistente(
+  Visita visita, 
+  String token, 
+  List<Map<String, dynamic>> medicamentosData,
+  Map<String, String> visitaData
+) async {
+  try {
+    debugPrint('🔄 Actualizando visita existente: ${visita.id}');
+    
+    // ✅ USAR updateVisitaCompleta CORREGIDO
+    final resultado = await FileService.updateVisitaCompleta(
+      visitaId: visita.id,
+      visitaData: visitaData,
+      token: token,
+      riskPhotoPath: visita.riesgoFotografico,
+      signaturePath: visita.firmaPath ?? visita.firma,
+      medicamentosData: medicamentosData,
+    );
+    
+    return resultado;
+    
+  } catch (e) {
+    debugPrint('❌ Error actualizando visita existente: $e');
+    return {'success': false, 'error': e.toString()};
+  }
 }
 
 

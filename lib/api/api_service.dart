@@ -1205,5 +1205,39 @@ static Future<Map<String, dynamic>> getTamizajesEstadisticas(String token) async
     return {};
   }
 }
+// En api_service.dart - AGREGAR SI NO EXISTE
+static Future<Map<String, dynamic>?> getVisitaById(String token, String visitaId) async {
+  try {
+    debugPrint('🔍 Verificando existencia de visita: $visitaId');
+    
+    final response = await http.get(
+      Uri.parse('$baseUrl/visitas/$visitaId'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+    ).timeout(const Duration(seconds: 30));
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (data['success'] == true && data['data'] != null) {
+        debugPrint('✅ Visita encontrada en servidor: $visitaId');
+        return data['data'];
+      }
+    } else if (response.statusCode == 404) {
+      debugPrint('❌ Visita no encontrada en servidor: $visitaId');
+      return null;
+    }
+    
+    debugPrint('⚠️ Respuesta inesperada del servidor: ${response.statusCode}');
+    return null;
+    
+  } catch (e) {
+    debugPrint('❌ Error verificando visita: $e');
+    return null; // Asumir que no existe si hay error
+  }
+}
+
 
 }

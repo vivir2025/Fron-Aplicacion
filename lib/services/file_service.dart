@@ -321,16 +321,34 @@ static Future<Map<String, dynamic>?> updateVisitaCompleta({
     request.headers['Accept'] = 'application/json';
     request.fields['_method'] = 'PUT';
     
+    // ✅ Agregar todos los campos de la visita
     request.fields.addAll(visitaData);
     
-    // 🆕 ENVÍO DE MEDICAMENTOS CORREGIDO PARA UPDATE
+    // 🆕 CORREGIR ENVÍO DE MEDICAMENTOS - IGUAL QUE EN CREATE
     if (medicamentosData != null && medicamentosData.isNotEmpty) {
+      debugPrint('💊 Procesando ${medicamentosData.length} medicamentos para actualización...');
+      
+      // ✅ ENVIAR COMO JSON STRING (igual que en create)
       final medicamentosJson = json.encode(medicamentosData);
       request.fields['medicamentos'] = medicamentosJson;
       debugPrint('💊 Medicamentos para actualización: $medicamentosJson');
-      // ❌ NO enviar como campos individuales
+    } else {
+      // ✅ ENVIAR ARRAY VACÍO SI NO HAY MEDICAMENTOS
+      request.fields['medicamentos'] = '[]';
     }
     
+    // ✅ FORZAR COORDENADAS (igual que en create)
+    if (visitaData.containsKey('latitud') && visitaData['latitud']!.isNotEmpty) {
+      request.fields['latitud'] = visitaData['latitud']!;
+      debugPrint('🔧 FORZANDO latitud en update: ${visitaData['latitud']}');
+    }
+    
+    if (visitaData.containsKey('longitud') && visitaData['longitud']!.isNotEmpty) {
+      request.fields['longitud'] = visitaData['longitud']!;
+      debugPrint('🔧 FORZANDO longitud en update: ${visitaData['longitud']}');
+    }
+    
+    // ✅ Agregar archivos si existen
     if (riskPhotoPath != null && riskPhotoPath.isNotEmpty) {
       final riskFile = File(riskPhotoPath);
       if (await riskFile.exists()) {
@@ -357,12 +375,7 @@ static Future<Map<String, dynamic>?> updateVisitaCompleta({
       }
     }
     
-     // 🆕 ASEGURAR QUE LAS COORDENADAS SE ENVÍEN
-    if (visitaData.containsKey('latitud') && visitaData.containsKey('longitud')) {
-      request.fields['latitud'] = visitaData['latitud'] ?? '';
-      request.fields['longitud'] = visitaData['longitud'] ?? '';
-      debugPrint('📍 Coordenadas incluidas en request: ${visitaData['latitud']}, ${visitaData['longitud']}');
-    }
+    debugPrint('📤 Enviando actualización con ${request.files.length} archivos y ${request.fields.length} campos...');
     
     final response = await request.send().timeout(
       const Duration(seconds: 60),
@@ -371,9 +384,12 @@ static Future<Map<String, dynamic>?> updateVisitaCompleta({
       },
     );
     
-    if (response.statusCode == 200) {
+    debugPrint('📥 Respuesta de actualización: ${response.statusCode}');
+    
+    if (response.statusCode == 200 || response.statusCode == 201) {
       final responseBody = await response.stream.bytesToString();
-      debugPrint('✅ Visita actualizada exitosamente: $responseBody');
+      debugPrint('✅ Visita actualizada exitosamente');
+      debugPrint('📄 Respuesta: $responseBody');
       
       try {
         final Map<String, dynamic> responseData = json.decode(responseBody);
@@ -384,7 +400,19 @@ static Future<Map<String, dynamic>?> updateVisitaCompleta({
       }
     } else {
       final errorBody = await response.stream.bytesToString();
-      debugPrint('❌ Error al actualizar visita: ${response.statusCode} - $errorBody');
+      debugPrint('❌ Error al actualizar visita: ${response.statusCode}');
+      debugPrint('❌ Error body: $errorBody');
+      
+      // ✅ PARSEAR ERROR PARA MEJOR DEBUGGING
+      try {
+        final errorJson = json.decode(errorBody);
+        if (errorJson['errors'] != null) {
+          debugPrint('❌ Errores específicos: ${errorJson['errors']}');
+        }
+      } catch (e) {
+        debugPrint('⚠️ No se pudo parsear error JSON');
+      }
+      
       return {
         'success': false, 
         'error': errorBody,
@@ -408,6 +436,7 @@ static Future<Map<String, dynamic>?> updateVisitaCompleta({
     return {'success': false, 'error': e.toString()};
   }
 }
+
 
 
   // ✅ MÉTODOS LEGACY CORREGIDOS (por si los sigues usando en algún lugar)
