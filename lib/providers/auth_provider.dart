@@ -24,46 +24,49 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<bool> login(String usuario, String contrasena) async {
-    bool needsInitialSync = false; // Flag para saber si se necesita la carga inicial
+    bool needsInitialSync = false;
 
     try {
+      // ✅ SOLO resetear al INICIO del login, no después
       _resetAuthState();
+      
       final connectivity = await _connectivity.checkConnectivity();
       final isOnline = connectivity != ConnectivityResult.none;
 
       if (isOnline) {
-        // Antes de hacer login online, verificamos si ya hay datos locales.
-        // Si no hay pacientes, es muy probable que sea el primer login.
         final hasLocalData = await _dbHelper.hasPacientes();
-        
         await _onlineLogin(usuario, contrasena);
-        // Si el login fue exitoso y no había datos, marcamos para sincronizar
         if (!hasLocalData) {
           needsInitialSync = true;
         }
-
       } else {
         await _offlineLogin(usuario, contrasena);
       }
-      
-      // 👇 CAMBIO 2: YA NO llamamos a _loadInitialMedicamentos aquí.
-      // Se llamará desde la pantalla de sincronización.
-      // await _loadInitialMedicamentos();
 
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        notifyListeners();
-      });
+      // ✅ VERIFICAR QUE EL LOGIN FUE EXITOSO ANTES DE NOTIFICAR
+      if (_token != null && _user != null) {
+        debugPrint('✅ Login completado exitosamente - Token: ${_token != null ? "presente" : "null"}, User: ${_user?['nombre']}');
+        
+        // ✅ NOTIFICAR CAMBIOS SOLO SI EL LOGIN FUE EXITOSO
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          notifyListeners();
+          debugPrint('✅ Listeners notificados después de login exitoso');
+        });
+      } else {
+        debugPrint('❌ Login falló - Token o usuario nulos');
+        throw Exception('Login falló: datos de autenticación incompletos');
+      }
 
-      // Devolvemos el flag
       return needsInitialSync;
 
     } catch (e) {
-      debugPrint('Error en login: $e');
+      debugPrint('❌ Error en login: $e');
       if (e.toString().contains('SocketException') ||
           e.toString().contains('Failed host lookup')) {
         await _tryOfflineFallback(usuario, contrasena);
-        return false; // El modo offline no necesita sincronización inicial
+        return false;
       } else {
+        // ✅ SOLO resetear si hay error real
         _resetAuthState();
         rethrow;
       }
@@ -113,26 +116,41 @@ class AuthProvider with ChangeNotifier {
 
   Future<void> _tryOfflineFallback(String usuario, String contrasena) async {
     try {
+      debugPrint('🔄 Intentando login offline...');
       await _offlineLogin(usuario, contrasena);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        notifyListeners();
-      });
+      
+      // ✅ SOLO notificar si el login offline fue exitoso
+      if (_token != null && _user != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          notifyListeners();
+          debugPrint('✅ Login offline exitoso, listeners notificados');
+        });
+      }
     } catch (e) {
-      _resetAuthState();
+      debugPrint('❌ Error en login offline: $e');
+      _resetAuthState(); // ✅ SOLO resetear si falla
       rethrow;
     }
   }
 
   Future<void> _onlineLogin(String usuario, String contrasena) async {
+    debugPrint('🔄 Iniciando login online...');
+    
     final response = await ApiService.login(usuario, contrasena);
     
     if (response['token'] == null || response['usuario'] == null) {
       throw Exception('Datos de usuario inválidos');
     }
 
+    // ✅ ESTABLECER DATOS SIN RESETEAR
     _token = response['token'];
     _user = response['usuario'];
     _sede = response['sede'] ?? {};
+
+    debugPrint('✅ Datos de autenticación establecidos:');
+    debugPrint('   - Token: ${_token != null ? "presente" : "null"}');
+    debugPrint('   - Usuario: ${_user?['nombre']}');
+    debugPrint('   - Sede: ${_sede?['nombresede']}');
 
     // Guardar credenciales y sedes localmente
     await _saveCredentialsLocally(usuario, contrasena);
@@ -144,6 +162,8 @@ class AuthProvider with ChangeNotifier {
     } catch (e) {
       debugPrint('Error al guardar sedes: $e');
     }
+    
+    debugPrint('✅ Login online completado exitosamente');
   }
 
   Future<Map<String, dynamic>?> getCurrentSede() async {
@@ -207,13 +227,18 @@ class AuthProvider with ChangeNotifier {
     _user = null;
     _sede = null;
     _userId = null;
-    debugPrint('🔄 AuthProvider: Notificando cambios a listeners...');
-    notifyListeners(); // ✅ ESTO ES CRÍTICO
-    debugPrint('✅ Estado reseteado y listeners notificados');
+    
+    // ✅ FORZAR NOTIFICACIÓN INMEDIATA
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      notifyListeners();
+      debugPrint('✅ Estado reseteado y listeners notificados');
+    });
   }
 
   Future<void> autoLogin() async {
     try {
+      debugPrint('🔄 Iniciando autoLogin...');
+      
       final localUser = await _dbHelper.getLoggedInUser();
       if (localUser == null) {
         debugPrint('❌ No hay usuario logueado localmente');
@@ -221,9 +246,21 @@ class AuthProvider with ChangeNotifier {
         return;
       }
 
-      if (localUser['token'] == null || localUser['id'] == null) {
+      // ✅ VERIFICACIÓN MÁS ESTRICTA
+      if (localUser['token'] == null || 
+          localUser['id'] == null || 
+          localUser['token'].toString().isEmpty) {
         debugPrint('❌ Token o ID de usuario inválido');
         await _dbHelper.updateUserLoginStatus(localUser['id'].toString(), false);
+        _resetAuthState();
+        return;
+      }
+
+      // ✅ VERIFICAR SI EL TOKEN ESTÁ EXPIRADO
+      final isExpired = await _dbHelper.isTokenExpired(localUser['usuario']);
+      if (isExpired) {
+        debugPrint('❌ Token expirado para usuario: ${localUser['usuario']}');
+        await _dbHelper.limpiarDatosUsuarioObsoletos(localUser['usuario']);
         _resetAuthState();
         return;
       }
@@ -238,7 +275,9 @@ class AuthProvider with ChangeNotifier {
       };
       _sede = {'id': localUser['sede_id']};
       
+      // ✅ NOTIFICAR INMEDIATAMENTE
       notifyListeners();
+      
     } catch (e) {
       debugPrint('❌ Error en autoLogin: $e');
       _resetAuthState();
@@ -355,7 +394,6 @@ class AuthProvider with ChangeNotifier {
           debugPrint('✅ Logout exitoso en servidor');
         } catch (e) {
           debugPrint('⚠️ Error al hacer logout en servidor: $e');
-          // Continuar con logout local aunque falle el servidor
         }
       }
       
@@ -380,11 +418,29 @@ class AuthProvider with ChangeNotifier {
     } catch (e) {
       debugPrint('❌ Error en logout: $e');
     } finally {
-      // SIEMPRE resetear el estado, incluso si hay errores
-      debugPrint('🔄 Reseteando estado de autenticación...');
-      _resetAuthState();
-      debugPrint('✅ Logout completado');
+      // ✅ RESETEAR ESTADO INMEDIATAMENTE
+      _token = null;
+      _user = null;
+      _sede = null;
+      _userId = null;
+      
+      // ✅ NOTIFICAR MÚLTIPLES VECES PARA ASEGURAR PROPAGACIÓN
+      notifyListeners();
+      
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        notifyListeners();
+        debugPrint('✅ Logout completado con notificación forzada');
+      });
     }
+  }
+
+  bool get isReallyAuthenticated {
+    final hasToken = _token != null && _token!.isNotEmpty;
+    final hasUser = _user != null && _user!['id'] != null;
+    final result = hasToken && hasUser;
+    
+    debugPrint('🔍 isReallyAuthenticated: $result (token: $hasToken, user: $hasUser)');
+    return result;
   }
 
   // ✅ MÉTODO ADICIONAL PARA FORZAR LOGOUT SI ES NECESARIO

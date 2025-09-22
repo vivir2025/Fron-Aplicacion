@@ -3,7 +3,7 @@ import '../providers/auth_provider.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:provider/provider.dart';
 import 'initial_sync_screen.dart';
-import '../database/database_helper.dart'; // ✅ AGREGAR IMPORT
+import '../database/database_helper.dart'; 
 
 class LoginScreen extends StatefulWidget {
   final AuthProvider authProvider;

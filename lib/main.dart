@@ -139,7 +139,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     });
   }
 
-  // ✅ MÉTODO DE LOGOUT MEJORADO CON NAVEGACIÓN FORZADA
+  // ✅ FUNCIÓN DE LOGOUT CON NAVEGACIÓN DIRECTA
   Future<void> _handleLogout() async {
     try {
       debugPrint('🔘 main.dart: Iniciando logout...');
@@ -147,59 +147,36 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       // Ejecutar logout en el AuthProvider
       await _authProvider.logout();
       
-      debugPrint('✅ main.dart: Logout completado, AuthProvider actualizado');
+      debugPrint('✅ main.dart: Logout completado, navegando directamente...');
       
-      // ✅ FORZAR NAVEGACIÓN AL LOGIN INMEDIATAMENTE
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (navigatorKey.currentContext != null) {
-          debugPrint('🔄 Forzando navegación al LoginScreen...');
-          
-          // Opción 1: Usar Navigator.pushAndRemoveUntil
-          Navigator.of(navigatorKey.currentContext!).pushAndRemoveUntil(
-            MaterialPageRoute(
-              builder: (context) => LoginScreen(
-                authProvider: _authProvider,
-                onLoginSuccess: () {},
-              ),
+      // ✅ NAVEGAR DIRECTAMENTE AL LOGIN (bypasea el Consumer problemático)
+      if (navigatorKey.currentContext != null) {
+        Navigator.of(navigatorKey.currentContext!).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (context) => LoginScreen(
+              authProvider: _authProvider,
+              onLoginSuccess: () {
+                debugPrint('✅ Login exitoso - navegando a home');
+                Navigator.of(context).pushReplacementNamed('/home');
+              },
             ),
-            (route) => false, // Remover todas las rutas anteriores
-          );
-          
-          debugPrint('✅ Navegación forzada completada');
-        }
-      });
+          ),
+          (route) => false, // Remover todas las rutas anteriores
+        );
+        debugPrint('🚀 Navegación directa al LoginScreen completada');
+      } else {
+        debugPrint('❌ NavigatorKey.currentContext es null');
+      }
       
     } catch (e) {
-      debugPrint('❌ main.dart: Error en logout: $e');
-      
-      // Aún así, forzar logout local por seguridad
-      try {
-        await _authProvider.forceLogout();
-        debugPrint('✅ main.dart: Logout forzado completado');
-        
-        // También forzar navegación en caso de error
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (navigatorKey.currentContext != null) {
-            Navigator.of(navigatorKey.currentContext!).pushAndRemoveUntil(
-              MaterialPageRoute(
-                builder: (context) => LoginScreen(
-                  authProvider: _authProvider,
-                  onLoginSuccess: () {},
-                ),
-              ),
-              (route) => false,
-            );
-          }
-        });
-        
-      } catch (forceError) {
-        debugPrint('❌ main.dart: Error en logout forzado: $forceError');
-      }
+      debugPrint('❌ Error en logout: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('🏗️ MyApp build()');
+    
     return MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: _authProvider),
@@ -213,11 +190,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ),
         navigatorKey: navigatorKey,
         
-        // ✅ CONSUMER CON LOGS MEJORADOS Y DETECCIÓN DE CAMBIOS
         home: Consumer<AuthProvider>(
           builder: (context, auth, _) {
-            // ✅ LOG DETALLADO DEL ESTADO ACTUAL
-            debugPrint('🔍 Consumer rebuild - Auth: ${auth.isAuthenticated}, Token: ${auth.token != null ? "presente" : "null"}, User: ${auth.user != null ? auth.user!['nombre'] : "null"}, Initialized: $_isInitialized, ShowSplash: $_showSplash');
+            debugPrint('🔍 Consumer rebuild - Auth: ${auth.isReallyAuthenticated}');
             
             // Mostrar splash mientras inicializa
             if (!_isInitialized || (_showSplash && !_hasShownSplash)) {
@@ -225,20 +200,17 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               return SplashScreen();
             }
             
-            // ✅ VERIFICACIÓN MÁS ESTRICTA DE AUTENTICACIÓN
-            if (auth.isAuthenticated && auth.token != null && auth.user != null) {
+            // ✅ USAR isReallyAuthenticated
+            if (auth.isReallyAuthenticated) {
               debugPrint('✅ Usuario autenticado, mostrando HomeScreen');
-              return HomeScreen(
-                onLogout: _handleLogout,
-              );
+              return HomeScreen(onLogout: _handleLogout);
             }
             
-            // Si no está autenticado, mostrar login
             debugPrint('❌ Usuario no autenticado, mostrando LoginScreen');
             return LoginScreen(
               authProvider: _authProvider,
               onLoginSuccess: () {
-                debugPrint('✅ Login exitoso detectado en main.dart');
+                debugPrint('✅ Login exitoso');
               },
             );
           },
