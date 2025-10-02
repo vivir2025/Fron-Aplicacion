@@ -11,6 +11,7 @@ import 'screens/login_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/initial_sync_screen.dart';
+import 'package:flutter_localizations/flutter_localizations.dart'; // ✅ IMPORT PARA LOCALIZACIÓN
 
 void main() {
   runApp(const MyApp());
@@ -189,6 +190,18 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           visualDensity: VisualDensity.adaptivePlatformDensity,
         ),
         navigatorKey: navigatorKey,
+        
+        // ✅ CONFIGURACIÓN DE LOCALIZACIÓN EN ESPAÑOL
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('es', 'ES'), // Español (principal)
+          Locale('en', 'US'), // Inglés (respaldo)
+        ],
+        locale: const Locale('es', 'ES'), // ✅ IDIOMA POR DEFECTO: ESPAÑOL
         
         home: Consumer<AuthProvider>(
           builder: (context, auth, _) {

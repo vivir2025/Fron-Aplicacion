@@ -152,6 +152,7 @@ class _EncuestaViewState extends State<EncuestaView> {
       return null;
     }
   }
+  
 
   Future<void> _syncPendingEncuestas() async {
     try {

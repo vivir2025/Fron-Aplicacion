@@ -1,4 +1,4 @@
-// screens/crear_brigada_screen.dart - VERSIÓN CON OVERFLOW ARREGLADO
+// screens/crear_brigada_screen.dart - VERSIÓN COMPLETA CON VALIDACIÓN VISUAL
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../database/database_helper.dart';
@@ -35,32 +35,75 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
   
   DateTime _fechaBrigada = DateTime.now();
   List<Paciente> _allPacientes = [];
-  List<Paciente> _filteredPacientes = []; // ✅ LISTA FILTRADA
+  List<Paciente> _filteredPacientes = [];
   List<Paciente> _selectedPacientes = [];
   bool _isLoading = false;
   bool _isLoadingPacientes = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _cargarPacientes();
-    // ✅ LISTENER PARA BÚSQUEDA EN TIEMPO REAL
-    _searchController.addListener(_filtrarPacientes);
-  }
+  // 🆕 VARIABLES PARA VALIDACIÓN VISUAL
+  bool _temaHasError = false;
+  bool _lugarHasError = false;
+  bool _conductorHasError = false;
+  bool _htaHasError = false;
+  bool _dnHasError = false;
+  bool _htaRcuHasError = false;
+  bool _dmRcuHasError = false;
 
-  @override
-  void dispose() {
-    _lugarEventoController.dispose();
-    _nombreConductorController.dispose();
-    _usuariosHtaController.dispose();
-    _usuariosDnController.dispose();
-    _usuariosHtaRcuController.dispose();
-    _usuariosDmRcuController.dispose();
-    _observacionesController.dispose();
-    _temaController.dispose();
-    _searchController.dispose(); // ✅ DISPOSE DEL CONTROLADOR DE BÚSQUEDA
-    super.dispose();
-  }
+ @override
+void initState() {
+  super.initState();
+  _cargarPacientes();
+  _searchController.addListener(_filtrarPacientes);
+  
+  // 🆕 AUTOCOMPLETE CON "0" PARA HTA RCU Y DM RCU
+  _usuariosHtaRcuController.text = '0';
+  _usuariosDmRcuController.text = '0';
+  
+  // 🆕 LISTENERS PARA VALIDACIÓN EN TIEMPO REAL
+  _temaController.addListener(_validarTema);
+  _lugarEventoController.addListener(_validarLugar);
+  _nombreConductorController.addListener(_validarConductor);
+  _usuariosHtaController.addListener(_validarHta);
+  _usuariosDnController.addListener(_validarDn);
+  _usuariosHtaRcuController.addListener(_validarHtaRcu);
+  _usuariosDmRcuController.addListener(_validarDmRcu);
+}
+
+// 🆕 MÉTODOS INDIVIDUALES PARA VALIDACIÓN (más eficiente)
+void _validarTema() => setState(() => _temaHasError = _temaController.text.trim().isEmpty);
+void _validarLugar() => setState(() => _lugarHasError = _lugarEventoController.text.trim().isEmpty);
+void _validarConductor() => setState(() => _conductorHasError = _nombreConductorController.text.trim().isEmpty);
+void _validarHta() => setState(() => _htaHasError = _usuariosHtaController.text.trim().isEmpty);
+void _validarDn() => setState(() => _dnHasError = _usuariosDnController.text.trim().isEmpty);
+void _validarHtaRcu() => setState(() => _htaRcuHasError = _usuariosHtaRcuController.text.trim().isEmpty);
+void _validarDmRcu() => setState(() => _dmRcuHasError = _usuariosDmRcuController.text.trim().isEmpty);
+
+@override
+void dispose() {
+  // 🆕 REMOVER LISTENERS ANTES DE DISPOSE (IMPORTANTE PARA EVITAR MEMORY LEAKS)
+  _searchController.removeListener(_filtrarPacientes);
+  _temaController.removeListener(_validarTema);
+  _lugarEventoController.removeListener(_validarLugar);
+  _nombreConductorController.removeListener(_validarConductor);
+  _usuariosHtaController.removeListener(_validarHta);
+  _usuariosDnController.removeListener(_validarDn);
+  _usuariosHtaRcuController.removeListener(_validarHtaRcu);
+  _usuariosDmRcuController.removeListener(_validarDmRcu);
+  
+  // DISPOSE DE LOS CONTROLLERS
+  _searchController.dispose();
+  _temaController.dispose();
+  _lugarEventoController.dispose();
+  _nombreConductorController.dispose();
+  _usuariosHtaController.dispose();
+  _usuariosDnController.dispose();
+  _usuariosHtaRcuController.dispose();
+  _usuariosDmRcuController.dispose();
+  _observacionesController.dispose();
+  
+  super.dispose();
+}
+
 
   Future<void> _cargarPacientes() async {
     setState(() => _isLoadingPacientes = true);
@@ -69,7 +112,7 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
       final pacientes = await _dbHelper.readAllPacientes();
       setState(() {
         _allPacientes = pacientes;
-        _filteredPacientes = pacientes; // ✅ INICIALIZAR LISTA FILTRADA
+        _filteredPacientes = pacientes;
         _isLoadingPacientes = false;
       });
       debugPrint('✅ ${pacientes.length} pacientes cargados');
@@ -88,7 +131,6 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
     }
   }
 
-  // ✅ MÉTODO PARA FILTRAR PACIENTES POR IDENTIFICACIÓN Y NOMBRE
   void _filtrarPacientes() {
     final query = _searchController.text.toLowerCase().trim();
     
@@ -106,14 +148,12 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
     });
   }
 
-  // ✅ DATEPICKER CORREGIDO - SIN LOCALE
   Future<void> _seleccionarFecha() async {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _fechaBrigada,
       firstDate: DateTime.now().subtract(const Duration(days: 30)),
       lastDate: DateTime.now().add(const Duration(days: 365)),
-      // ✅ SIN LOCALE - ESTO EVITA EL ERROR
       helpText: 'Seleccionar fecha',
       cancelText: 'Cancelar',
       confirmText: 'Aceptar',
@@ -126,14 +166,14 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: ColorScheme.light(
-              primary: Colors.green, // Color principal
-              onPrimary: Colors.white, // Color del texto en el botón
-              surface: Colors.white, // Color de fondo
-              onSurface: Colors.black, // Color del texto
+              primary: Colors.green,
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: Colors.black,
             ),
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(
-                foregroundColor: Colors.green, // Color de los botones
+                foregroundColor: Colors.green,
               ),
             ),
           ),
@@ -149,7 +189,6 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
     }
   }
 
-  // ✅ SELECTOR DE PACIENTES CON OVERFLOW ARREGLADO
   void _mostrarSelectorPacientes() {
     if (_allPacientes.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -178,7 +217,6 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
             height: 500,
             child: Column(
               children: [
-                // ✅ BARRA DE BÚSQUEDA PROFESIONAL
                 Container(
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
@@ -262,7 +300,6 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
                   ),
                 ),
 
-                // ✅ CONTADOR DE RESULTADOS Y SELECCIONADOS
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -318,7 +355,6 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
                 
                 const SizedBox(height: 12),
                 
-                // ✅ LISTA DE PACIENTES FILTRADOS - SIN OVERFLOW
                 Expanded(
                   child: dialogFilteredPacientes.isEmpty
                       ? Container(
@@ -376,16 +412,14 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
                                   style: TextStyle(
                                     fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                                     color: isSelected ? Colors.green.shade700 : Colors.black87,
-                                    fontSize: 14, // 🆕 Reducir tamaño de fuente
+                                    fontSize: 14,
                                   ),
                                 ),
-                                // 🆕 SUBTITLE ARREGLADO - SIN OVERFLOW
                                 subtitle: Container(
                                   margin: const EdgeInsets.only(top: 4),
-                                  child: Column( // 🆕 Cambiar a Column para evitar overflow
+                                  child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      // 🆕 Primera fila: ID
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                         decoration: BoxDecoration(
@@ -395,14 +429,13 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
                                         child: Text(
                                           'ID: ${paciente.identificacion}',
                                           style: TextStyle(
-                                            fontSize: 10, // 🆕 Reducir tamaño
+                                            fontSize: 10,
                                             fontWeight: FontWeight.w600,
                                             color: Colors.blue.shade700,
                                           ),
                                         ),
                                       ),
-                                      const SizedBox(height: 4), // 🆕 Espaciado
-                                      // 🆕 Segunda fila: Género - SOLO ICONO Y LETRA
+                                      const SizedBox(height: 4),
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                         decoration: BoxDecoration(
@@ -412,9 +445,9 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
                                           borderRadius: BorderRadius.circular(4),
                                         ),
                                         child: Text(
-                                          paciente.genero == 'M' ? '♂ M' : '♀ F', // 🆕 SOLO LETRA
+                                          paciente.genero == 'M' ? '♂ M' : '♀ F',
                                           style: TextStyle(
-                                            fontSize: 10, // 🆕 Reducir tamaño
+                                            fontSize: 10,
                                             fontWeight: FontWeight.w600,
                                             color: paciente.genero == 'M' 
                                                 ? Colors.blue.shade600
@@ -438,7 +471,7 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
                                 activeColor: Colors.green,
                                 checkColor: Colors.white,
                                 controlAffinity: ListTileControlAffinity.trailing,
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4), // 🆕 Reducir padding
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                               ),
                             );
                           },
@@ -448,7 +481,6 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
             ),
           ),
           actions: [
-            // ✅ BOTÓN LIMPIAR TODO
             TextButton.icon(
               onPressed: () {
                 setDialogState(() {
@@ -462,7 +494,6 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
               ),
             ),
             
-            // ✅ BOTÓN CANCELAR
             TextButton.icon(
               onPressed: () => Navigator.of(context).pop(),
               icon: const Icon(Icons.close_rounded, size: 18),
@@ -472,7 +503,6 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
               ),
             ),
             
-            // ✅ BOTÓN GUARDAR CON CONTADOR
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -503,86 +533,188 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
     );
   }
 
- Future<void> _guardarBrigada() async {
-  if (!_formKey.currentState!.validate()) {
-    return;
-  }
+  // 🆕 VALIDACIÓN MEJORADA CON MENSAJE DE ERROR
+  Future<void> _guardarBrigada() async {
+    // 🆕 VALIDAR TODOS LOS CAMPOS ANTES DE CONTINUAR
+    setState(() {
+      _temaHasError = _temaController.text.trim().isEmpty;
+      _lugarHasError = _lugarEventoController.text.trim().isEmpty;
+      _conductorHasError = _nombreConductorController.text.trim().isEmpty;
+      _htaHasError = _usuariosHtaController.text.trim().isEmpty;
+      _dnHasError = _usuariosDnController.text.trim().isEmpty;
+      _htaRcuHasError = _usuariosHtaRcuController.text.trim().isEmpty;
+      _dmRcuHasError = _usuariosDmRcuController.text.trim().isEmpty;
+    });
 
-  if (_selectedPacientes.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Debe seleccionar al menos un paciente'),
-        backgroundColor: Colors.orange,
-      ),
-    );
-    return;
-  }
-
-  setState(() => _isLoading = true);
-
-  try {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    
-    // Crear brigada con ID único
-    final brigada = Brigada(
-      id: 'brig_${const Uuid().v4()}',
-      lugarEvento: _lugarEventoController.text.trim(),
-      fechaBrigada: _fechaBrigada,
-      nombreConductor: _nombreConductorController.text.trim(),
-      usuariosHta: _usuariosHtaController.text.trim(),
-      usuariosDn: _usuariosDnController.text.trim(),
-      usuariosHtaRcu: _usuariosHtaRcuController.text.trim(),
-      usuariosDmRcu: _usuariosDmRcuController.text.trim(),
-      observaciones: _observacionesController.text.trim().isNotEmpty 
-          ? _observacionesController.text.trim() 
-          : null,
-      tema: _temaController.text.trim(),
-      pacientesIds: _selectedPacientes.map((p) => p.id).toList(),
-    );
-
-    // Usar el método completo que guarda y sincroniza todo
-    final success = await BrigadaService.crearBrigada(
-      brigada: brigada,
-      pacientesIds: _selectedPacientes.map((p) => p.id).toList(),
-      token: authProvider.token,
-    );
-
-    if (success) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Brigada creada exitosamente'),
-            backgroundColor: Colors.green,
+    // 🆕 VERIFICAR SI HAY ERRORES
+    if (_temaHasError || _lugarHasError || _conductorHasError || 
+        _htaHasError || _dnHasError || _htaRcuHasError || _dmRcuHasError) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.error_outline, color: Colors.white),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  '❌ No dejar campos vacíos. Complete todos los campos requeridos.',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
           ),
-        );
-        Navigator.of(context).pop(true);
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    if (_selectedPacientes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Debe seleccionar al menos un paciente'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      
+      final brigada = Brigada(
+        id: 'brig_${const Uuid().v4()}',
+        lugarEvento: _lugarEventoController.text.trim(),
+        fechaBrigada: _fechaBrigada,
+        nombreConductor: _nombreConductorController.text.trim(),
+        usuariosHta: _usuariosHtaController.text.trim(),
+        usuariosDn: _usuariosDnController.text.trim(),
+        usuariosHtaRcu: _usuariosHtaRcuController.text.trim(),
+        usuariosDmRcu: _usuariosDmRcuController.text.trim(),
+        observaciones: _observacionesController.text.trim().isNotEmpty 
+            ? _observacionesController.text.trim() 
+            : null,
+        tema: _temaController.text.trim(),
+        pacientesIds: _selectedPacientes.map((p) => p.id).toList(),
+      );
+
+      final success = await BrigadaService.crearBrigada(
+        brigada: brigada,
+        pacientesIds: _selectedPacientes.map((p) => p.id).toList(),
+        token: authProvider.token,
+      );
+
+      if (success) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Brigada creada exitosamente'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.of(context).pop(true);
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Error al crear la brigada'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
-    } else {
+    } catch (e) {
+      debugPrint('❌ Error al guardar brigada: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error al crear la brigada'),
+          SnackBar(
+            content: Text('Error: $e'),
             backgroundColor: Colors.red,
           ),
         );
       }
-    }
-  } catch (e) {
-    debugPrint('❌ Error al guardar brigada: $e');
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  } finally {
-    if (mounted) {
-      setState(() => _isLoading = false);
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
-}
+
+  // 🆕 MÉTODO PARA CONSTRUIR TEXTFIELD CON VALIDACIÓN VISUAL
+  Widget _buildValidatedTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    required bool hasError,
+    String? hintText,
+    bool readOnly = false,
+    VoidCallback? onTap,
+  }) {
+    final isEmpty = controller.text.trim().isEmpty;
+    final borderColor = isEmpty 
+        ? Colors.red 
+        : Colors.green;
+    
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: borderColor,
+          width: 2,
+        ),
+        color: isEmpty 
+            ? Colors.red.withOpacity(0.05)
+            : Colors.green.withOpacity(0.05),
+      ),
+      child: TextFormField(
+        controller: controller,
+        readOnly: readOnly,
+        onTap: onTap,
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: TextStyle(
+            color: isEmpty ? Colors.red.shade700 : Colors.green.shade700,
+            fontWeight: FontWeight.w600,
+          ),
+          hintText: hintText,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          prefixIcon: Container(
+            margin: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: (isEmpty ? Colors.red : Colors.green).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              icon,
+              color: isEmpty ? Colors.red.shade600 : Colors.green.shade600,
+            ),
+          ),
+          suffixIcon: isEmpty
+              ? Icon(Icons.error_outline, color: Colors.red.shade600)
+              : Icon(Icons.check_circle, color: Colors.green.shade600),
+          filled: true,
+          fillColor: Colors.white,
+        ),
+        validator: (value) {
+          if (value == null || value.trim().isEmpty) {
+            return 'Este campo es requerido';
+          }
+          return null;
+        },
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -625,7 +757,7 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // Información básica
+            // 🆕 INFORMACIÓN BÁSICA CON VALIDACIÓN VISUAL
             Card(
               elevation: 2,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -656,40 +788,29 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
                     ),
                     const SizedBox(height: 16),
                     
-                    TextFormField(
+                    // 🆕 TEMA CON VALIDACIÓN VISUAL
+                    _buildValidatedTextField(
                       controller: _temaController,
-                      decoration: const InputDecoration(
-                        labelText: 'Tema de la Brigada *',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.topic),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'El tema es requerido';
-                        }
-                        return null;
-                      },
+                      label: 'Tema de la Brigada *',
+                      icon: Icons.topic,
+                      hasError: _temaHasError,
+                      hintText: 'Ingrese el tema',
                     ),
                     
                     const SizedBox(height: 16),
                     
-                    TextFormField(
+                    // 🆕 LUGAR CON VALIDACIÓN VISUAL
+                    _buildValidatedTextField(
                       controller: _lugarEventoController,
-                      decoration: const InputDecoration(
-                        labelText: 'Lugar del Evento *',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.location_on),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'El lugar es requerido';
-                        }
-                        return null;
-                      },
+                      label: 'Lugar del Evento *',
+                      icon: Icons.location_on,
+                      hasError: _lugarHasError,
+                      hintText: 'Ingrese el lugar',
                     ),
                     
                     const SizedBox(height: 16),
                     
+                    // FECHA (SIN VALIDACIÓN VISUAL)
                     InkWell(
                       onTap: _seleccionarFecha,
                       child: InputDecorator(
@@ -707,19 +828,13 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
                     
                     const SizedBox(height: 16),
                     
-                    TextFormField(
+                    // 🆕 CONDUCTOR CON VALIDACIÓN VISUAL
+                    _buildValidatedTextField(
                       controller: _nombreConductorController,
-                      decoration: const InputDecoration(
-                        labelText: 'Nombre del Conductor *',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.person),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'El nombre del conductor es requerido';
-                        }
-                        return null;
-                      },
+                      label: 'Nombre del Conductor *',
+                      icon: Icons.person,
+                      hasError: _conductorHasError,
+                      hintText: 'Ingrese el nombre',
                     ),
                   ],
                 ),
@@ -728,7 +843,7 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
             
             const SizedBox(height: 16),
             
-            // Información de usuarios
+            // 🆕 INFORMACIÓN DE USUARIOS CON VALIDACIÓN VISUAL
             Card(
               elevation: 2,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -759,70 +874,46 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
                     ),
                     const SizedBox(height: 16),
                     
-                    TextFormField(
+                    // 🆕 USUARIOS HTA CON VALIDACIÓN VISUAL
+                    _buildValidatedTextField(
                       controller: _usuariosHtaController,
-                      decoration: const InputDecoration(
-                        labelText: 'Usuarios HTA *',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.favorite),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Los usuarios HTA son requeridos';
-                        }
-                        return null;
-                      },
+                      label: 'Usuarios HTA *',
+                      icon: Icons.favorite,
+                      hasError: _htaHasError,
+                      hintText: 'Ingrese cantidad',
                     ),
                     
                     const SizedBox(height: 16),
                     
-                    TextFormField(
+                    // 🆕 USUARIOS DN CON VALIDACIÓN VISUAL
+                    _buildValidatedTextField(
                       controller: _usuariosDnController,
-                      decoration: const InputDecoration(
-                        labelText: 'Usuarios DN *',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.medical_services),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Los usuarios DN son requeridos';
-                        }
-                        return null;
-                      },
+                      label: 'Usuarios DN *',
+                      icon: Icons.medical_services,
+                      hasError: _dnHasError,
+                      hintText: 'Ingrese cantidad',
                     ),
                     
                     const SizedBox(height: 16),
                     
-                    TextFormField(
+                    // 🆕 USUARIOS HTA RCU CON VALIDACIÓN VISUAL Y AUTOCOMPLETE "0"
+                    _buildValidatedTextField(
                       controller: _usuariosHtaRcuController,
-                      decoration: const InputDecoration(
-                        labelText: 'Usuarios HTA RCU *',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.monitor_heart),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Los usuarios HTA RCU son requeridos';
-                        }
-                        return null;
-                      },
+                      label: 'Usuarios HTA RCU *',
+                      icon: Icons.monitor_heart,
+                      hasError: _htaRcuHasError,
+                      hintText: 'Autocomplete: 0',
                     ),
                     
                     const SizedBox(height: 16),
                     
-                    TextFormField(
+                    // 🆕 USUARIOS DM RCU CON VALIDACIÓN VISUAL Y AUTOCOMPLETE "0"
+                    _buildValidatedTextField(
                       controller: _usuariosDmRcuController,
-                      decoration: const InputDecoration(
-                        labelText: 'Usuarios DM RCU *',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.bloodtype),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Los usuarios DM RCU son requeridos';
-                        }
-                        return null;
-                      },
+                      label: 'Usuarios DM RCU *',
+                      icon: Icons.bloodtype,
+                      hasError: _dmRcuHasError,
+                      hintText: 'Autocomplete: 0',
                     ),
                   ],
                 ),
@@ -831,14 +922,13 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
             
             const SizedBox(height: 16),
             
-            // ✅ PACIENTES ASIGNADOS CON OVERFLOW ARREGLADO
+            // PACIENTES ASIGNADOS
             Card(
               elevation: 2,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
-                 
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
@@ -911,7 +1001,6 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
                               ],
                             ),
                             const SizedBox(height: 12),
-                            // 🆕 LISTA DE PACIENTES SELECCIONADOS - SIN OVERFLOW
                             ...(_selectedPacientes.take(3).map((paciente) => Container(
                               margin: const EdgeInsets.symmetric(vertical: 3),
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -943,21 +1032,19 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
                                           ),
                                         ),
                                         const SizedBox(height: 2),
-                                        // 🆕 INFORMACIÓN DEL PACIENTE - SIN OVERFLOW
                                         Row(
                                           children: [
-                                            Flexible( // 🆕 Usar Flexible en lugar de Expanded
+                                            Flexible(
                                               child: Text(
                                                 'ID: ${paciente.identificacion}',
                                                 style: TextStyle(
                                                   fontSize: 11,
                                                   color: Colors.grey[600],
                                                 ),
-                                                overflow: TextOverflow.ellipsis, // 🆕 Truncar si es muy largo
+                                                overflow: TextOverflow.ellipsis,
                                               ),
                                             ),
                                             const SizedBox(width: 8),
-                                            // 🆕 GÉNERO COMPACTO
                                             Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                               decoration: BoxDecoration(
@@ -967,7 +1054,7 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
                                                 borderRadius: BorderRadius.circular(4),
                                               ),
                                               child: Text(
-                                                paciente.genero == 'M' ? '♂' : '♀', // 🆕 SOLO SÍMBOLO
+                                                paciente.genero == 'M' ? '♂' : '♀',
                                                 style: TextStyle(
                                                   fontSize: 11,
                                                   fontWeight: FontWeight.bold,
@@ -1009,7 +1096,6 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
                       const SizedBox(height: 16),
                     ],
                     
-                    // ✅ BOTÓN PARA ABRIR SELECTOR CON BÚSQUEDA
                     Container(
                       width: double.infinity,
                       decoration: BoxDecoration(
@@ -1103,7 +1189,7 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
             
             const SizedBox(height: 16),
             
-            // Observaciones
+            // OBSERVACIONES (SIN VALIDACIÓN VISUAL)
             Card(
               elevation: 2,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -1151,7 +1237,7 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
             
             const SizedBox(height: 24),
             
-            // ✅ BOTÓN GUARDAR MEJORADO
+            // 🆕 BOTÓN GUARDAR MEJORADO
             Container(
               width: double.infinity,
               height: 56,
@@ -1240,3 +1326,4 @@ class _CrearBrigadaScreenState extends State<CrearBrigadaScreen> {
     );
   }
 }
+

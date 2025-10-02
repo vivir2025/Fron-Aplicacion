@@ -443,6 +443,8 @@ class AuthProvider with ChangeNotifier {
     return result;
   }
 
+  get usuario => null;
+
   // ✅ MÉTODO ADICIONAL PARA FORZAR LOGOUT SI ES NECESARIO
   Future<void> forceLogout() async {
     debugPrint('🚨 Forzando logout inmediato...');

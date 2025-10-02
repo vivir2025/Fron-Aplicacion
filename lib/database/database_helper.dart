@@ -4118,6 +4118,155 @@ Future<void> limpiarTokensExpirados() async {
     debugPrint('❌ Error limpiando tokens expirados: $e');
   }
 }
+// database/database_helper.dart
+
+// Agregar parámetros de fecha a los métodos existentes
+
+Future<int> countPacientesPorUsuario(
+  String usuarioId, {
+  String? fechaInicio,
+  String? fechaFin,
+}) async {
+  final db = await database;
+  
+  String whereClause = 'idusuario = ?';
+  List<dynamic> whereArgs = [usuarioId];
+  
+  if (fechaInicio != null && fechaFin != null) {
+    whereClause += ' AND created_at BETWEEN ? AND ?';
+    whereArgs.addAll([fechaInicio, fechaFin]);
+  }
+  
+  final result = await db.query(
+    'pacientes',
+    where: whereClause,
+    whereArgs: whereArgs,
+  );
+  
+  return result.length;
+}
+
+Future<int> countVisitasPorUsuario(
+  String usuarioId, {
+  String? fechaInicio,
+  String? fechaFin,
+}) async {
+  final db = await database;
+  
+  String whereClause = 'idusuario = ?';
+  List<dynamic> whereArgs = [usuarioId];
+  
+  if (fechaInicio != null && fechaFin != null) {
+    whereClause += ' AND fecha BETWEEN ? AND ?';
+    whereArgs.addAll([fechaInicio, fechaFin]);
+  }
+  
+  final result = await db.query(
+    'visitas',
+    where: whereClause,
+    whereArgs: whereArgs,
+  );
+  
+  return result.length;
+}
+
+Future<int> countTamizajesPorUsuario(
+  String usuarioId, {
+  String? fechaInicio,
+  String? fechaFin,
+}) async {
+  final db = await database;
+  
+  String whereClause = 'idusuario = ?';
+  List<dynamic> whereArgs = [usuarioId];
+  
+  if (fechaInicio != null && fechaFin != null) {
+    whereClause += ' AND fecha BETWEEN ? AND ?';
+    whereArgs.addAll([fechaInicio, fechaFin]);
+  }
+  
+  final result = await db.query(
+    'tamizajes',
+    where: whereClause,
+    whereArgs: whereArgs,
+  );
+  
+  return result.length;
+}
+
+Future<int> countBrigadasPorUsuario(
+  String usuarioId, {
+  String? fechaInicio,
+  String? fechaFin,
+}) async {
+  final db = await database;
+  
+  String whereClause = 'idusuario = ?';
+  List<dynamic> whereArgs = [usuarioId];
+  
+  if (fechaInicio != null && fechaFin != null) {
+    whereClause += ' AND fecha BETWEEN ? AND ?';
+    whereArgs.addAll([fechaInicio, fechaFin]);
+  }
+  
+  final result = await db.query(
+    'brigadas',
+    where: whereClause,
+    whereArgs: whereArgs,
+  );
+  
+  return result.length;
+}
+
+Future<int> countLaboratoriosPorUsuario(
+  String usuarioId, {
+  String? fechaInicio,
+  String? fechaFin,
+}) async {
+  final db = await database;
+  
+  String whereClause = 'idusuario = ?';
+  List<dynamic> whereArgs = [usuarioId];
+  
+  if (fechaInicio != null && fechaFin != null) {
+    whereClause += ' AND fecha BETWEEN ? AND ?';
+    whereArgs.addAll([fechaInicio, fechaFin]);
+  }
+  
+  final result = await db.query(
+    'laboratorios',
+    where: whereClause,
+    whereArgs: whereArgs,
+  );
+  
+  return result.length;
+}
+
+Future<int> countEncuestasPorUsuario(
+  String usuarioId, {
+  String? fechaInicio,
+  String? fechaFin,
+}) async {
+  final db = await database;
+  
+  String whereClause = 'idusuario = ?';
+  List<dynamic> whereArgs = [usuarioId];
+  
+  if (fechaInicio != null && fechaFin != null) {
+    whereClause += ' AND fecha BETWEEN ? AND ?';
+    whereArgs.addAll([fechaInicio, fechaFin]);
+  }
+  
+  final result = await db.query(
+    'encuestas',
+    where: whereClause,
+    whereArgs: whereArgs,
+  );
+  
+  return result.length;
+}
+
+
 
 
 } 
