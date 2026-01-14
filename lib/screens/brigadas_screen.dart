@@ -5,6 +5,7 @@ import '../models/brigada_model.dart';
 import '../services/brigada_service.dart';
 import '../providers/auth_provider.dart';
 import 'crear_brigada_screen.dart';
+import 'crear_brigada_mejorada_screen.dart'; // 🆕 Nueva pantalla mejorada
 import 'detalle_brigada_screen.dart';
 import 'package:intl/intl.dart';
 
@@ -220,11 +221,11 @@ class _BrigadasScreenState extends State<BrigadasScreen> {
       body: _buildBody(),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
-          debugPrint('➕ FAB: Navegando a CrearBrigadaScreen');
+          debugPrint('➕ FAB: Navegando a CrearBrigadaMejoradaScreen');
           final result = await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => const CrearBrigadaScreen(),
+              builder: (context) => const CrearBrigadaMejoradaScreen(), // 🆕 Nueva pantalla
             ),
           );
           
@@ -344,11 +345,11 @@ class _BrigadasScreenState extends State<BrigadasScreen> {
               const SizedBox(height: 32),
               ElevatedButton.icon(
                 onPressed: () async {
-                  debugPrint('➕ Empty: Navegando a CrearBrigadaScreen');
+                  debugPrint('➕ Empty: Navegando a CrearBrigadaMejoradaScreen');
                   final result = await Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const CrearBrigadaScreen(),
+                      builder: (context) => const CrearBrigadaMejoradaScreen(),
                     ),
                   );
                   

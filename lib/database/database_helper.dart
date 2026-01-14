@@ -2664,6 +2664,28 @@ Future<bool> marcarEnvioMuestraComoSincronizado(String id) async {
   }
 }
 
+// ✅ NUEVO MÉTODO: Actualizar paciente_id en detalle de envío de muestra
+Future<bool> actualizarPacienteIdEnDetalle(String detalleId, String nuevoPacienteId) async {
+  try {
+    final db = await database;
+    final result = await db.update(
+      'detalle_envio_muestras',
+      {
+        'paciente_id': nuevoPacienteId,
+        'updated_at': DateTime.now().toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [detalleId],
+    );
+    
+    debugPrint('✅ Detalle $detalleId actualizado con nuevo paciente_id: $nuevoPacienteId');
+    return result > 0;
+  } catch (e) {
+    debugPrint('❌ Error actualizando paciente_id en detalle: $e');
+    return false;
+  }
+}
+
 // ==================== MÉTODOS PARA BRIGADAS ====================
 
 // Generador de ID único para brigadas

@@ -276,61 +276,74 @@ class _SplashScreenState extends State<SplashScreen>
                     opacity: _logoAnimation,
                     child: ScaleTransition(
                       scale: _logoAnimation,
-                      child: Container(
-                        width: 220, // Logo más grande
+                      child: Image.asset(
+                        'assets/icon/Bornive.png',
+                        width: 220,
                         height: 220,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(30),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              spreadRadius: 10,
-                              blurRadius: 30,
-                              offset: Offset(0, 10),
-                            ),
-                            // Sombra interna sutil
-                            BoxShadow(
-                              color: Colors.white.withOpacity(0.9),
-                              spreadRadius: -8,
-                              blurRadius: 20,
-                              offset: Offset(0, -8),
-                            ),
-                          ],
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) {
+                          // Fallback en caso de error de carga
+                          return Icon(
+                            Icons.business,
+                            size: 100,
+                            color: Color(0xFF00A651),
+                          );
+                        },
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            
+            // 🆕 SAI y logo de la fundación en la parte inferior
+            Positioned(
+              bottom: 40,
+              left: 0,
+              right: 0,
+              child: AnimatedBuilder(
+                animation: _logoAnimation,
+                builder: (context, child) {
+                  return FadeTransition(
+                    opacity: _logoAnimation,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Texto "from"
+                        Text(
+                          'from',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.grey[600],
+                            letterSpacing: 1,
+                          ),
                         ),
-                        padding: EdgeInsets.all(30),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(15),
-                          child: Image.network(
-                            'https://nacerparavivir.org/wp-content/uploads/2023/12/Logo_Section1home-8.png',
+                        SizedBox(height: 4),
+                        // Logo de la fundación
+                        Container(
+                          width: 100,
+                          height: 100,
+                          padding: EdgeInsets.all(4),
+                          child: Image.asset(
+                            'assets/icon/fundacionico.png',
                             fit: BoxFit.contain,
                             errorBuilder: (context, error, stackTrace) {
-                              // Fallback en caso de error de carga
                               return Container(
                                 decoration: BoxDecoration(
-                                  color: Color(0xFF00A651),
-                                  borderRadius: BorderRadius.circular(15),
+                                  color: Colors.grey[200],
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Icon(
-                                  Icons.favorite_border,
-                                  size: 80,
-                                  color: Colors.white,
-                                ),
-                              );
-                            },
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
-                              return Center(
-                                child: CircularProgressIndicator(
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Color(0xFF00A651),
-                                  ),
+                                  Icons.business,
+                                  size: 40,
+                                  color: Colors.grey[400],
                                 ),
                               );
                             },
                           ),
                         ),
-                      ),
+                      ],
                     ),
                   );
                 },

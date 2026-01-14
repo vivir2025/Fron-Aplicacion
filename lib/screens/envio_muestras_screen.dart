@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/envio_muestra_model.dart';
+import '../models/paciente_model.dart';
+import '../database/database_helper.dart';
 import '../services/envio_muestra_service.dart';
 import '../providers/auth_provider.dart';
 import 'crear_envio_muestra_screen.dart';
@@ -13,6 +15,7 @@ class EnvioMuestrasScreen extends StatefulWidget {
 
 class _EnvioMuestrasScreenState extends State<EnvioMuestrasScreen> {
   List<EnvioMuestra> _envios = [];
+  List<Paciente> _pacientes = [];
   bool _isLoading = true;
   bool _isSyncing = false;
   Map<String, int> _estadoSincronizacion = {};
@@ -22,6 +25,7 @@ class _EnvioMuestrasScreenState extends State<EnvioMuestrasScreen> {
     super.initState();
     _cargarEnvios();
     _cargarEstadoSincronizacion();
+    _cargarPacientes();
   }
 
   Future<void> _cargarEnvios() async {
@@ -48,6 +52,19 @@ class _EnvioMuestrasScreenState extends State<EnvioMuestrasScreen> {
       debugPrint('📈 Estado cargado: ${estado['pendientes']} pendientes, ${estado['sincronizados']} sincronizados');
     } catch (e) {
       debugPrint('❌ Error cargando estado: $e');
+    }
+  }
+
+  Future<void> _cargarPacientes() async {
+    try {
+      final dbHelper = DatabaseHelper.instance;
+      final pacientes = await dbHelper.readAllPacientes();
+      setState(() {
+        _pacientes = pacientes;
+      });
+      debugPrint('✅ ${pacientes.length} pacientes cargados para detalles');
+    } catch (e) {
+      debugPrint('❌ Error cargando pacientes: $e');
     }
   }
 
@@ -487,8 +504,11 @@ class _EnvioMuestrasScreenState extends State<EnvioMuestrasScreen> {
           
           if (resultado == true) {
             debugPrint('🔄 Recargando datos después de crear envío...');
-            await _cargarEnvios();
-            await _cargarEstadoSincronizacion();
+            await Future.wait([
+              _cargarEnvios(),
+              _cargarEstadoSincronizacion(),
+              _cargarPacientes(), // ✅ RECARGAR PACIENTES TAMBIÉN
+            ]);
           }
         },
         child: Icon(Icons.add),
@@ -660,20 +680,105 @@ class _EnvioMuestrasScreenState extends State<EnvioMuestrasScreen> {
               ),
               SizedBox(height: 8),
               
-              ...envio.detalles.map((detalle) => Card(
-                margin: EdgeInsets.only(bottom: 8),
-                child: Padding(
-                  padding: EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Muestra #${detalle.numeroOrden}',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue[800]),
-                      ),
-                      SizedBox(height: 8),
-                      
-                      Text('Paciente ID: ${detalle.pacienteId}'),
+              ...envio.detalles.map((detalle) {
+                // Buscar información del paciente
+                Paciente? pacienteInfo;
+                try {
+                  pacienteInfo = _pacientes.firstWhere((p) => p.id == detalle.pacienteId);
+                } catch (e) {
+                  debugPrint('⚠️ Paciente no encontrado para ID: ${detalle.pacienteId}');
+                }
+                
+                return Card(
+                  margin: EdgeInsets.only(bottom: 8),
+                  color: Colors.green[50],
+                  elevation: 1,
+                  child: Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: Colors.green,
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '${detalle.numeroOrden}',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Muestra #${detalle.numeroOrden}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                  color: Colors.green[800],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 12),
+                        Divider(height: 1, color: Colors.green[200]),
+                        SizedBox(height: 8),
+                        
+                        // Información del paciente
+                        if (pacienteInfo != null) ...[
+                          Row(
+                            children: [
+                              Icon(Icons.badge, size: 16, color: Colors.green[700]),
+                              SizedBox(width: 8),
+                              Text(
+                                'CC: ${pacienteInfo.identificacion}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.green[900],
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Icon(Icons.person, size: 16, color: Colors.green[700]),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  '${pacienteInfo.nombre} ${pacienteInfo.apellido}',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.green[900],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 8),
+                        ] else ...[
+                          Row(
+                            children: [
+                              Icon(Icons.warning, size: 16, color: Colors.orange),
+                              SizedBox(width: 8),
+                              Text(
+                                'Paciente ID: ${detalle.pacienteId}',
+                                style: TextStyle(color: Colors.grey[600]),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 8),
+                        ],
                       
                       if (detalle.dm != null && detalle.dm!.isNotEmpty) 
                         Text('DM: ${detalle.dm}'),
@@ -704,7 +809,8 @@ class _EnvioMuestrasScreenState extends State<EnvioMuestrasScreen> {
                     ],
                   ),
                 ),
-              )).toList(),
+              );
+              }).toList(),
             ],
           ),
         ),

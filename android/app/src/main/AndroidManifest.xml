@@ -9,7 +9,7 @@
     <uses-permission android:name="android.permission.CAMERA" />
 
     <application
-        android:label="App Fnpv"
+        android:label="Bornive"
         android:icon="@mipmap/ic_launcher">
         
         <activity

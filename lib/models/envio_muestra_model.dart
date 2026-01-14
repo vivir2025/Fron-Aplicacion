@@ -423,9 +423,10 @@ class DetalleEnvioMuestra {
       'ionograma': ionograma?.toString() ?? '',
       'b12': b12?.toString() ?? '',
       'acido_folico': acidoFolico?.toString() ?? '',
-      'peso': peso?.toString() ?? '',
-      'talla': talla?.toString() ?? '',
-      'volumen': volumen?.toString() ?? '',
+      // ✅ CAMPOS NUMÉRICOS: Convertir a double o null (no enviar 'x')
+      'peso': peso != null ? double.tryParse(peso!) : null,
+      'talla': talla != null ? double.tryParse(talla!) : null,
+      'volumen': volumen != null ? double.tryParse(volumen!) : null,
       'microo': microo?.toString() ?? '',
       'creaori': creaori?.toString() ?? '',
     };

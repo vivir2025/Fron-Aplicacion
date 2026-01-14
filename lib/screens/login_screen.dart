@@ -325,17 +325,18 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Icon(
-                      Icons.lock_outline,
-                      size: 50,
-                      color: Colors.white,
-                    ),
+                  Image.asset(
+                    'assets/icon/borniveicoo.png',
+                    width: 120,
+                    height: 120,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Icon(
+                        Icons.business,
+                        size: 50,
+                        color: Colors.white,
+                      );
+                    },
                   ),
                   const SizedBox(height: 16),
                   const Text(
@@ -585,6 +586,46 @@ class _LoginScreenState extends State<LoginScreen> {
                           ],
                         ),
                       ),
+                    ),
+                    
+                    // 🆕 Logo de la fundación en la parte inferior
+                    const SizedBox(height: 24),
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.grey[600],
+                            letterSpacing: 1,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          width: 80,
+                          height: 80,
+                          padding: const EdgeInsets.all(4),
+                          child: Image.asset(
+                            'assets/icon/fundacionico.png',
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[200],
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  Icons.business,
+                                  size: 30,
+                                  color: Colors.grey[400],
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

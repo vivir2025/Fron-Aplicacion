@@ -135,9 +135,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'FNPV - Principal',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              'assets/icon/borniveicoo.png',
+              width: 40,
+              height: 40,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) {
+                return const Icon(
+                  Icons.business,
+                  size: 24,
+                  color: Colors.white,
+                );
+              },
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              'Bornive',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ],
         ),
         backgroundColor: const Color(0xFF2E7D32),
         foregroundColor: Colors.white,
@@ -312,7 +331,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              'Fundación Nacer Para Vivir Llegando a Tu Vida',
+              'Organizacion comunitaria llegando a tu vida',
               style: TextStyle(
                 fontSize: _getResponsiveFontSize(context, 12),
                 color: Colors.white.withOpacity(0.9),

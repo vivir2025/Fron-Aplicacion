@@ -63,6 +63,9 @@ class _VisitasFormScreenState extends State<VisitasFormScreen> {
   final TextEditingController _otraFactorRiesgoController = TextEditingController();
   final TextEditingController _otraMotivoController = TextEditingController();
   final TextEditingController _otraConductaController = TextEditingController();
+  
+  // 🆕 ScrollController para mantener posición
+  final ScrollController _scrollController = ScrollController();
 
   // Variables de estado
   bool _showGeolocalizacion = false;
@@ -168,6 +171,7 @@ class _VisitasFormScreenState extends State<VisitasFormScreen> {
     _otraFactorRiesgoController.dispose();
     _otraMotivoController.dispose();
     _otraConductaController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
     Future<void> _loadMedicamentosIfNeeded() async {
@@ -1227,6 +1231,7 @@ Widget build(BuildContext context) {
           )
         : null,
     body: SingleChildScrollView(
+      controller: _scrollController,
       padding: const EdgeInsets.all(16),
       child: Card(
         elevation: 5,
@@ -1703,18 +1708,53 @@ Widget _buildMultipleSelectionField({
       
       // ✅ BOTÓN PARA ABRIR DIÁLOGO
       OutlinedButton.icon(
-        onPressed: () {
-          FocusScope.of(context).unfocus();
-          Future.delayed(const Duration(milliseconds: 100), () {
-            if (mounted) {
-              _showMultipleSelectionDialogWithOtra(
-                title: title,
-                options: options,
-                selectedItems: selectedItems,
-                onChanged: onChanged,
+        onPressed: () async {
+          // 🆕 Guardar la posición actual del scroll
+          final currentScrollPosition = _scrollController.hasClients 
+              ? _scrollController.offset 
+              : 0.0;
+          
+          // Mostrar diálogo y esperar resultado
+          final result = await _showMultipleSelectionDialogWithOtra(
+            title: title,
+            options: options,
+            selectedItems: selectedItems,
+            onChanged: onChanged,
+            scrollPosition: currentScrollPosition,
+          );
+          
+          // Si se aceptó, procesar el resultado
+          if (result != null && result is Map<String, dynamic>) {
+            final selectedList = result['selected'] as List<String>;
+            final showOtra = result['showOtra'] as bool;
+            final savedScrollPosition = result['scrollPosition'] as double;
+            
+            // Actualizar estado
+            setState(() {
+              if (title == 'Factores de Riesgo') {
+                _mostrarCampoOtraFactorRiesgo = showOtra;
+              } else if (title == 'Motivo de No Asistencia') {
+                _mostrarCampoOtraMotivo = showOtra;
+              } else if (title == 'Conductas') {
+                _mostrarCampoOtraConducta = showOtra;
+              }
+            });
+            
+            // Llamar al callback
+            onChanged(selectedList);
+            
+            // 🆕 Esperar a que el widget se reconstruya y LUEGO restaurar scroll
+            await Future.delayed(const Duration(milliseconds: 100));
+            
+            if (_scrollController.hasClients && mounted) {
+              // Usar animación suave para evitar saltos bruscos
+              await _scrollController.animateTo(
+                savedScrollPosition,
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOut,
               );
             }
-          });
+          }
         },
         icon: const Icon(Icons.add),
         label: Text('Seleccionar $title'),
@@ -1726,13 +1766,13 @@ Widget _buildMultipleSelectionField({
 
 // Diálogo para selección múltiple - VERSIÓN FINAL
 // ✅ NUEVO MÉTODO PARA DIÁLOGO CON FUNCIONALIDAD "OTRA"
-void _showMultipleSelectionDialogWithOtra({
+Future<Map<String, dynamic>?> _showMultipleSelectionDialogWithOtra({
   required String title,
   required List<String> options,
   required List<String> selectedItems,
   required Function(List<String>) onChanged,
-}) {
-  FocusScope.of(context).unfocus();
+  double scrollPosition = 0.0,
+}) async {
   
   List<String> tempSelected = List.from(selectedItems);
   bool showOtraField = tempSelected.contains('Otra');
@@ -1749,7 +1789,7 @@ void _showMultipleSelectionDialogWithOtra({
     otraController = TextEditingController(); // Fallback
   }
   
-  showDialog(
+  return await showDialog<Map<String, dynamic>>(
     context: context,
     barrierDismissible: true,
     builder: (context) => StatefulBuilder(
@@ -1852,24 +1892,19 @@ void _showMultipleSelectionDialogWithOtra({
             child: const Text('Limpiar Todo'),
           ),
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () {
+              Navigator.of(context).pop(null);
+            },
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
-            onPressed: () {
-              // ✅ ACTUALIZAR ESTADO GLOBAL AL ACEPTAR
-              setState(() {
-                if (title == 'Factores de Riesgo') {
-                  _mostrarCampoOtraFactorRiesgo = showOtraField;
-                } else if (title == 'Motivo de No Asistencia') {
-                  _mostrarCampoOtraMotivo = showOtraField;
-                } else if (title == 'Conductas') {
-                  _mostrarCampoOtraConducta = showOtraField;
-                }
+            onPressed: () async {
+              // ✅ Cerrar diálogo primero con resultado
+              Navigator.of(context).pop({
+                'selected': tempSelected,
+                'showOtra': showOtraField,
+                'scrollPosition': scrollPosition,
               });
-              
-              onChanged(tempSelected);
-              Navigator.of(context).pop();
             },
             child: const Text('Aceptar'),
           ),

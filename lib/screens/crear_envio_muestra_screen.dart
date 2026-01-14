@@ -28,11 +28,6 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
   final _responsableTransporteController = TextEditingController();
   final _responsableRecepcionController = TextEditingController(text: 'Caucalab');
   
-  // ✅ VARIABLES PARA CONTROLAR ESTADO DE CAMPOS LLENOS
-  bool _lugarTomaLleno = false;
-  bool _temperaturaSalidaLlena = false;
-  bool _responsableTransporteLleno = false;
-  
   DateTime _fechaSeleccionada = DateTime.now();
   DateTime? _fechaSalida;
   DateTime? _fechaLlegada;
@@ -55,25 +50,6 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
   void initState() {
     super.initState();
     _cargarDatosIniciales();
-    
-    // ✅ AGREGAR LISTENERS PARA DETECTAR CUANDO SE LLENAN LOS CAMPOS
-    _lugarTomaController.addListener(() {
-      setState(() {
-        _lugarTomaLleno = _lugarTomaController.text.trim().isNotEmpty;
-      });
-    });
-    
-    _temperaturaSalidaController.addListener(() {
-      setState(() {
-        _temperaturaSalidaLlena = _temperaturaSalidaController.text.trim().isNotEmpty;
-      });
-    });
-    
-    _responsableTransporteController.addListener(() {
-      setState(() {
-        _responsableTransporteLleno = _responsableTransporteController.text.trim().isNotEmpty;
-      });
-    });
   }
 
   Future<void> _cargarDatosIniciales() async {
@@ -233,15 +209,6 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
     return '${fecha.day}/${fecha.month}/${fecha.year}';
   }
 
-  // ✅ MÉTODO PARA OBTENER COLOR DINÁMICO (ROJO → VERDE)
-  Color _getBorderColor(bool isLleno) {
-    return isLleno ? Colors.green : Colors.red[300]!;
-  }
-
-  Color _getIconColor(bool isLleno) {
-    return isLleno ? Colors.green[700]! : Colors.red[700]!;
-  }
-
   bool _validarCamposObligatorios() {
     List<String> camposFaltantes = [];
 
@@ -335,9 +302,10 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: Text('Crear Envío de Muestras'),
-        backgroundColor: Colors.blue[800],
+        title: const Text('Crear Envío de Muestras'),
+        backgroundColor: Colors.green,
         foregroundColor: Colors.white,
         actions: [
           if (_detalles.isNotEmpty)
@@ -384,17 +352,16 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
           FloatingActionButton(
             heroTag: "add_sample",
             onPressed: _agregarMuestra,
-            child: Icon(Icons.add),
-            backgroundColor: Colors.blue[600],
-            mini: true,
+            child: const Icon(Icons.add),
+            backgroundColor: Colors.green,
             tooltip: 'Agregar muestra',
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           FloatingActionButton.extended(
             heroTag: "save_envio",
             onPressed: _detalles.isEmpty || _isSaving ? null : _guardarEnvio,
             icon: _isSaving 
-                ? SizedBox(
+                ? const SizedBox(
                     width: 20,
                     height: 20,
                     child: CircularProgressIndicator(
@@ -402,10 +369,9 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
                   )
-                : Icon(Icons.save),
+                : const Icon(Icons.save),
             label: Text(_isSaving ? 'Guardando...' : 'Guardar Envío'),
-            backgroundColor: _detalles.isEmpty ? Colors.grey : Colors.blue[800],
-            foregroundColor: Colors.white,
+            backgroundColor: _detalles.isEmpty ? Colors.grey : Colors.green,
           ),
         ],
       ),
@@ -420,320 +386,175 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Información del Envío',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.blue[800],
-              ),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.local_shipping,
+                    color: Colors.green,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  'Información del Envío',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             
             // RESPONSABLE DE TOMA (USUARIO LOGUEADO)
             Container(
-              padding: EdgeInsets.all(16),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.green[50],
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.green[200]!),
+                border: Border.all(color: Colors.green[300]!),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: [
-                  Row(
-                    children: [
-                      Icon(Icons.person, color: Colors.green[700], size: 20),
-                      SizedBox(width: 8),
-                      Text(
-                        'Responsable de Toma de Muestras',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.green[800],
+                  Icon(Icons.person_pin, color: Colors.green[700]),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Responsable de Toma',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    _usuarioLogueado ?? 'Cargando...',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.green[700],
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'Se asignará automáticamente',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.green[600],
-                      fontStyle: FontStyle.italic,
+                        Text(
+                          _usuarioLogueado ?? 'Cargando...',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             
             // ✅ SEDE OBLIGATORIA (ROJO → VERDE)
             _buildSelectorSede(),
             SizedBox(height: 16),
             
-            // ✅ FECHA DEL ENVÍO (SIEMPRE VERDE PORQUE TIENE VALOR POR DEFECTO)
-            Container(
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: Colors.green,
-                  width: 2,
+            // FECHA DEL ENVÍO
+            InkWell(
+              onTap: _seleccionarFecha,
+              child: InputDecorator(
+                decoration: InputDecoration(
+                  labelText: 'Fecha del Envío *',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.calendar_today, color: Colors.green[700]),
                 ),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: ListTile(
-                leading: Icon(Icons.calendar_today, color: Colors.green[700]),
-                title: Row(
-                  children: [
-                    Text('Fecha del envío'),
-                    SizedBox(width: 4),
-                    Text('*', style: TextStyle(color: Colors.green, fontSize: 18)),
-                  ],
-                ),
-                subtitle: Text(
+                child: Text(
                   '${_fechaSeleccionada.day}/${_fechaSeleccionada.month}/${_fechaSeleccionada.year}',
-                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
-                trailing: Icon(Icons.check_circle, color: Colors.green),
-                onTap: _seleccionarFecha,
               ),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 12),
             
-            // ✅ LUGAR DE TOMA OBLIGATORIO (ROJO → VERDE)
+            // LUGAR DE TOMA
             TextFormField(
               controller: _lugarTomaController,
               decoration: InputDecoration(
-                labelText: 'Lugar de toma de muestras',
-                labelStyle: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: _lugarTomaLleno ? Colors.green[700] : Colors.red[700],
-                ),
-                border: OutlineInputBorder(
-                  borderSide: BorderSide(color: _getBorderColor(_lugarTomaLleno), width: 2),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: _getBorderColor(_lugarTomaLleno), width: 2),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderSide: BorderSide(
-                    color: _lugarTomaLleno ? Colors.green : Colors.red,
-                    width: 2,
-                  ),
-                ),
-                prefixIcon: Icon(Icons.location_on, color: _getIconColor(_lugarTomaLleno)),
-                suffixIcon: _lugarTomaLleno 
-                    ? Icon(Icons.check_circle, color: Colors.green, size: 20)
-                    : Icon(Icons.star, color: Colors.red, size: 16),
-                hintText: 'Ingrese el lugar de toma',
+                labelText: 'Lugar de Toma de Muestras *',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.location_on, color: Colors.green[700]),
               ),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
-                  return 'Este campo es obligatorio';
+                  return 'Requerido';
                 }
                 return null;
               },
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             
-            // ✅ INFORMACIÓN DE SALIDA (TODOS OBLIGATORIOS - ROJO → VERDE)
+            // INFORMACIÓN DE SALIDA
             Container(
-              padding: EdgeInsets.all(16),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: (_fechaSalida != null && _horaSalidaSeleccionada != null && 
-                        _temperaturaSalidaLlena && _responsableTransporteLleno)
-                    ? Colors.green[50]
-                    : Colors.red[50],
+                color: Colors.green[50],
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: (_fechaSalida != null && _horaSalidaSeleccionada != null && 
-                          _temperaturaSalidaLlena && _responsableTransporteLleno)
-                      ? Colors.green[300]!
-                      : Colors.red[300]!,
-                  width: 2,
-                ),
+                border: Border.all(color: Colors.green[300]!),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  const Text(
+                    'Información de Salida',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // FECHA SALIDA
+                  InkWell(
+                    onTap: _seleccionarFechaSalida,
+                    child: InputDecorator(
+                      decoration: InputDecoration(
+                        labelText: 'Fecha de Salida *',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.calendar_today, color: Colors.green[700]),
+                      ),
+                      child: Text(
+                        _formatearFecha(_fechaSalida),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  
+                  // HORA Y TEMPERATURA SALIDA
                   Row(
                     children: [
-                      Icon(
-                        (_fechaSalida != null && _horaSalidaSeleccionada != null && 
-                         _temperaturaSalidaLlena && _responsableTransporteLleno)
-                            ? Icons.check_circle
-                            : Icons.warning,
-                        color: (_fechaSalida != null && _horaSalidaSeleccionada != null && 
-                                _temperaturaSalidaLlena && _responsableTransporteLleno)
-                            ? Colors.green[700]
-                            : Colors.red[700],
-                        size: 20,
-                      ),
-                      SizedBox(width: 8),
-                      Text(
-                        'Información de Salida',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: (_fechaSalida != null && _horaSalidaSeleccionada != null && 
-                                  _temperaturaSalidaLlena && _responsableTransporteLleno)
-                              ? Colors.green[800]
-                              : Colors.red[800],
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 12),
-                  
-                  // ✅ FECHA SALIDA OBLIGATORIA (ROJO → VERDE)
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: _fechaSalida != null ? Colors.green : Colors.red[300]!,
-                        width: 2,
-                      ),
-                    ),
-                    child: ListTile(
-                      leading: Icon(
-                        Icons.calendar_today,
-                        color: _fechaSalida != null ? Colors.green[600] : Colors.red[600],
-                      ),
-                      title: Row(
-                        children: [
-                          Text('Fecha de salida'),
-                          SizedBox(width: 4),
-                          Text('*', style: TextStyle(
-                            color: _fechaSalida != null ? Colors.green : Colors.red,
-                            fontSize: 18,
-                          )),
-                        ],
-                      ),
-                      subtitle: Text(
-                        _formatearFecha(_fechaSalida),
-                        style: TextStyle(
-                          fontWeight: _fechaSalida == null ? FontWeight.normal : FontWeight.bold,
-                          color: _fechaSalida == null ? Colors.grey : Colors.black,
-                        ),
-                      ),
-                      trailing: _fechaSalida != null 
-                          ? Icon(Icons.check_circle, color: Colors.green)
-                          : Icon(Icons.arrow_forward_ios, size: 16),
-                      onTap: _seleccionarFechaSalida,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  
-                  // ✅ HORA Y TEMPERATURA SALIDA (ROJO → VERDE)
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: _horaSalidaSeleccionada != null ? Colors.green : Colors.red[300]!,
-                                width: 2,
-                              ),
+                      Expanded(
+                        child: InkWell(
+                          onTap: _seleccionarHoraSalida,
+                          child: InputDecorator(
+                            decoration: InputDecoration(
+                              labelText: 'Hora Salida *',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.access_time, color: Colors.green[700]),
                             ),
-                            child: ListTile(
-                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                              leading: Icon(
-                                Icons.access_time,
-                                color: _horaSalidaSeleccionada != null ? Colors.green[600] : Colors.red[600],
-                              ),
-                              title: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Flexible(
-                                    child: Text(
-                                      'Hora salida',
-                                      overflow: TextOverflow.ellipsis,
-                                      maxLines: 1,
-                                    ),
-                                  ),
-                                  SizedBox(width: 4),
-                                  Text(
-                                    '*',
-                                    style: TextStyle(
-                                      color: _horaSalidaSeleccionada != null ? Colors.green : Colors.red,
-                                      fontSize: 18,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              subtitle: Text(
-                                _horaSalidaSeleccionada != null 
-                                    ? '${_horaSalidaSeleccionada!.hour.toString().padLeft(2, '0')}:${_horaSalidaSeleccionada!.minute.toString().padLeft(2, '0')}'
-                                    : 'Seleccionar',
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 1,
-                                style: TextStyle(
-                                  fontWeight: _horaSalidaSeleccionada == null ? FontWeight.normal : FontWeight.bold,
-                                  color: _horaSalidaSeleccionada == null ? Colors.grey : Colors.black,
-                                ),
-                              ),
-                              trailing: _horaSalidaSeleccionada != null 
-                                  ? Icon(Icons.check_circle, color: Colors.green, size: 20)
-                                  : null,
-                              onTap: _seleccionarHoraSalida,
+                            child: Text(
+                              _horaSalidaSeleccionada != null 
+                                  ? '${_horaSalidaSeleccionada!.hour.toString().padLeft(2, '0')}:${_horaSalidaSeleccionada!.minute.toString().padLeft(2, '0')}'
+                                  : 'Seleccionar',
                             ),
                           ),
                         ),
-                      SizedBox(width: 8),
+                      ),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: TextFormField(
                           controller: _temperaturaSalidaController,
                           decoration: InputDecoration(
-                            labelText: 'Temp. salida (°C)',
-                            labelStyle: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: _temperaturaSalidaLlena ? Colors.green[700] : Colors.red[700],
-                            ),
-                            border: OutlineInputBorder(
-                              borderSide: BorderSide(
-                                color: _getBorderColor(_temperaturaSalidaLlena),
-                                width: 2,
-                              ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderSide: BorderSide(
-                                color: _getBorderColor(_temperaturaSalidaLlena),
-                                width: 2,
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderSide: BorderSide(
-                                color: _temperaturaSalidaLlena ? Colors.green : Colors.red,
-                                width: 2,
-                              ),
-                            ),
-                            prefixIcon: Icon(
-                              Icons.thermostat,
-                              color: _getIconColor(_temperaturaSalidaLlena),
-                            ),
-                            suffixIcon: _temperaturaSalidaLlena
-                                ? Icon(Icons.check_circle, color: Colors.green, size: 20)
-                                : Icon(Icons.star, color: Colors.red, size: 16),
-                            filled: true,
-                            fillColor: Colors.white,
+                            labelText: 'Temp. Salida (°C) *',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.thermostat, color: Colors.green[700]),
                           ),
-                          keyboardType: TextInputType.numberWithOptions(decimal: true),
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
                           validator: (value) {
                             if (value == null || value.trim().isEmpty) {
-                              return 'Obligatorio';
+                              return 'Requerido';
                             }
                             return null;
                           },
@@ -741,49 +562,19 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
                       ),
                     ],
                   ),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
                   
-                  // ✅ RESPONSABLE DE TRANSPORTE (ROJO → VERDE)
+                  // RESPONSABLE DE TRANSPORTE
                   TextFormField(
                     controller: _responsableTransporteController,
                     decoration: InputDecoration(
-                      labelText: 'Responsable de Transporte',
-                      labelStyle: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: _responsableTransporteLleno ? Colors.green[700] : Colors.red[700],
-                      ),
-                      border: OutlineInputBorder(
-                        borderSide: BorderSide(
-                          color: _getBorderColor(_responsableTransporteLleno),
-                          width: 2,
-                        ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderSide: BorderSide(
-                          color: _getBorderColor(_responsableTransporteLleno),
-                          width: 2,
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(
-                          color: _responsableTransporteLleno ? Colors.green : Colors.red,
-                          width: 2,
-                        ),
-                      ),
-                      prefixIcon: Icon(
-                        Icons.local_shipping,
-                        color: _getIconColor(_responsableTransporteLleno),
-                      ),
-                      suffixIcon: _responsableTransporteLleno
-                          ? Icon(Icons.check_circle, color: Colors.green, size: 20)
-                          : Icon(Icons.star, color: Colors.red, size: 16),
-                      filled: true,
-                      fillColor: Colors.white,
-                      hintText: 'Nombre del responsable',
+                      labelText: 'Responsable de Transporte *',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.local_shipping, color: Colors.green[700]),
                     ),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Este campo es obligatorio';
+                        return 'Requerido';
                       }
                       return null;
                     },
@@ -791,127 +582,107 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
                 ],
               ),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
 
-                       // INFORMACIÓN DE LLEGADA (OPCIONALES)
+            // INFORMACIÓN DE LLEGADA (OPCIONALES)
             Container(
-              padding: EdgeInsets.all(16),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.green[50],
+                color: Colors.blue[50],
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.green[200]!),
+                border: Border.all(color: Colors.blue[300]!),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Icon(Icons.info_outline, color: Colors.green[700], size: 20),
-                      SizedBox(width: 8),
-                      Text(
-                        'Información de Llegada ',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.green[800],
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 12),
-                  
-                  ListTile(
-                    leading: Icon(Icons.calendar_today, color: Colors.green[600]),
-                    title: Text('Fecha de llegada'),
-                    subtitle: Text(_formatearFecha(_fechaLlegada)),
-                    trailing: Icon(Icons.arrow_forward_ios, size: 16),
-                    onTap: _seleccionarFechaLlegada,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                  const Text(
+                    'Información de Llegada (Opcional)',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
                     ),
-                    tileColor: Colors.white,
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 12),
+                  
+                  InkWell(
+                    onTap: _seleccionarFechaLlegada,
+                    child: InputDecorator(
+                      decoration: InputDecoration(
+                        labelText: 'Fecha de Llegada',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.calendar_today, color: Colors.blue[700]),
+                      ),
+                      child: Text(_formatearFecha(_fechaLlegada)),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   
                   Row(
                     children: [
                       Expanded(
-                        child: ListTile(
-                          leading: Icon(Icons.access_time_filled, color: Colors.green[600]),
-                          title: Text('Hora llegada'),
-                          subtitle: Text(_horaLlegadaSeleccionada != null 
-                              ? '${_horaLlegadaSeleccionada!.hour.toString().padLeft(2, '0')}:${_horaLlegadaSeleccionada!.minute.toString().padLeft(2, '0')}'
-                              : 'No seleccionada'),
+                        child: InkWell(
                           onTap: _seleccionarHoraLlegada,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                          child: InputDecorator(
+                            decoration: InputDecoration(
+                              labelText: 'Hora Llegada',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.access_time, color: Colors.blue[700]),
+                            ),
+                            child: Text(
+                              _horaLlegadaSeleccionada != null 
+                                  ? '${_horaLlegadaSeleccionada!.hour.toString().padLeft(2, '0')}:${_horaLlegadaSeleccionada!.minute.toString().padLeft(2, '0')}'
+                                  : 'No seleccionada',
+                            ),
                           ),
-                          tileColor: Colors.white,
                         ),
                       ),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: TextFormField(
                           controller: _temperaturaLlegadaController,
                           decoration: InputDecoration(
-                            labelText: 'Temp. llegada (°C)',
+                            labelText: 'Temp. Llegada (°C)',
                             border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.thermostat_outlined, color: Colors.green[600]),
-                            filled: true,
-                            fillColor: Colors.white,
+                            prefixIcon: Icon(Icons.thermostat, color: Colors.blue[700]),
                           ),
-                          keyboardType: TextInputType.numberWithOptions(decimal: true),
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         ),
                       ),
                     ],
                   ),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
                   
-                  // LUGAR DE LLEGADA CON VALOR AUTOMÁTICO "Caucalab"
+                  // LUGAR DE LLEGADA
                   TextFormField(
                     controller: _lugarLlegadaController,
                     decoration: InputDecoration(
-                      labelText: 'Lugar de llegada',
+                      labelText: 'Lugar de Llegada',
                       border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.location_city, color: Colors.green[600]),
-                      filled: true,
-                      fillColor: Colors.green[100],
-                      suffixIcon: Tooltip(
-                        message: 'Valor predeterminado: Caucalab',
-                        child: Icon(Icons.check_circle, color: Colors.green[700]),
-                      ),
+                      prefixIcon: Icon(Icons.location_city, color: Colors.blue[700]),
                     ),
-                    readOnly: false,
                   ),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
                   
-                  // RESPONSABLE DE RECEPCIÓN CON VALOR AUTOMÁTICO "Caucalab"
+                  // RESPONSABLE DE RECEPCIÓN
                   TextFormField(
                     controller: _responsableRecepcionController,
                     decoration: InputDecoration(
                       labelText: 'Responsable de Recepción',
                       border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.how_to_reg, color: Colors.green[600]),
-                      filled: true,
-                      fillColor: Colors.green[100],
-                      suffixIcon: Tooltip(
-                        message: 'Valor predeterminado: Caucalab',
-                        child: Icon(Icons.check_circle, color: Colors.green[700]),
-                      ),
+                      prefixIcon: Icon(Icons.how_to_reg, color: Colors.blue[700]),
                     ),
-                    readOnly: false,
                   ),
                 ],
               ),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             
             TextFormField(
               controller: _observacionesController,
               decoration: InputDecoration(
                 labelText: 'Observaciones',
                 border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.note),
+                prefixIcon: Icon(Icons.note, color: Colors.grey[600]),
               ),
               maxLines: 3,
             ),
@@ -922,167 +693,107 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
   }
 
   Widget _buildSelectorSede() {
-    // ✅ DETERMINAR SI LA SEDE ESTÁ SELECCIONADA
-    bool sedeSeleccionada = _sedeSeleccionada != null && _sedeSeleccionada!.isNotEmpty;
-    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Text(
-              'Sede',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: Colors.blue[800],
-              ),
-            ),
-            SizedBox(width: 4),
-            Text('*', style: TextStyle(
-              color: sedeSeleccionada ? Colors.green : Colors.red,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            )),
-          ],
-        ),
-        SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: sedeSeleccionada ? Colors.green : Colors.red[300]!,
-              width: 2,
-            ),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: _cargandoSedes
-              ? Container(
-                  padding: EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                      SizedBox(width: 12),
-                      Text('Cargando sedes...'),
-                    ],
-                  ),
-                )
-              : _sedes.isEmpty
-                  ? Container(
-                      padding: EdgeInsets.all(16),
-                      child: Row(
-                        children: [
-                          Icon(Icons.warning, color: Colors.orange),
-                          SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'No hay sedes disponibles',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                                Text(
-                                  'Contacte al administrador',
-                                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : DropdownButtonFormField<String>(
-                      value: _sedeSeleccionada,
-                      decoration: InputDecoration(
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        prefixIcon: Icon(
-                          Icons.business,
-                          color: sedeSeleccionada ? Colors.green[700] : Colors.red[700],
-                        ),
-                        suffixIcon: sedeSeleccionada 
-                            ? Icon(Icons.check_circle, color: Colors.green, size: 20)
-                            : null,
-                      ),
-                      hint: Text('Seleccione una sede'),
-                      items: _sedes.map((sede) {
-                        return DropdownMenuItem<String>(
-                          value: sede['id'].toString(),
+        const SizedBox(height: 8),
+        _cargandoSedes
+            ? Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.green[300]!),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.green),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text('Cargando sedes...'),
+                  ],
+                ),
+              )
+            : _sedes.isEmpty
+                ? Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.orange[300]!),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                child: const Row(
+                  children: [
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 12),
+                    Text('Cargando sedes...'),
+                  ],
+                ),
+              )
+            : _sedes.isEmpty
+                ? Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.orange[300]!),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.warning, color: Colors.orange),
+                        const SizedBox(width: 8),
+                        Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(
-                                sede['nombresede']?.toString() ?? 'Sin nombre',
-                                style: TextStyle(fontWeight: FontWeight.w500),
+                              const Text(
+                                'No hay sedes disponibles',
+                                style: TextStyle(fontWeight: FontWeight.bold),
                               ),
-                              if (sede['direccion'] != null && sede['direccion'].toString().isNotEmpty)
-                                Text(
-                                  sede['direccion'].toString(),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey[600],
-                                  ),
-                                ),
+                              Text(
+                                'Contacte al administrador',
+                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                              ),
                             ],
                           ),
-                        );
-                      }).toList(),
-                      onChanged: (String? nuevaSede) {
-                        setState(() {
-                          _sedeSeleccionada = nuevaSede;
-                        });
-                        debugPrint('✅ Sede seleccionada: $nuevaSede');
-                      },
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Debe seleccionar una sede';
-                        }
-                        return null;
-                      },
+                        ),
+                      ],
                     ),
-        ),
-        if (_sedeSeleccionada != null) ...[
-          SizedBox(height: 8),
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.green[50],
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.green[300]!),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.check_circle, size: 16, color: Colors.green[700]),
-                SizedBox(width: 4),
-                Text(
-                  'Sede seleccionada: ${_obtenerNombreSede(_sedeSeleccionada!)}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.green[700],
-                    fontWeight: FontWeight.w500,
+                  )
+                : DropdownButtonFormField<String>(
+                    value: _sedeSeleccionada,
+                    decoration: InputDecoration(
+                      labelText: 'Sede *',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.business, color: Colors.green[700]),
+                    ),
+                    hint: const Text('Seleccione una sede'),
+                    items: _sedes.map((sede) {
+                      return DropdownMenuItem<String>(
+                        value: sede['id'].toString(),
+                        child: Text(
+                          sede['nombresede']?.toString() ?? 'Sin nombre',
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (String? nuevaSede) {
+                      setState(() {
+                        _sedeSeleccionada = nuevaSede;
+                      });
+                    },
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Requerido';
+                      }
+                      return null;
+                    },
                   ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ],
     );
-  }
-
-  String _obtenerNombreSede(String sedeId) {
-    try {
-      final sede = _sedes.firstWhere((s) => s['id'].toString() == sedeId);
-      return sede['nombresede']?.toString() ?? 'Sede sin nombre';
-    } catch (e) {
-      return 'Sede desconocida';
-    }
   }
 
   Widget _buildSeccionMuestras() {
@@ -1098,46 +809,48 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
               children: [
                 Text(
                   'Muestras (${_detalles.length})',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.blue[800],
                   ),
                 ),
                 if (_detalles.isEmpty)
                   TextButton.icon(
                     onPressed: _agregarMuestra,
-                    icon: Icon(Icons.add),
-                    label: Text('Agregar primera muestra'),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Agregar muestra'),
                   ),
               ],
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             
             if (_detalles.isEmpty)
               Container(
                 width: double.infinity,
-                padding: EdgeInsets.all(32),
+                padding: const EdgeInsets.all(40),
                 decoration: BoxDecoration(
-                  color: Colors.grey[100],
+                  color: Colors.green[50],
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey[300]!),
+                  border: Border.all(color: Colors.green[200]!, style: BorderStyle.solid, width: 1.5),
                 ),
                 child: Column(
                   children: [
-                    Icon(Icons.science, size: 48, color: Colors.grey),
-                    SizedBox(height: 16),
+                    Icon(Icons.science_outlined, size: 48, color: Colors.green[300]),
+                    const SizedBox(height: 16),
                     Text(
                       'No hay muestras agregadas',
                       style: TextStyle(
                         fontSize: 16,
-                        color: Colors.grey[600],
+                        color: Colors.green[700],
                       ),
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Text(
-                      'Presiona + para agregar la primera muestra',
-                      style: TextStyle(color: Colors.grey[500]),
+                      'Presiona + para agregar',
+                      style: TextStyle(
+                        color: Colors.green[600],
+                        fontSize: 14,
+                      ),
                     ),
                   ],
                 ),
@@ -1167,177 +880,111 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
     }
 
     return Card(
-      margin: EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          gradient: LinearGradient(
-            colors: [
-              Colors.white,
-              Colors.blue[50]!.withOpacity(0.3),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: ListTile(
-          contentPadding: EdgeInsets.all(16),
-          leading: Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.blue[800]!, Colors.blue[600]!],
-              ),
-              borderRadius: BorderRadius.circular(25),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.blue.withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Center(
-              child: Text(
-                '${detalle.numeroOrden}',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
-              ),
-            ),
-          ),
-          title: Text(
-            'Muestra #${detalle.numeroOrden}',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-              color: Colors.blue[800],
-            ),
-          ),
-          subtitle: Container(
-            margin: EdgeInsets.only(top: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
                 Container(
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
-                    color: Colors.green[50],
+                    color: Colors.green,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.green[200]!),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.person,
-                        size: 16,
-                        color: Colors.green[700],
+                  child: Center(
+                    child: Text(
+                      '${detalle.numeroOrden}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
                       ),
-                      SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          pacienteInfo != null
-                              ? '${pacienteInfo.identificacion} - ${pacienteInfo.nombre} ${pacienteInfo.apellido}'
-                              : 'ID: ${detalle.pacienteId} (Paciente no encontrado)',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.green[700],
-                          ),
-                          overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Muestra #${detalle.numeroOrden}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
                         ),
                       ),
+                      if (pacienteInfo != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'CC: ${pacienteInfo.identificacion}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                        Text(
+                          '${pacienteInfo.nombre} ${pacienteInfo.apellido}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                      ] else ...[
+                        Text(
+                          'Paciente no encontrado',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.red[600],
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
-                
-                if (detalle.dm?.isNotEmpty == true || detalle.hta?.isNotEmpty == true) ...[
-                  SizedBox(height: 6),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.orange[50],
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.orange[200]!),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.medical_services,
-                          size: 16,
-                          color: Colors.orange[700],
-                        ),
-                        SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            'Diagnóstico: ${[detalle.dm, detalle.hta].where((e) => e?.isNotEmpty == true).join(', ')}',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.orange[700],
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-                
-                if (detalle.numMuestrasEnviadas?.isNotEmpty == true) ...[
-                  SizedBox(height: 6),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.purple[50],
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.purple[200]!),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.science,
-                          size: 16,
-                          color: Colors.purple[700],
-                        ),
-                        SizedBox(width: 6),
-                        Text(
-                          '# Muestras: ${detalle.numMuestrasEnviadas}',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.purple[700],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                IconButton(
+                  icon: Icon(Icons.delete_outline, color: Colors.grey[600]),
+                  onPressed: () => _eliminarMuestra(index),
+                  tooltip: 'Eliminar',
+                ),
               ],
             ),
-          ),
-          trailing: Container(
-            decoration: BoxDecoration(
-              color: Colors.red[50],
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: IconButton(
-              icon: Icon(Icons.delete_rounded, color: Colors.red[600]),
-              onPressed: () => _eliminarMuestra(index),
-              tooltip: 'Eliminar muestra',
-            ),
-          ),
-          onTap: () => _editarMuestra(index),
+            if (detalle.dm?.isNotEmpty == true || detalle.hta?.isNotEmpty == true || detalle.numMuestrasEnviadas?.isNotEmpty == true) ...[
+              const SizedBox(height: 8),
+              const Divider(height: 1),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  if (detalle.dm?.isNotEmpty == true || detalle.hta?.isNotEmpty == true)
+                    Chip(
+                      label: Text(
+                        'Dx: ${[detalle.dm, detalle.hta].where((e) => e?.isNotEmpty == true).join(', ')}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      backgroundColor: Colors.orange[50],
+                      avatar: Icon(Icons.medical_services, size: 16, color: Colors.orange[700]),
+                    ),
+                  if (detalle.numMuestrasEnviadas?.isNotEmpty == true)
+                    Chip(
+                      label: Text(
+                        '# Muestras: ${detalle.numMuestrasEnviadas}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      backgroundColor: Colors.blue[50],
+                      avatar: Icon(Icons.science, size: 16, color: Colors.blue[700]),
+                    ),
+                ],
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -1363,6 +1010,9 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
         ),
       ),
     );
+    
+    // ✅ RECARGAR PACIENTES AL VOLVER (por si se creó uno nuevo)
+    await _cargarPacientes();
   }
 
   void _editarMuestra(int index) {

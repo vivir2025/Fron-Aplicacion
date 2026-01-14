@@ -349,41 +349,34 @@ class PacienteProvider with ChangeNotifier {
         throw Exception('Ya existe un paciente con esta identificación');
       }
 
-      debugPrint('📝 Creando paciente localmente primero...');
-      final offlinePaciente = await _createPacienteOffline(paciente, db);
-      
       final connectivity = await Connectivity().checkConnectivity();
       final isOnline = connectivity != ConnectivityResult.none;
 
+      // ✅ SI ESTAMOS ONLINE, CREAR DIRECTAMENTE EN SERVIDOR (MÁS RÁPIDO Y SEGURO)
       if (isOnline && _authProvider.isAuthenticated) {
-        Future.microtask(() async {
-          try {
-            debugPrint('🔄 Sincronizando paciente con el servidor en segundo plano...');
-            final createdPaciente = await ApiService.createPaciente(
-              _authProvider.token!, 
-              paciente.toJson()
-            );
-            
-            final newPaciente = Paciente.fromJson(createdPaciente);
-            await db.deletePaciente(offlinePaciente.id);
-            await db.upsertPaciente(newPaciente);
-            
-            final index = _pacientes.indexWhere((p) => p.id == offlinePaciente.id);
-            if (index != -1) {
-              _pacientes[index] = newPaciente;
-            } else {
-              _pacientes.add(newPaciente);
-            }
-            
-            debugPrint('✅ Paciente sincronizado exitosamente con el servidor');
-            notifyListeners();
-          } catch (apiError) {
-            debugPrint('❌ Error al sincronizar paciente con servidor: $apiError');
-          }
-        });
+        try {
+          debugPrint('🌐 Creando paciente directamente en servidor (modo online)...');
+          final createdPaciente = await ApiService.createPaciente(
+            _authProvider.token!, 
+            paciente.toJson()
+          );
+          
+          final newPaciente = Paciente.fromJson(createdPaciente);
+          await db.upsertPaciente(newPaciente);
+          _pacientes.add(newPaciente);
+          
+          debugPrint('✅ Paciente creado exitosamente en servidor con ID: ${newPaciente.id}');
+          return; // ✅ SALIR AQUÍ - NO CREAR VERSIÓN OFFLINE
+        } catch (apiError) {
+          debugPrint('⚠️ Error al crear en servidor, guardando offline: $apiError');
+          // Si falla el servidor, continuar con modo offline
+        }
       }
       
-      debugPrint('✅ Paciente agregado exitosamente (versión local)');
+      // ✅ MODO OFFLINE O SI FALLÓ EL SERVIDOR
+      debugPrint('📱 Creando paciente en modo offline...');
+      final offlinePaciente = await _createPacienteOffline(paciente, db);
+      debugPrint('✅ Paciente guardado offline, se sincronizará después');
       
     } catch (e) {
       debugPrint('❌ Error adding paciente: $e');

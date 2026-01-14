@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../api/api_service.dart';
 import '../database/database_helper.dart';
 import '../models/envio_muestra_model.dart';
+import '../models/paciente_model.dart'; // ✅ IMPORTAR MODELO PACIENTE
 
 class EnvioMuestraService {
   static final DatabaseHelper _dbHelper = DatabaseHelper.instance;
@@ -16,7 +17,30 @@ class EnvioMuestraService {
     try {
       debugPrint('💾 Iniciando guardado de envío de muestra...');
       
-      // 1. Guardar siempre localmente primero
+      // ✅ PASO 1: VERIFICAR SI HAY PACIENTES OFFLINE Y SINCRONIZARLOS PRIMERO
+      if (token != null) {
+        final tienePacientesOffline = envio.detalles.any((d) => d.pacienteId.startsWith('offline_'));
+        
+        if (tienePacientesOffline) {
+          debugPrint('⚠️ Detectados pacientes offline en el envío. Intentando sincronizar primero...');
+          
+          try {
+            final hasConnection = await ApiService.verificarConectividad();
+            if (hasConnection) {
+              // Sincronizar solo los pacientes offline de este envío
+              await _sincronizarPacientesDelEnvio(envio, token);
+              debugPrint('✅ Pacientes offline sincronizados antes de guardar envío');
+            } else {
+              debugPrint('📵 Sin conexión - Los pacientes offline se sincronizarán después');
+            }
+          } catch (e) {
+            debugPrint('⚠️ Error sincronizando pacientes offline: $e');
+            // Continuar de todas formas, se sincronizará después
+          }
+        }
+      }
+      
+      // ✅ PASO 2: Guardar siempre localmente primero
       final savedLocally = await _dbHelper.createEnvioMuestra(envio);
       
       if (!savedLocally) {
@@ -26,7 +50,7 @@ class EnvioMuestraService {
       
       debugPrint('✅ Envío guardado localmente con ${envio.detalles.length} muestras');
       
-      // 2. Intentar subir al servidor si hay token y conexión
+      // ✅ PASO 3: Intentar subir al servidor si hay token y conexión
       if (token != null) {
         try {
           final hasConnection = await ApiService.verificarConectividad();
@@ -34,8 +58,9 @@ class EnvioMuestraService {
           if (hasConnection) {
             debugPrint('🌐 Intentando sincronizar con servidor...');
             
-            // ✅ PREPARAR DATOS CORRECTAMENTE PARA EL SERVIDOR
-            final envioDataForServer = _prepararDatosParaServidor(envio);
+            // Actualizar referencias offline antes de enviar
+            final envioActualizado = await _actualizarReferenciasOffline(envio, token);
+            final envioDataForServer = _prepararDatosParaServidor(envioActualizado);
             
             final serverData = await ApiService.createEnvioMuestra(token, envioDataForServer);
             
@@ -62,6 +87,170 @@ class EnvioMuestraService {
       debugPrint('💥 Error completo al guardar envío: $e');
       return false;
     }
+  }
+
+  // ✅ NUEVO MÉTODO: Sincronizar pacientes offline específicos del envío
+  static Future<void> _sincronizarPacientesDelEnvio(EnvioMuestra envio, String token) async {
+    for (final detalle in envio.detalles) {
+      if (detalle.pacienteId.startsWith('offline_')) {
+        await _sincronizarPacienteOffline(detalle.pacienteId, token);
+      }
+    }
+  }
+
+  // ✅ NUEVO MÉTODO: Sincronizar un paciente offline específico
+  static Future<Paciente?> _sincronizarPacienteOffline(String pacienteIdOffline, String token) async {
+    try {
+      debugPrint('🔄 Sincronizando paciente offline: $pacienteIdOffline');
+      
+      // Buscar el paciente en la BD local
+      final paciente = await _dbHelper.getPacienteById(pacienteIdOffline);
+      
+      if (paciente == null) {
+        debugPrint('❌ Paciente no encontrado en BD local: $pacienteIdOffline');
+        return null;
+      }
+      
+      // Intentar crear el paciente en el servidor
+      final pacienteData = {
+        'identificacion': paciente.identificacion,
+        'nombre': paciente.nombre,
+        'apellido': paciente.apellido,
+        'fecnacimiento': paciente.fecnacimiento.toIso8601String().split('T')[0],
+        'genero': paciente.genero,
+        'idsede': paciente.idsede,
+        'latitud': paciente.latitud?.toString() ?? '',
+        'longitud': paciente.longitud?.toString() ?? '',
+      };
+      
+      final serverData = await ApiService.createPaciente(token, pacienteData);
+      
+      if (serverData != null) {
+        // Actualizar en BD local con el nuevo ID del servidor
+        final pacienteServidor = Paciente.fromJson(serverData);
+        await _dbHelper.deletePaciente(pacienteIdOffline); // Eliminar versión offline
+        await _dbHelper.upsertPaciente(pacienteServidor); // Insertar versión del servidor
+        
+        debugPrint('✅ Paciente ${paciente.identificacion} sincronizado: $pacienteIdOffline → ${pacienteServidor.id}');
+        return pacienteServidor;
+      }
+      
+      return null;
+    } catch (e) {
+      debugPrint('❌ Error sincronizando paciente $pacienteIdOffline: $e');
+      return null;
+    }
+  }
+
+  // ✅ MÉTODO PARA ACTUALIZAR REFERENCIAS DE PACIENTES OFFLINE A IDs DEL SERVIDOR
+  static Future<EnvioMuestra> _actualizarReferenciasOffline(EnvioMuestra envio, String token) async {
+    debugPrint('🔍 Verificando referencias de pacientes offline en envío ${envio.id}...');
+    
+    List<DetalleEnvioMuestra> detallesActualizados = [];
+    
+    for (final detalle in envio.detalles) {
+      String pacienteIdActualizado = detalle.pacienteId;
+      
+      // ✅ SI EL PACIENTE TIENE ID OFFLINE, SINCRONIZARLO PRIMERO
+      if (detalle.pacienteId.startsWith('offline_')) {
+        debugPrint('⚠️ Encontrado paciente offline: ${detalle.pacienteId}');
+        
+        // Extraer la identificación del paciente del ID offline
+        // Formato: offline_timestamp_identificacion_randomSuffix
+        final parts = detalle.pacienteId.split('_');
+        if (parts.length >= 3) {
+          final identificacion = parts[2];
+          
+          // ✅ INTENTAR SINCRONIZAR EL PACIENTE PRIMERO
+          debugPrint('🔄 Sincronizando paciente offline: $identificacion');
+          final pacienteServidor = await _sincronizarPacienteOffline(detalle.pacienteId, token);
+          
+          if (pacienteServidor != null) {
+            pacienteIdActualizado = pacienteServidor.id;
+            debugPrint('✅ Paciente sincronizado: ${detalle.pacienteId} → $pacienteIdActualizado');
+            
+            // Actualizar también en la BD local
+            await _dbHelper.actualizarPacienteIdEnDetalle(detalle.id, pacienteIdActualizado);
+          } else {
+            debugPrint('❌ No se pudo sincronizar paciente offline: $identificacion');
+            throw Exception('No se pudo sincronizar el paciente $identificacion');
+          }
+        }
+      }
+      
+      // Crear detalle actualizado
+      detallesActualizados.add(
+        DetalleEnvioMuestra(
+          id: detalle.id,
+          envioMuestraId: detalle.envioMuestraId,
+          pacienteId: pacienteIdActualizado, // ✅ ID ACTUALIZADO
+          numeroOrden: detalle.numeroOrden,
+          dm: detalle.dm,
+          hta: detalle.hta,
+          numMuestrasEnviadas: detalle.numMuestrasEnviadas,
+          tuboLila: detalle.tuboLila,
+          tuboAmarillo: detalle.tuboAmarillo,
+          tuboAmarilloForrado: detalle.tuboAmarilloForrado,
+          orinaEsp: detalle.orinaEsp,
+          orina24h: detalle.orina24h,
+          a: detalle.a,
+          m: detalle.m,
+          oe: detalle.oe,
+          o24h: detalle.o24h,
+          po: detalle.po,
+          h3: detalle.h3,
+          hba1c: detalle.hba1c,
+          pth: detalle.pth,
+          glu: detalle.glu,
+          crea: detalle.crea,
+          pl: detalle.pl,
+          au: detalle.au,
+          bun: detalle.bun,
+          relacionCreaAlb: detalle.relacionCreaAlb,
+          dcre24h: detalle.dcre24h,
+          alb24h: detalle.alb24h,
+          buno24h: detalle.buno24h,
+          fer: detalle.fer,
+          tra: detalle.tra,
+          fosfat: detalle.fosfat,
+          alb: detalle.alb,
+          fe: detalle.fe,
+          tsh: detalle.tsh,
+          p: detalle.p,
+          ionograma: detalle.ionograma,
+          b12: detalle.b12,
+          acidoFolico: detalle.acidoFolico,
+          peso: detalle.peso,
+          talla: detalle.talla,
+          volumen: detalle.volumen,
+          microo: detalle.microo,
+          creaori: detalle.creaori,
+        ),
+      );
+    }
+    
+    // Retornar envío con detalles actualizados
+    return EnvioMuestra(
+      id: envio.id,
+      codigo: envio.codigo,
+      fecha: envio.fecha,
+      version: envio.version,
+      lugarTomaMuestras: envio.lugarTomaMuestras,
+      horaSalida: envio.horaSalida,
+      fechaSalida: envio.fechaSalida,
+      temperaturaSalida: envio.temperaturaSalida,
+      responsableTomaId: envio.responsableTomaId,
+      responsableTransporteId: envio.responsableTransporteId,
+      fechaLlegada: envio.fechaLlegada,
+      horaLlegada: envio.horaLlegada,
+      temperaturaLlegada: envio.temperaturaLlegada,
+      lugarLlegada: envio.lugarLlegada,
+      responsableRecepcionId: envio.responsableRecepcionId,
+      observaciones: envio.observaciones,
+      idsede: envio.idsede,
+      detalles: detallesActualizados, // ✅ DETALLES CON IDs ACTUALIZADOS
+      syncStatus: envio.syncStatus,
+    );
   }
 
   // ✅ MÉTODO PARA PREPARAR DATOS PARA EL SERVIDOR
@@ -165,8 +354,11 @@ class EnvioMuestraService {
         try {
           debugPrint('🔄 Sincronizando envío ${envio.id}...');
           
-          // ✅ USAR EL MÉTODO PREPARADO
-          final envioDataForServer = _prepararDatosParaServidor(envio);
+          // ✅ PASO 1: VERIFICAR Y ACTUALIZAR IDs DE PACIENTES OFFLINE
+          final envioActualizado = await _actualizarReferenciasOffline(envio, token);
+          
+          // ✅ PASO 2: USAR EL MÉTODO PREPARADO CON DATOS ACTUALIZADOS
+          final envioDataForServer = _prepararDatosParaServidor(envioActualizado);
           
           final serverData = await ApiService.createEnvioMuestra(token, envioDataForServer);
           

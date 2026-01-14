@@ -186,22 +186,23 @@ class _InitialSyncScreenState extends State<InitialSyncScreen> with SingleTicker
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         // Logo o ícono
-                        Container(
-                          padding: const EdgeInsets.all(15),
-                          decoration: BoxDecoration(
-                            color: Colors.green.withOpacity(0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.medical_services_outlined,
-                            size: 50,
-                            color: Color(0xFF1E8449),
-                          ),
+                        Image.asset(
+                          'assets/icon/borniveicoo.png',
+                          width: 120,
+                          height: 120,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Icon(
+                              Icons.business,
+                              size: 60,
+                              color: Color(0xFF1E8449),
+                            );
+                          },
                         ),
                         const SizedBox(height: 25),
                         // Título
                         const Text(
-                          'Fundación Nacer para Vivir',
+                          'Bornive',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 24,
@@ -247,16 +248,47 @@ class _InitialSyncScreenState extends State<InitialSyncScreen> with SingleTicker
                 ),
               ),
             ),
-            // Versión
+            // Logo de la fundación en la parte inferior
             Positioned(
-              bottom: 20,
-              right: 20,
-              child: Text(
-                '',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 12,
-                ),
+              bottom: 30,
+              left: 0,
+              right: 0,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey[600],
+                      letterSpacing: 1,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Container(
+                    width: 80,
+                    height: 80,
+                    padding: EdgeInsets.all(4),
+                    child: Image.asset(
+                      'assets/icon/fundacionico.png',
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          decoration: BoxDecoration(
+                            color: Colors.grey[200],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.business,
+                            size: 30,
+                            color: Colors.grey[400],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -273,7 +305,7 @@ class _InitialSyncScreenState extends State<InitialSyncScreen> with SingleTicker
         const SizedBox(height: 12),
         _buildStepIndicator('Sincronizando pacientes', Icons.people_outline, 0.40),
         const SizedBox(height: 12),
-        _buildStepIndicator('Cargando medicamentos', Icons.medication_outlined, 0.80),
+        _buildStepIndicator('Sincronizando medicamentos', Icons.medication_outlined, 0.80),
         const SizedBox(height: 12),
         _buildStepIndicator('Sincronización completa', Icons.check_circle_outline, 1.0),
         const SizedBox(height: 25),
@@ -315,38 +347,36 @@ class _InitialSyncScreenState extends State<InitialSyncScreen> with SingleTicker
     
     return Row(
       children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: isCompleted 
-                ? const Color(0xFF1E8449).withOpacity(0.1)
-                : isInProgress 
-                    ? const Color(0xFF2E86C1).withOpacity(0.1)
-                    : Colors.grey[200],
-            shape: BoxShape.circle,
+        // Solo mostrar el ícono si NO está completado
+        if (!isCompleted)
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: isInProgress 
+                  ? const Color(0xFF2E86C1).withOpacity(0.1)
+                  : Colors.grey[200],
+              shape: BoxShape.circle,
+            ),
+            child: AnimatedBuilder(
+              animation: _controller,
+              builder: (context, child) {
+                return Icon(
+                  icon,
+                  color: isInProgress 
+                      ? const Color(0xFF2E86C1)
+                      : Colors.grey[400],
+                  size: isInProgress ? 20 + _controller.value * 2 : 20,
+                );
+              },
+            ),
           ),
-          child: AnimatedBuilder(
-            animation: _controller,
-            builder: (context, child) {
-              return Icon(
-                icon,
-                color: isCompleted 
-                    ? const Color(0xFF1E8449)
-                    : isInProgress 
-                        ? const Color(0xFF2E86C1)
-                        : Colors.grey[400],
-                size: isInProgress ? 20 + _controller.value * 2 : 20,
-              );
-            },
-          ),
-        ),
-        const SizedBox(width: 12),
+        if (!isCompleted) const SizedBox(width: 12),
         Expanded(
           child: Text(
             message,
             style: TextStyle(
               fontSize: 16,
-              fontWeight: isCompleted || isInProgress ? FontWeight.w500 : FontWeight.normal,
+              fontWeight: isCompleted || isInProgress ? FontWeight.w600 : FontWeight.normal,
               color: isCompleted 
                   ? const Color(0xFF1E8449)
                   : isInProgress 
@@ -355,6 +385,13 @@ class _InitialSyncScreenState extends State<InitialSyncScreen> with SingleTicker
             ),
           ),
         ),
+        // Mostrar check solo si está completado
+        if (isCompleted)
+          Icon(
+            Icons.check_circle,
+            color: const Color(0xFF1E8449),
+            size: 20,
+          ),
       ],
     );
   }
