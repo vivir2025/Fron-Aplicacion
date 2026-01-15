@@ -30,12 +30,12 @@ return _database!;
 }
 // 🆕 GENERADOR DE IDs ÚNICOS PARA VISITAS
 String generarIdUnicoVisita() {
-  // Utilizar UUID v4 para generar ID único
+  // Utilizar UUID v4 estándar (sin prefijo) compatible con Laravel
   final uuid = Uuid();
   final idUnico = uuid.v4();
   
-  // Opcionalmente agregar un prefijo para identificar tipo de entidad
-  return 'vis_$idUnico';
+  debugPrint('🆔 UUID generado para visita: $idUnico');
+  return idUnico; // ✅ UUID v4 estándar sin prefijo
 }
 
 
@@ -1639,6 +1639,21 @@ Future<bool> createVisita(Visita visita) async {
       final nuevoId = generarIdUnicoVisita();
       visita = visita.copyWith(id: nuevoId);
       debugPrint('✅ ID único generado para nueva visita: $nuevoId');
+    } else {
+      // ✅ Validar que el ID tenga formato UUID válido
+      final uuidPattern = RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', caseSensitive: false);
+      if (!uuidPattern.hasMatch(visita.id)) {
+        debugPrint('⚠️ ID no tiene formato UUID válido, regenerando: ${visita.id}');
+        final nuevoId = generarIdUnicoVisita();
+        visita = visita.copyWith(id: nuevoId);
+      }
+      
+      // ✅ Verificar si ya existe una visita con este ID
+      final visitaExistente = await getVisitaById(visita.id);
+      if (visitaExistente != null) {
+        debugPrint('⚠️ Ya existe una visita con ID ${visita.id}, actualizando en su lugar');
+        return await updateVisita(visita);
+      }
     }
     
     // Preparar datos con manejo especial para archivos y opciones múltiples
@@ -1647,13 +1662,18 @@ Future<bool> createVisita(Visita visita) async {
     final result = await db.insert(
       'visitas', 
       visitaData,
-      conflictAlgorithm: ConflictAlgorithm.replace,
+      conflictAlgorithm: ConflictAlgorithm.abort, // ✅ Cambiar a abort para detectar duplicados
     );
     
     debugPrint('✅ Visita guardada localmente con ID: ${visita.id}');
     return result > 0;
   } catch (e) {
     debugPrint('❌ Error al guardar visita localmente: $e');
+    // ✅ Si falla por duplicado, intentar actualizar
+    if (e.toString().contains('UNIQUE constraint failed')) {
+      debugPrint('⚠️ Detectado duplicado, intentando actualizar...');
+      return await updateVisita(visita);
+    }
     return false;
   }
 }
@@ -1710,6 +1730,65 @@ visitaData['tipo_visita'] ??= 'domiciliaria';
 visitaData['sync_status'] ??= 0;
 
 return visitaData;
+}
+
+// 🆕 MÉTODO PARA MIGRAR UUIDs ANTIGUOS CON PREFIJO
+Future<void> migrarUUIDsAntiguos() async {
+  try {
+    final db = await database;
+    
+    // Obtener todas las visitas con prefijo 'vis_'
+    final visitasConPrefijo = await db.query(
+      'visitas',
+      where: 'id LIKE ?',
+      whereArgs: ['vis_%'],
+    );
+    
+    if (visitasConPrefijo.isEmpty) {
+      debugPrint('✅ No hay UUIDs con prefijo para migrar');
+      return;
+    }
+    
+    debugPrint('🔄 Migrando ${visitasConPrefijo.length} visitas con UUID antiguo...');
+    
+    for (var visitaData in visitasConPrefijo) {
+      final idAntiguo = visitaData['id'] as String;
+      // Remover el prefijo 'vis_'
+      final idNuevo = idAntiguo.replaceFirst('vis_', '');
+      
+      // Verificar que el nuevo ID sea un UUID válido
+      final uuidPattern = RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', caseSensitive: false);
+      
+      if (uuidPattern.hasMatch(idNuevo)) {
+        // Verificar si el nuevo ID ya existe
+        final existente = await db.query(
+          'visitas',
+          where: 'id = ?',
+          whereArgs: [idNuevo],
+        );
+        
+        if (existente.isEmpty) {
+          // Actualizar el ID
+          await db.update(
+            'visitas',
+            {'id': idNuevo},
+            where: 'id = ?',
+            whereArgs: [idAntiguo],
+          );
+          debugPrint('✅ Migrado: $idAntiguo -> $idNuevo');
+        } else {
+          debugPrint('⚠️ Ya existe visita con ID $idNuevo, eliminando duplicado $idAntiguo');
+          await db.delete('visitas', where: 'id = ?', whereArgs: [idAntiguo]);
+        }
+      } else {
+        debugPrint('⚠️ ID inválido después de remover prefijo: $idAntiguo');
+      }
+    }
+    
+    debugPrint('✅ Migración de UUIDs completada');
+  } catch (e) {
+    debugPrint('❌ Error migrando UUIDs: $e');
+  }
 }
 
 Future<List<Visita>> getVisitasByUsuario(String usuarioId) async {
@@ -4108,14 +4187,37 @@ Future<bool> isTokenExpired(String usuario) async {
     
     if (lastLogin == null) return true;
     
-    // Considerar token expirado después de 30 días
+    // ✅ REDUCIR TIEMPO DE EXPIRACIÓN A 7 DÍAS (más seguro)
     final lastLoginDate = DateTime.parse(lastLogin);
-    final daysSinceLogin = DateTime.now().difference(lastLoginDate).inDays;
+    final hoursSinceLogin = DateTime.now().difference(lastLoginDate).inHours;
     
-    return daysSinceLogin > 30; // Token expira después de 30 días
+    // Token expira después de 7 días (168 horas)
+    final isExpired = hoursSinceLogin > 168;
+    
+    if (isExpired) {
+      debugPrint('⚠️ Token expirado para $usuario (${hoursSinceLogin ~/ 24} días desde último login)');
+    }
+    
+    return isExpired;
   } catch (e) {
     debugPrint('Error verificando expiración de token: $e');
-    return true;
+    return true; // Asumir expirado en caso de error
+  }
+}
+
+// ✅ MÉTODO PARA ACTUALIZAR TIMESTAMP DEL TOKEN
+Future<void> updateTokenTimestamp(String usuario) async {
+  final db = await database;
+  try {
+    await db.update(
+      'usuarios',
+      {'last_login': DateTime.now().toIso8601String()},
+      where: 'usuario = ?',
+      whereArgs: [usuario],
+    );
+    debugPrint('✅ Token timestamp actualizado para $usuario');
+  } catch (e) {
+    debugPrint('❌ Error actualizando token timestamp: $e');
   }
 }
 

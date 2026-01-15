@@ -3,6 +3,7 @@ import 'package:fnpv_app/services/medicamento_service.dart';
 import '../api/api_service.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../database/database_helper.dart';
+import 'dart:async';
 
 class AuthProvider with ChangeNotifier {
   String? _token;
@@ -12,11 +13,46 @@ class AuthProvider with ChangeNotifier {
   Map<String, dynamic>? _sede;
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
   final Connectivity _connectivity = Connectivity();
+  Timer? _tokenValidationTimer;
+  String? _lastUsername; // Para re-login automático
 
   String? get token => _token;
   Map<String, dynamic>? get user => _user;
   Map<String, dynamic>? get sede => _sede;
   bool get isAuthenticated => _token != null;
+  
+  // ✅ CONSTRUCTOR: Registrar callback de expiración de token
+  AuthProvider() {
+    ApiService.onTokenExpired = _handleTokenExpired;
+    _startTokenValidation();
+  }
+  
+  // ✅ MANEJO DE TOKEN EXPIRADO
+  void _handleTokenExpired() {
+    debugPrint('🔴 Token expirado detectado - Cerrando sesión...');
+    logout();
+  }
+  
+  // ✅ VALIDACIÓN PERIÓDICA DEL TOKEN (cada 10 minutos)
+  void _startTokenValidation() {
+    _tokenValidationTimer?.cancel();
+    _tokenValidationTimer = Timer.periodic(const Duration(minutes: 10), (timer) async {
+      if (_token != null) {
+        debugPrint('🔍 Validación periódica de token...');
+        final isValid = await ApiService.validateToken(_token!);
+        if (!isValid) {
+          debugPrint('❌ Token inválido en validación periódica');
+          _handleTokenExpired();
+        }
+      }
+    });
+  }
+  
+  @override
+  void dispose() {
+    _tokenValidationTimer?.cancel();
+    super.dispose();
+  }
   
   void setUserId(String id) {
     _userId = id;
@@ -264,6 +300,25 @@ class AuthProvider with ChangeNotifier {
         _resetAuthState();
         return;
       }
+      
+      // ✅ VALIDAR TOKEN CON EL SERVIDOR (si hay conexión)
+      final connectivity = await _connectivity.checkConnectivity();
+      if (connectivity != ConnectivityResult.none) {
+        debugPrint('🌐 Validando token con servidor...');
+        try {
+          final isValid = await ApiService.validateToken(localUser['token']);
+          if (!isValid) {
+            debugPrint('❌ Token rechazado por servidor');
+            await _dbHelper.limpiarDatosUsuarioObsoletos(localUser['usuario']);
+            _resetAuthState();
+            return;
+          }
+          debugPrint('✅ Token validado con servidor');
+        } catch (e) {
+          debugPrint('⚠️ Error validando token: $e');
+          // Continuar con autologin si hay error de red
+        }
+      }
 
       debugPrint('✅ Auto-login exitoso para usuario: ${localUser['nombre']}');
       _token = localUser['token'];
@@ -274,6 +329,9 @@ class AuthProvider with ChangeNotifier {
         'usuario': localUser['usuario'],
       };
       _sede = {'id': localUser['sede_id']};
+      
+      // Guardar username para posible re-login
+      _lastUsername = localUser['usuario'];
       
       // ✅ NOTIFICAR INMEDIATAMENTE
       notifyListeners();

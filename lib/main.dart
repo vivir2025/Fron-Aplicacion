@@ -73,6 +73,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       }
 
       await _authProvider.autoLogin();
+      
+      // ✅ Migrar UUIDs antiguos con prefijo 'vis_' a UUIDs estándar
+      try {
+        await DatabaseHelper.instance.migrarUUIDsAntiguos();
+      } catch (e) {
+        debugPrint('⚠️ Error al migrar UUIDs antiguos: $e');
+      }
 
       if (_authProvider.isAuthenticated) {
         final connectivity = await Connectivity().checkConnectivity();

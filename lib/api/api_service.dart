@@ -8,6 +8,11 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 
 class ApiService {
   static const String baseUrl = 'http://fnpvi.nacerparavivir.org/api';
+  
+  // ✅ Callback para manejar expiración de token
+  static Function()? onTokenExpired;
+  static DateTime? _lastTokenCheck;
+  static const _tokenCheckInterval = Duration(minutes: 5);
 
   // Método privado para construir headers
   static Map<String, String> _buildHeaders(String token) {
@@ -34,12 +39,20 @@ class ApiService {
     }
   }
   
+  // ✅ MANEJO ESPECIAL PARA TOKEN EXPIRADO
+  if (statusCode == 401) {
+    debugPrint('🔴 Token expirado o inválido - Disparando callback de logout');
+    // Notificar al provider para que haga logout
+    if (onTokenExpired != null) {
+      Future.delayed(Duration.zero, () => onTokenExpired!());
+    }
+    throw TokenExpiredException('Sesión expirada. Por favor inicia sesión nuevamente.');
+  }
+  
   // Manejo específico de errores conocidos
   switch(statusCode) {
     case 400:
       throw Exception('Solicitud incorrecta');
-    case 401:
-      throw Exception('Autenticación requerida');
     case 403:
       throw Exception('No autorizado');
     case 404:
@@ -1239,5 +1252,51 @@ static Future<Map<String, dynamic>?> getVisitaById(String token, String visitaId
   }
 }
 
+// ✅ MÉTODO PARA VALIDAR TOKEN ANTES DE LLAMADAS
+static Future<bool> validateToken(String token) async {
+  try {
+    // Evitar validaciones muy frecuentes
+    if (_lastTokenCheck != null && 
+        DateTime.now().difference(_lastTokenCheck!) < _tokenCheckInterval) {
+      return true;
+    }
+    
+    debugPrint('🔍 Validando token...');
+    final response = await http.get(
+      Uri.parse('$baseUrl/perfil'),
+      headers: _buildHeaders(token),
+    ).timeout(const Duration(seconds: 5));
+    
+    _lastTokenCheck = DateTime.now();
+    
+    if (response.statusCode == 401) {
+      debugPrint('❌ Token inválido o expirado');
+      if (onTokenExpired != null) {
+        Future.delayed(Duration.zero, () => onTokenExpired!());
+      }
+      return false;
+    }
+    
+    debugPrint('✅ Token válido');
+    return response.statusCode == 200;
+    
+  } catch (e) {
+    debugPrint('⚠️ Error validando token: $e');
+    // No invalidar token por errores de red
+    if (e is SocketException || e is TimeoutException) {
+      return true; // Asumir válido si hay problemas de red
+    }
+    return false;
+  }
+}
 
+}
+
+// ✅ EXCEPCIÓN PERSONALIZADA PARA TOKEN EXPIRADO
+class TokenExpiredException implements Exception {
+  final String message;
+  TokenExpiredException(this.message);
+  
+  @override
+  String toString() => message;
 }

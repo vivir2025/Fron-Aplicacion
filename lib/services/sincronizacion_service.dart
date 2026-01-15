@@ -1367,6 +1367,9 @@ static Future<Map<String, dynamic>> sincronizarVisitasPendientes(String token) a
   
   debugPrint('📊 Sincronizando ${visitasPendientes.length} visitas pendientes...');
   
+  // ✅ Expresión regular para validar formato UUID v4
+  final uuidPattern = RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', caseSensitive: false);
+  
   // Verificar conectividad primero
   try {
     final hasConnection = await ApiService.verificarConectividad();
@@ -1376,6 +1379,14 @@ static Future<Map<String, dynamic>> sincronizarVisitasPendientes(String token) a
     
     for (final visita in visitasPendientes) {
       try {
+        // ✅ VALIDAR FORMATO UUID ANTES DE SINCRONIZAR
+        if (!uuidPattern.hasMatch(visita.id)) {
+          errores.add('Visita ${visita.id} tiene formato UUID inválido');
+          debugPrint('❌ Visita ${visita.id} tiene UUID inválido, omitiendo sincronización');
+          fallidas++;
+          continue; // Saltar esta visita
+        }
+        
         debugPrint('🔄 Sincronizando visita ${visita.id}...');
         
         // ✅ DEBUG: Mostrar coordenadas de la visita
@@ -1435,12 +1446,12 @@ try {
   final visitaExiste = await ApiService.getVisitaById(token, visita.id);
   
   if (visitaExiste != null) {
-    // ✅ LA VISITA EXISTE - USAR UPDATE (AHORA FUNCIONA)
-    debugPrint('🔄 Visita existe en servidor, actualizando...');
+    // ✅ LA VISITA EXISTE - USAR UPDATE
+    debugPrint('🔄 Visita ${visita.id} ya existe en servidor, actualizando...');
     resultado = await _actualizarVisitaExistente(visita, token, medicamentosData, visitaData);
   } else {
     // ✅ LA VISITA NO EXISTE - USAR CREATE
-    debugPrint('🆕 Visita no existe en servidor, creando...');
+    debugPrint('🆕 Visita ${visita.id} no existe en servidor, creando...');
     resultado = await FileService.createVisitaCompleta(
       visitaData: visitaData,
       token: token,
@@ -1450,15 +1461,28 @@ try {
     );
   }
 } catch (verificacionError) {
-  // ✅ SI HAY ERROR AL VERIFICAR, USAR CREATE COMO FALLBACK
-  debugPrint('⚠️ Error verificando existencia, usando create como fallback: $verificacionError');
-  resultado = await FileService.createVisitaCompleta(
-    visitaData: visitaData,
-    token: token,
-    riskPhotoPath: visita.riesgoFotografico,
-    signaturePath: visita.firmaPath ?? visita.firma,
-    medicamentosData: medicamentosData,
-  );
+  // ✅ SI HAY ERROR AL VERIFICAR (404, timeout, etc), USAR CREATE COMO FALLBACK
+  debugPrint('⚠️ Error verificando existencia (${verificacionError.toString().substring(0, 50)}...), usando CREATE como fallback');
+  
+  try {
+    resultado = await FileService.createVisitaCompleta(
+      visitaData: visitaData,
+      token: token,
+      riskPhotoPath: visita.riesgoFotografico,
+      signaturePath: visita.firmaPath ?? visita.firma,
+      medicamentosData: medicamentosData,
+    );
+  } catch (createError) {
+    // ✅ SI CREATE FALLA CON ERROR DE DUPLICADO, INTENTAR UPDATE
+    if (createError.toString().contains('already exists') || 
+        createError.toString().contains('duplicate') ||
+        createError.toString().contains('Duplicate entry')) {
+      debugPrint('⚠️ Detectado duplicado en CREATE, intentando UPDATE...');
+      resultado = await _actualizarVisitaExistente(visita, token, medicamentosData, visitaData);
+    } else {
+      rethrow; // Lanzar otros errores
+    }
+  }
 }
         
         // 6. ✅ PROCESAR RESULTADO
