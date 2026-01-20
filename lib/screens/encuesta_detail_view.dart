@@ -1,6 +1,6 @@
 // views/encuesta_detail_view.dart
 import 'package:flutter/material.dart';
-import 'package:fnpv_app/models/encuesta_model.dart';
+import 'package:Bornive/models/encuesta_model.dart';
 
 class EncuestaDetailView extends StatelessWidget {
   final Encuesta encuesta;

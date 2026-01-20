@@ -1,8 +1,8 @@
 // services/encuesta_service.dart
 import 'package:flutter/foundation.dart';
-import 'package:fnpv_app/api/api_service.dart';
-import 'package:fnpv_app/database/database_helper.dart';
-import 'package:fnpv_app/models/encuesta_model.dart';
+import 'package:Bornive/api/api_service.dart';
+import 'package:Bornive/database/database_helper.dart';
+import 'package:Bornive/models/encuesta_model.dart';
 import 'package:uuid/uuid.dart';
 
 class EncuestaService {

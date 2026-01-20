@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:fnpv_app/database/database_helper.dart';
-import 'package:fnpv_app/models/envio_muestra_model.dart';
-import 'package:fnpv_app/models/paciente_model.dart';
-import 'package:fnpv_app/services/envio_muestra_service.dart';
+import 'package:Bornive/database/database_helper.dart';
+import 'package:Bornive/models/envio_muestra_model.dart';
+import 'package:Bornive/models/paciente_model.dart';
+import 'package:Bornive/services/envio_muestra_service.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../providers/auth_provider.dart';

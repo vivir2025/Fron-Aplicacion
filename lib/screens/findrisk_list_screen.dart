@@ -1,7 +1,7 @@
 // screens/findrisk/findrisk_list_screen.dart
 import 'package:flutter/material.dart';
-import 'package:fnpv_app/database/database_helper.dart';
-import 'package:fnpv_app/services/sincronizacion_service.dart';
+import 'package:Bornive/database/database_helper.dart';
+import 'package:Bornive/services/sincronizacion_service.dart';
 import '../../models/findrisk_test_model.dart';
 import '../../services/findrisk_service.dart';
 import 'findrisk_form_screen.dart';

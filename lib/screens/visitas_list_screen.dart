@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:fnpv_app/models/medicamento_con_indicaciones.dart';
+import 'package:Bornive/models/medicamento_con_indicaciones.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../models/visita_model.dart';

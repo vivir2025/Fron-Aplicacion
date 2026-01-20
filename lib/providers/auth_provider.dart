@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:fnpv_app/services/medicamento_service.dart';
+import 'package:Bornive/services/medicamento_service.dart';
 import '../api/api_service.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../database/database_helper.dart';

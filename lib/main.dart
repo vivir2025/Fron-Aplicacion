@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:fnpv_app/api/api_service.dart';
-import 'package:fnpv_app/database/database_helper.dart';
-import 'package:fnpv_app/screens/visitas_screen.dart';
+import 'package:Bornive/api/api_service.dart';
+import 'package:Bornive/database/database_helper.dart';
+import 'package:Bornive/screens/visitas_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'providers/auth_provider.dart';

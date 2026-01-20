@@ -1,11 +1,11 @@
 // views/encuestas_list_view.dart
 import 'package:flutter/material.dart';
-import 'package:fnpv_app/models/encuesta_model.dart';
-import 'package:fnpv_app/models/paciente_model.dart';
-import 'package:fnpv_app/screens/encuesta_detail_view.dart';
-import 'package:fnpv_app/screens/encuesta_view.dart';
-import 'package:fnpv_app/services/encuesta_service.dart';
-import 'package:fnpv_app/database/database_helper.dart';
+import 'package:Bornive/models/encuesta_model.dart';
+import 'package:Bornive/models/paciente_model.dart';
+import 'package:Bornive/screens/encuesta_detail_view.dart';
+import 'package:Bornive/screens/encuesta_view.dart';
+import 'package:Bornive/services/encuesta_service.dart';
+import 'package:Bornive/database/database_helper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class EncuestasListView extends StatefulWidget {
