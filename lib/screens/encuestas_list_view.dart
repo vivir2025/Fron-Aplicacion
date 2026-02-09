@@ -872,7 +872,7 @@ class _EncuestasListViewState extends State<EncuestasListView> with TickerProvid
                       children: [
                         _buildInfoRow('Nombre', paciente.nombreCompleto, Icons.person_outlined),
                         const SizedBox(height: 12),
-                        _buildInfoRow('Identificación', '${paciente.tipodocumento} ${paciente.identificacion}', Icons.badge_outlined),
+                        _buildInfoRow('Identificación', paciente.identificacion, Icons.badge_outlined),
                         const SizedBox(height: 12),
                       ],
                     );

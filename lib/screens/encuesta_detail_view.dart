@@ -205,7 +205,7 @@ class EncuestaDetailView extends StatelessWidget {
                   children: [
                     _buildModernInfoRow(Icons.person_outlined, 'Nombre Paciente', paciente.nombreCompleto, primaryColor),
                     const SizedBox(height: 16),
-                    _buildModernInfoRow(Icons.badge_outlined, 'Identificación', '${paciente.tipodocumento} ${paciente.identificacion}', primaryColor),
+                    _buildModernInfoRow(Icons.badge_outlined, 'Identificación', paciente.identificacion, primaryColor),
                     const SizedBox(height: 16),
                   ],
                 );
