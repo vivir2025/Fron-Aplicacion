@@ -525,6 +525,35 @@ class _PantallaPacientesBrigadaState extends State<PantallaPacientesBrigada> {
       return;
     }
 
+    // Validar que todos los medicamentos tengan cantidades válidas
+    for (final pacienteConMed in _pacientesAgregados) {
+      for (final med in pacienteConMed.medicamentos) {
+        if (med.cantidad.trim().isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'El medicamento "${med.medicamento.nombmedicamento}" del paciente "${pacienteConMed.paciente.nombreCompleto}" debe tener una cantidad especificada'
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+        
+        if (int.tryParse(med.cantidad.trim()) == null || int.tryParse(med.cantidad.trim())! <= 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'La cantidad del medicamento "${med.medicamento.nombmedicamento}" del paciente "${pacienteConMed.paciente.nombreCompleto}" debe ser un número válido mayor a 0'
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+      }
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -560,7 +589,7 @@ class _PantallaPacientesBrigadaState extends State<PantallaPacientesBrigada> {
             .map((m) => {
                   'medicamento_id': m.medicamento.id,
                   'dosis': m.dosis.trim(),
-                  'cantidad': int.parse(m.cantidad.trim()),
+                  'cantidad': int.tryParse(m.cantidad.trim()) ?? 0,
                   'indicaciones': m.indicaciones.trim().isNotEmpty
                       ? m.indicaciones.trim()
                       : null,

@@ -1,6 +1,8 @@
 // views/encuesta_detail_view.dart
 import 'package:flutter/material.dart';
 import 'package:Bornive/models/encuesta_model.dart';
+import 'package:Bornive/models/paciente_model.dart';
+import 'package:Bornive/database/database_helper.dart';
 
 class EncuestaDetailView extends StatelessWidget {
   final Encuesta encuesta;
@@ -177,6 +179,38 @@ class EncuestaDetailView extends StatelessWidget {
           children: [
             _buildSectionHeader('Información Básica', Icons.info_outline, primaryColor),
             const SizedBox(height: 20),
+            FutureBuilder<Paciente?>(
+              future: DatabaseHelper.instance.getPacienteById(encuesta.idpaciente),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Column(
+                    children: [
+                      _buildModernInfoRow(Icons.person_outlined, 'Paciente', 'Cargando...', primaryColor),
+                      const SizedBox(height: 16),
+                    ],
+                  );
+                }
+                
+                final paciente = snapshot.data;
+                if (paciente == null) {
+                  return Column(
+                    children: [
+                      _buildModernInfoRow(Icons.person_outlined, 'Paciente', 'ID: ${encuesta.idpaciente}', primaryColor),
+                      const SizedBox(height: 16),
+                    ],
+                  );
+                }
+                
+                return Column(
+                  children: [
+                    _buildModernInfoRow(Icons.person_outlined, 'Nombre Paciente', paciente.nombreCompleto, primaryColor),
+                    const SizedBox(height: 16),
+                    _buildModernInfoRow(Icons.badge_outlined, 'Identificación', '${paciente.tipodocumento} ${paciente.identificacion}', primaryColor),
+                    const SizedBox(height: 16),
+                  ],
+                );
+              },
+            ),
             _buildModernInfoRow(Icons.home_outlined, 'Domicilio', encuesta.domicilio, primaryColor),
             const SizedBox(height: 16),
             _buildModernInfoRow(Icons.business_outlined, 'Entidad Afiliada', encuesta.entidadAfiliada, primaryColor),

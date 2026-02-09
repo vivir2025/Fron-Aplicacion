@@ -846,6 +846,38 @@ class _EncuestasListViewState extends State<EncuestasListView> with TickerProvid
                 const SizedBox(height: 16),
                 
                 // Información detallada
+                FutureBuilder<Paciente?>(
+                  future: DatabaseHelper.instance.getPacienteById(encuesta.idpaciente),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return Column(
+                        children: [
+                          _buildInfoRow('Paciente', 'Cargando...', Icons.person_outlined),
+                          const SizedBox(height: 12),
+                        ],
+                      );
+                    }
+                    
+                    final paciente = snapshot.data;
+                    if (paciente == null) {
+                      return Column(
+                        children: [
+                          _buildInfoRow('Paciente', 'ID: ${encuesta.idpaciente}', Icons.person_outlined),
+                          const SizedBox(height: 12),
+                        ],
+                      );
+                    }
+                    
+                    return Column(
+                      children: [
+                        _buildInfoRow('Nombre', paciente.nombreCompleto, Icons.person_outlined),
+                        const SizedBox(height: 12),
+                        _buildInfoRow('Identificación', '${paciente.tipodocumento} ${paciente.identificacion}', Icons.badge_outlined),
+                        const SizedBox(height: 12),
+                      ],
+                    );
+                  },
+                ),
                 _buildInfoRow('Domicilio', encuesta.domicilio, Icons.home_outlined),
                 const SizedBox(height: 12),
                 _buildInfoRow('Fecha', '${encuesta.fecha.day}/${encuesta.fecha.month}/${encuesta.fecha.year}', Icons.calendar_today_outlined),

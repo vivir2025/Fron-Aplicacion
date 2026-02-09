@@ -79,7 +79,6 @@ flutter:
   assets:
     - assets/icon/Bornive.png
     - assets/icon/fundacionico.png
-    - assets/icon/icon.png
     - assets/icon/borniveico.png
     - assets/icon/borniveicoo.png
 
@@ -115,7 +114,7 @@ flutter_icons:
 
 flutter_native_splash:
   color: "#FFFFFF"  # Blanco en HEX
-  image: assets/splash/icon.png
+  image: assets/icon/borniveicoo.png
   android: true
   ios: true
   android_gravity: fill  # Para que cubra todo el fondo

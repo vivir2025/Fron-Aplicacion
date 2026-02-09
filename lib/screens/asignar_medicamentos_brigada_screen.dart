@@ -141,7 +141,8 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
       }
 
       // Validar que la cantidad sea un número válido
-      if (int.tryParse(medicamento.cantidad.trim()) == null || int.parse(medicamento.cantidad.trim()) <= 0) {
+      final cantidad = int.tryParse(medicamento.cantidad.trim());
+      if (cantidad == null || cantidad <= 0) {
         _mostrarError('La cantidad del medicamento "${medicamento.medicamento.nombmedicamento}" debe ser un número válido mayor a 0');
         return false;
       }
@@ -190,7 +191,7 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
           .map((m) => {
                 'medicamento_id': m.medicamento.id,
                 'dosis': m.dosis.trim(),
-                'cantidad': int.parse(m.cantidad.trim()),
+                'cantidad': int.tryParse(m.cantidad.trim()) ?? 0,
                 'indicaciones': m.indicaciones.trim().isNotEmpty ? m.indicaciones.trim() : null,
               })
           .toList();
