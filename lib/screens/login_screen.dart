@@ -255,7 +255,7 @@ class _LoginScreenState extends State<LoginScreen> {
       message = 'Primero debes iniciar sesión con internet';
     } else if (e.toString().contains('SocketException')) {
       message = 'Sin conexión a internet. Intentando con credenciales locales...';
-    } else if (e.toString().contains('Credenciales inválidas')) {
+    } else if (e.toString().contains('Credenciales inválidas') || e.toString().contains('Usuario o contraseña incorrectos') || e.toString().contains('Las credenciales proporcionadas son incorrectas')) {
       message = 'Usuario o contraseña incorrectos';
     } else if (e.toString().contains('No hay conexión a internet') || 
         e.toString().contains('No se pudo conectar al servidor')) {
