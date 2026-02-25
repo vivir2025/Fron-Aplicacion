@@ -115,11 +115,8 @@ void dispose() {
         _filteredPacientes = pacientes;
         _isLoadingPacientes = false;
       });
-      debugPrint('✅ ${pacientes.length} pacientes cargados');
     } catch (e) {
       setState(() => _isLoadingPacientes = false);
-      debugPrint('❌ Error cargando pacientes: $e');
-      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -632,7 +629,6 @@ void dispose() {
         }
       }
     } catch (e) {
-      debugPrint('❌ Error al guardar brigada: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

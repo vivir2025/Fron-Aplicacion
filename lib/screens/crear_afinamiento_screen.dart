@@ -7,6 +7,9 @@ import '../models/paciente_model.dart';
 import '../services/afinamiento_service.dart';
 import '../database/database_helper.dart';
 import '../widgets/paciente_selector_widget.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+const Color primaryColor = Color(0xFF1B5E20);
 
 class CrearAfinamientoScreen extends StatefulWidget {
   final Afinamiento? afinamientoExistente;
@@ -175,15 +178,46 @@ class _CrearAfinamientoScreenState extends State<CrearAfinamientoScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_isEditing ? 'Editar Afinamiento' : 'Nuevo Afinamiento'),
-        backgroundColor: Colors.blue[700],
+    return Theme(
+      data: Theme.of(context).copyWith(
+        primaryColor: primaryColor,
+        colorScheme: ColorScheme.fromSeed(seedColor: primaryColor),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: Colors.grey[300]!),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: Colors.grey[300]!),
+          ),
+          focusedBorder: const OutlineInputBorder(
+            borderRadius: BorderRadius.all(Radius.circular(8)),
+            borderSide: BorderSide(color: primaryColor, width: 2),
+          ),
+        ),
+      ),
+      child: Scaffold(
+        appBar: AppBar(
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            _isEditing ? 'Editar Afinamiento' : 'Nuevo Afinamiento',
+            style: GoogleFonts.roboto(
+              fontWeight: FontWeight.w600,
+              fontSize: 18,
+              color: Colors.white,
+            ),
+          ),
+        ),
+        backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         actions: [
           if (_isEditing)
             IconButton(
-              icon: const Icon(Icons.delete),
+              icon: Icon(Icons.delete),
               onPressed: _confirmarEliminacion,
               tooltip: 'Eliminar',
             ),
@@ -200,28 +234,28 @@ class _CrearAfinamientoScreenState extends State<CrearAfinamientoScreen> {
               // Selector de paciente
               _buildSeccionPaciente(),
               
-              const SizedBox(height: 24),
+              SizedBox(height: 24),
               
               // Información del tamizaje
               _buildSeccionTamizaje(),
               
-              const SizedBox(height: 24),
+              SizedBox(height: 24),
               
               // Afinamientos
               _buildSeccionAfinamientos(),
               
-              const SizedBox(height: 24),
+              SizedBox(height: 24),
               
               // Promedios calculados
               if (_promedioSistolica != null && _promedioDiastolica != null)
                 _buildSeccionPromedios(),
               
-              const SizedBox(height: 24),
+              SizedBox(height: 24),
               
               // Conducta
               _buildSeccionConducta(),
               
-              const SizedBox(height: 32),
+              SizedBox(height: 32),
               
               // Botones de acción
               _buildBotonesAccion(),
@@ -229,8 +263,9 @@ class _CrearAfinamientoScreenState extends State<CrearAfinamientoScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildSeccionPaciente() {
     return Card(
@@ -239,14 +274,14 @@ class _CrearAfinamientoScreenState extends State<CrearAfinamientoScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Paciente',
-              style: TextStyle(
+              style: GoogleFonts.roboto(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             
             if (_pacienteSeleccionado == null)
               PacienteSelectorWidget(
@@ -261,28 +296,28 @@ class _CrearAfinamientoScreenState extends State<CrearAfinamientoScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.blue[50],
+                  color: primaryColor.withOpacity(0.05),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue[200]!),
+                  border: Border.all(color: primaryColor.withOpacity(0.2)),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.person, color: Colors.blue[700]),
-                    const SizedBox(width: 12),
+                    Icon(Icons.person, color: primaryColor),
+                    SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             _pacienteSeleccionado!.nombreCompleto,
-                            style: const TextStyle(
+                            style: GoogleFonts.roboto(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                           Text(
                             'ID: ${_pacienteSeleccionado!.identificacion}',
-                            style: TextStyle(
+                            style: GoogleFonts.roboto(
                               fontSize: 14,
                               color: Colors.grey[600],
                             ),
@@ -292,7 +327,7 @@ class _CrearAfinamientoScreenState extends State<CrearAfinamientoScreen> {
                     ),
                     if (!_isEditing)
                       IconButton(
-                        icon: const Icon(Icons.change_circle),
+                        icon: Icon(Icons.change_circle),
                         onPressed: () {
                           setState(() {
                             _pacienteSeleccionado = null;
@@ -316,14 +351,14 @@ class _CrearAfinamientoScreenState extends State<CrearAfinamientoScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Información del Tamizaje',
-              style: TextStyle(
+              style: GoogleFonts.roboto(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             
             // Procedencia
             TextFormField(
@@ -342,7 +377,7 @@ class _CrearAfinamientoScreenState extends State<CrearAfinamientoScreen> {
               },
             ),
             
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             
             // Fecha de tamizaje - CORREGIDO
             InkWell(
@@ -368,12 +403,12 @@ class _CrearAfinamientoScreenState extends State<CrearAfinamientoScreen> {
                 ),
                 child: Text(
                   DateFormat('dd/MM/yyyy').format(_fechaTamizaje),
-                  style: const TextStyle(fontSize: 16),
+                  style: GoogleFonts.roboto(fontSize: 16),
                 ),
               ),
             ),
             
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             
             // Presión arterial del tamizaje
             TextFormField(
@@ -404,14 +439,14 @@ class _CrearAfinamientoScreenState extends State<CrearAfinamientoScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Afinamientos',
-              style: TextStyle(
+              style: GoogleFonts.roboto(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             
             // Primer afinamiento
             _buildAfinamiento(
@@ -422,7 +457,7 @@ class _CrearAfinamientoScreenState extends State<CrearAfinamientoScreen> {
               diastolicaController: _presionDiastolica1Controller,
             ),
             
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             
             // Segundo afinamiento
             _buildAfinamiento(
@@ -433,7 +468,7 @@ class _CrearAfinamientoScreenState extends State<CrearAfinamientoScreen> {
               diastolicaController: _presionDiastolica2Controller,
             ),
             
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             
             // Tercer afinamiento
             _buildAfinamiento(
@@ -468,12 +503,12 @@ class _CrearAfinamientoScreenState extends State<CrearAfinamientoScreen> {
         children: [
           Text(
             'Afinamiento $numero',
-            style: const TextStyle(
+            style: GoogleFonts.roboto(
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           
           // Fecha del afinamiento - CORREGIDO SIN LOCALE
           InkWell(
@@ -494,10 +529,10 @@ class _CrearAfinamientoScreenState extends State<CrearAfinamientoScreen> {
               decoration: InputDecoration(
                 labelText: 'Fecha Afinamiento $numero',
                 border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.calendar_today),
+                prefixIcon: Icon(Icons.calendar_today),
                 suffixIcon: fecha != null
                     ? IconButton(
-                        icon: const Icon(Icons.clear),
+                        icon: Icon(Icons.clear),
                         onPressed: () => onFechaChanged(null),
                       )
                     : null,
@@ -506,7 +541,7 @@ class _CrearAfinamientoScreenState extends State<CrearAfinamientoScreen> {
                 fecha != null 
                     ? DateFormat('dd/MM/yyyy').format(fecha)
                     : 'Seleccionar fecha',
-                style: TextStyle(
+                style: GoogleFonts.roboto(
                   fontSize: 16,
                   color: fecha != null ? Colors.black : Colors.grey[600],
                 ),
@@ -514,7 +549,7 @@ class _CrearAfinamientoScreenState extends State<CrearAfinamientoScreen> {
             ),
           ),
           
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           
           // Presiones arteriales
           Row(
@@ -545,7 +580,7 @@ class _CrearAfinamientoScreenState extends State<CrearAfinamientoScreen> {
                   },
                 ),
               ),
-              const SizedBox(width: 16),
+              SizedBox(width: 16),
               Expanded(
                 child: TextFormField(
                   controller: diastolicaController,
@@ -586,21 +621,21 @@ class _CrearAfinamientoScreenState extends State<CrearAfinamientoScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Promedios Calculados',
-              style: TextStyle(
+              style: GoogleFonts.roboto(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.blue[50],
+                color: primaryColor.withOpacity(0.05),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue[200]!),
+                border: Border.all(color: primaryColor.withOpacity(0.2)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -609,24 +644,24 @@ class _CrearAfinamientoScreenState extends State<CrearAfinamientoScreen> {
                     children: [
                       Text(
                         'Sistólica',
-                        style: TextStyle(
+                        style: GoogleFonts.roboto(
                           fontSize: 14,
                           color: Colors.grey[600],
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      SizedBox(height: 4),
                       Text(
                         _promedioSistolica!.toStringAsFixed(1),
-                        style: TextStyle(
+                        style: GoogleFonts.roboto(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
-                          color: Colors.blue[700],
+                          color: primaryColor,
                         ),
                       ),
                       Text(
                         'mmHg',
-                        style: TextStyle(
+                        style: GoogleFonts.roboto(
                           fontSize: 12,
                           color: Colors.grey[600],
                         ),
@@ -636,30 +671,30 @@ class _CrearAfinamientoScreenState extends State<CrearAfinamientoScreen> {
                   Container(
                     width: 2,
                     height: 60,
-                    color: Colors.blue[200],
+                    color: primaryColor.withOpacity(0.2),
                   ),
                   Column(
                     children: [
                       Text(
                         'Diastólica',
-                        style: TextStyle(
+                        style: GoogleFonts.roboto(
                           fontSize: 14,
                           color: Colors.grey[600],
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      SizedBox(height: 4),
                       Text(
                         _promedioDiastolica!.toStringAsFixed(1),
-                        style: TextStyle(
+                        style: GoogleFonts.roboto(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
-                          color: Colors.blue[700],
+                          color: primaryColor,
                         ),
                       ),
                       Text(
                         'mmHg',
-                        style: TextStyle(
+                        style: GoogleFonts.roboto(
                           fontSize: 12,
                           color: Colors.grey[600],
                         ),
@@ -682,14 +717,14 @@ class _CrearAfinamientoScreenState extends State<CrearAfinamientoScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Conducta',
-              style: TextStyle(
+              style: GoogleFonts.roboto(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             
             TextFormField(
               controller: _conductaController,
@@ -717,14 +752,14 @@ class _CrearAfinamientoScreenState extends State<CrearAfinamientoScreen> {
           child: ElevatedButton(
             onPressed: _isLoading ? null : _guardarAfinamiento,
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue[700],
+              backgroundColor: primaryColor,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
             child: _isLoading
-                ? const SizedBox(
+                ? SizedBox(
                     width: 20,
                     height: 20,
                     child: CircularProgressIndicator(
@@ -734,7 +769,7 @@ class _CrearAfinamientoScreenState extends State<CrearAfinamientoScreen> {
                   )
                 : Text(
                     _isEditing ? 'Actualizar Afinamiento' : 'Guardar Afinamiento',
-                    style: const TextStyle(
+                    style: GoogleFonts.roboto(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
@@ -742,7 +777,7 @@ class _CrearAfinamientoScreenState extends State<CrearAfinamientoScreen> {
           ),
         ),
         
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         
         SizedBox(
           width: double.infinity,
@@ -756,9 +791,9 @@ class _CrearAfinamientoScreenState extends State<CrearAfinamientoScreen> {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: const Text(
+            child: Text(
               'Cancelar',
-              style: TextStyle(
+              style: GoogleFonts.roboto(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
               ),
@@ -893,15 +928,15 @@ class _CrearAfinamientoScreenState extends State<CrearAfinamientoScreen> {
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Confirmar eliminación'),
-        content: const Text(
+        title: Text('Confirmar eliminación'),
+        content: Text(
           '¿Está seguro de que desea eliminar este afinamiento?\n\n'
           'Esta acción no se puede deshacer.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
+            child: Text('Cancelar'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
@@ -909,7 +944,7 @@ class _CrearAfinamientoScreenState extends State<CrearAfinamientoScreen> {
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Eliminar'),
+            child: Text('Eliminar'),
           ),
         ],
       ),

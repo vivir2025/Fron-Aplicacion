@@ -1,6 +1,7 @@
 import 'package:Bornive/database/database_helper.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/paciente_provider.dart';
@@ -26,8 +27,9 @@ class _PacientesScreenState extends State<PacientesScreen> {
   final int _itemsPerPage = 10;
   int _totalPages = 1;
 
-  final Color primaryGreen = const Color(0xFF2E7D32);
+  final Color primaryGreen = const Color(0xFF1B5E20); // Verde premium
   final Color lightGreen = const Color(0xFF4CAF50);
+  final Color backgroundColor = const Color(0xFFF0F4F8); // Fondo moderno
 
   // Breakpoints para diferentes tamaños de pantalla
   static const double kMobileBreakpoint = 600.0;
@@ -65,8 +67,6 @@ Future<void> _checkPendingPacientesQuietly() async {
     await dbHelper.debugPacientesSyncStatus();
     
     if (pacientesOffline.isNotEmpty && mounted) {
-      debugPrint('ℹ️ Hay ${pacientesOffline.length} pacientes offline pendientes de sincronización');
-      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('ℹ️ Tienes ${pacientesOffline.length} pacientes offline'),
@@ -80,10 +80,8 @@ Future<void> _checkPendingPacientesQuietly() async {
         ),
       );
     } else {
-      debugPrint('✅ No hay pacientes offline pendientes de sincronización');
     }
   } catch (e) {
-    debugPrint('❌ Error verificando pacientes pendientes: $e');
   }
 }
 
@@ -334,8 +332,8 @@ Future<void> _checkPendingPacientes() async {
           ),
           child: Text(
             page.toString(),
-            style: TextStyle(
-              color: isCurrentPage ? Colors.white : Colors.black,
+            style: GoogleFonts.roboto(
+              color: isCurrentPage ? Colors.white : Colors.black87,
               fontWeight: isCurrentPage ? FontWeight.bold : FontWeight.normal,
               fontSize: isCompact ? 12 : 14,
             ),
@@ -429,19 +427,24 @@ Future<void> _checkPendingPacientes() async {
     final isOffline = paciente.syncStatus == 0;
 
     return Card(
-      elevation: 2,
+      elevation: 0,
       margin: const EdgeInsets.all(4),
+      color: Colors.transparent,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          gradient: LinearGradient(
-            colors: [Colors.white, lightGreen.withOpacity(0.05)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: primaryGreen.withOpacity(0.15), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: primaryGreen.withOpacity(0.08),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
+            ),
+          ],
         ),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -482,9 +485,10 @@ Future<void> _checkPendingPacientes() async {
                   children: [
                     Text(
                       paciente.nombreCompleto,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
+                      style: GoogleFonts.roboto(
+                        fontWeight: FontWeight.w800,
                         fontSize: 14,
+                        color: Colors.black87,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -492,9 +496,9 @@ Future<void> _checkPendingPacientes() async {
                     const SizedBox(height: 8),
                     Text(
                       'ID: ${paciente.identificacion}',
-                      style: TextStyle(
+                      style: GoogleFonts.roboto(
                         color: primaryGreen,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
                         fontSize: 12,
                       ),
                     ),
@@ -503,10 +507,10 @@ Future<void> _checkPendingPacientes() async {
                       Expanded(
                         child: Text(
                           'Sede: ${provider.getSedeById(paciente.idsede)?['nombresede'] ?? 'Desconocida'}',
-                          style: const TextStyle(
-                            fontStyle: FontStyle.italic,
-                            color: Colors.black54,
+                          style: GoogleFonts.roboto(
+                            color: Colors.grey.shade600,
                             fontSize: 11,
+                            fontWeight: FontWeight.w400,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -529,22 +533,27 @@ Future<void> _checkPendingPacientes() async {
     final isCompact = screenType == ScreenType.mobile;
 
     return Card(
-      elevation: 2,
+      elevation: 0,
       margin: EdgeInsets.symmetric(
         horizontal: isCompact ? 8 : 16, 
         vertical: isCompact ? 4 : 6
       ),
+      color: Colors.transparent,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          gradient: LinearGradient(
-            colors: [Colors.white, lightGreen.withOpacity(0.05)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: primaryGreen.withOpacity(0.15), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: primaryGreen.withOpacity(0.08),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
+            ),
+          ],
         ),
         child: ListTile(
           contentPadding: EdgeInsets.all(isCompact ? 12 : 16),
@@ -568,9 +577,10 @@ Future<void> _checkPendingPacientes() async {
           ),
           title: Text(
             paciente.nombreCompleto,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
+            style: GoogleFonts.roboto(
+              fontWeight: FontWeight.w800,
               fontSize: isCompact ? 14 : 16,
+              color: Colors.black87,
             ),
           ),
           subtitle: Column(
@@ -579,19 +589,19 @@ Future<void> _checkPendingPacientes() async {
               const SizedBox(height: 4),
               Text(
                 'ID: ${paciente.identificacion}',
-                style: TextStyle(
+                style: GoogleFonts.roboto(
                   color: primaryGreen,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
                   fontSize: isCompact ? 12 : 14,
                 ),
               ),
               if (provider.getSedeById(paciente.idsede) != null)
                 Text(
                   'Sede: ${provider.getSedeById(paciente.idsede)?['nombresede'] ?? 'Desconocida'}',
-                  style: TextStyle(
-                    fontStyle: FontStyle.italic,
-                    color: Colors.black54,
+                  style: GoogleFonts.roboto(
+                    color: Colors.grey.shade600,
                     fontSize: isCompact ? 11 : 13,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
             ],
@@ -732,10 +742,12 @@ Future<void> _checkPendingPacientes() async {
       ),
       child: TextField(
         controller: _searchController,
+        style: GoogleFonts.roboto(fontSize: isCompact ? 14 : 15),
         decoration: InputDecoration(
           hintText: isCompact 
             ? 'Buscar paciente...' 
             : 'Buscar por nombre o identificación...',
+          hintStyle: GoogleFonts.roboto(color: Colors.grey.shade500, fontSize: isCompact ? 14 : 15),
           prefixIcon: const Icon(Iconsax.search_normal),
           suffixIcon: _searchController.text.isNotEmpty
               ? IconButton(
@@ -771,17 +783,17 @@ Future<void> _checkPendingPacientes() async {
             children: [
               Text(
                 'Página $_currentPage de $_totalPages',
-                style: TextStyle(
+                style: GoogleFonts.roboto(
                   color: primaryGreen,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
                   fontSize: 12,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 '${_filteredPacientes.length} de ${_uniquePacientes.length} pacientes',
-                style: const TextStyle(
-                  color: Colors.grey,
+                style: GoogleFonts.roboto(
+                  color: Colors.grey.shade600,
                   fontSize: 11,
                 ),
               ),
@@ -792,15 +804,15 @@ Future<void> _checkPendingPacientes() async {
             children: [
               Text(
                 'Página $_currentPage de $_totalPages',
-                style: TextStyle(
+                style: GoogleFonts.roboto(
                   color: primaryGreen,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               Text(
                 '${_filteredPacientes.length} de ${_uniquePacientes.length} pacientes',
-                style: const TextStyle(
-                  color: Colors.grey,
+                style: GoogleFonts.roboto(
+                  color: Colors.grey.shade600,
                   fontSize: 12,
                 ),
               ),
@@ -817,13 +829,17 @@ Widget build(BuildContext context) {
       final isCompact = screenType == ScreenType.mobile;
       
       return Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: backgroundColor,
         appBar: AppBar(
+          elevation: 0,
           backgroundColor: primaryGreen,
           foregroundColor: Colors.white,
           title: Text(
             'Pacientes',
-            style: TextStyle(fontSize: isCompact ? 18 : 20),
+            style: GoogleFonts.roboto(
+              fontSize: isCompact ? 18 : 20, 
+              fontWeight: FontWeight.w600,
+            ),
           ),
           actions: [
             // SOLO EL BOTÓN DE SINCRONIZACIÓN DE PACIENTES
@@ -831,32 +847,6 @@ Widget build(BuildContext context) {
               icon: const Icon(Iconsax.arrow_swap_horizontal),
               onPressed: _syncPacientesOnly,
               tooltip: 'Sincronizar pacientes pendientes',
-            ),
-            IconButton(
-              icon: const Icon(Iconsax.logout),
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Cerrar sesión'),
-                    content: const Text('¿Estás seguro de que quieres cerrar sesión?'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Cancelar'),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          widget.onLogout();
-                        },
-                        child: const Text('Cerrar sesión', style: TextStyle(color: Colors.red)),
-                      ),
-                    ],
-                  ),
-                );
-              },
-              tooltip: 'Cerrar sesión',
             ),
           ],
         ),
@@ -888,8 +878,8 @@ Widget build(BuildContext context) {
                             child: Text(
                               'No se encontraron pacientes con "${_searchController.text}"',
                               textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Colors.grey,
+                              style: GoogleFonts.roboto(
+                                color: Colors.grey.shade600,
                                 fontSize: isCompact ? 14 : 16,
                               ),
                             ),
@@ -912,7 +902,11 @@ Widget build(BuildContext context) {
                           SizedBox(height: isCompact ? 12 : 16),
                           Text(
                             'No hay pacientes registrados',
-                            style: TextStyle(fontSize: isCompact ? 14 : 16),
+                            style: GoogleFonts.roboto(
+                              fontSize: isCompact ? 14 : 16,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey.shade700,
+                            ),
                           ),
                           SizedBox(height: isCompact ? 12 : 16),
                           ElevatedButton.icon(
@@ -920,13 +914,23 @@ Widget build(BuildContext context) {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: primaryGreen,
                               foregroundColor: Colors.white,
+                              elevation: 0, // Nuevo diseño
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                               padding: EdgeInsets.symmetric(
                                 horizontal: isCompact ? 16 : 24,
-                                vertical: isCompact ? 8 : 12,
+                                vertical: isCompact ? 10 : 14,
                               ),
                             ),
                             icon: const Icon(Iconsax.add, size: 20),
-                            label: const Text('Agregar Paciente'),
+                            label: Text(
+                              'Agregar Paciente',
+                              style: GoogleFonts.roboto(
+                                fontWeight: FontWeight.w600,
+                                fontSize: isCompact ? 14 : 15,
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -959,6 +963,33 @@ Widget build(BuildContext context) {
   );
 }
 
+
+  InputDecoration _buildInputDecoration(String label, IconData icon) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: GoogleFonts.roboto(color: Colors.grey.shade700, fontWeight: FontWeight.w500),
+      prefixIcon: Icon(icon, color: primaryGreen, size: 22),
+      filled: true,
+      fillColor: Colors.grey.shade50,
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: primaryGreen, width: 2),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.red, width: 1.5),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.red, width: 2),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+    );
+  }
 
   // Mantener los métodos de diálogo existentes sin cambios...
   Future<void> _showAddPacienteDialog(BuildContext context) async {
@@ -999,35 +1030,27 @@ Widget build(BuildContext context) {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 500),
                 child: AlertDialog(
-                  title: Text('Agregar Paciente', style: TextStyle(color: primaryGreen)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  title: Text('Agregar Paciente', style:GoogleFonts.roboto(fontWeight: FontWeight.bold)),
                   content: SingleChildScrollView(
                     child: Form(
                       key: formKey,
                       child: Column(mainAxisSize: MainAxisSize.min, children: [
                         TextFormField(
                           controller: nombreController,
-                          decoration: InputDecoration(
-                              labelText: 'Nombre',
-                              border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8))),
+                          decoration: _buildInputDecoration('Nombre', Iconsax.user),
                           validator: (v) => v?.isEmpty ?? true ? 'Requerido' : null,
                         ),
                         const SizedBox(height: 16),
                         TextFormField(
                           controller: apellidoController,
-                          decoration: InputDecoration(
-                              labelText: 'Apellido',
-                              border: OutlineInputBorder(
-                                                                  borderRadius: BorderRadius.circular(8))),
+                          decoration: _buildInputDecoration('Apellido', Iconsax.user),
                           validator: (v) => v?.isEmpty ?? true ? 'Requerido' : null,
                         ),
                         const SizedBox(height: 16),
                         TextFormField(
                           controller: identificacionController,
-                          decoration: InputDecoration(
-                              labelText: 'Identificación',
-                              border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8))),
+                          decoration: _buildInputDecoration('Identificación', Iconsax.card),
                           validator: (v) => v?.isEmpty ?? true ? 'Requerido' : null,
                         ),
                         const SizedBox(height: 16),
@@ -1037,10 +1060,7 @@ Widget build(BuildContext context) {
                                 .map((g) => DropdownMenuItem(value: g, child: Text(g)))
                                 .toList(),
                             onChanged: (v) => setState(() => genero = v!),
-                            decoration: InputDecoration(
-                                labelText: 'Género',
-                                border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8)))),
+                            decoration: _buildInputDecoration('Género', Iconsax.man)),
                         const SizedBox(height: 16),
                         DropdownButtonFormField<String>(
                             value: sedeSeleccionada,
@@ -1049,26 +1069,49 @@ Widget build(BuildContext context) {
                                     value: s['id'],
                                     child: Text(s['nombresede'] ?? ''))).toList(),
                             onChanged: (v) => setState(() => sedeSeleccionada = v),
-                            decoration: InputDecoration(
-                                labelText: 'Sede',
-                                border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8))),
+                            decoration: _buildInputDecoration('Sede', Iconsax.building),
                             validator: (v) => v == null ? 'Requerido' : null),
                         const SizedBox(height: 16),
-                        ListTile(
-                          title: const Text('Fecha de Nacimiento'),
-                          subtitle: Text(fechaNacimiento == null
-                              ? 'Seleccionar fecha'
-                              : '${fechaNacimiento!.day}/${fechaNacimiento!.month}/${fechaNacimiento!.year}'),
-                          trailing: Icon(Iconsax.calendar, color: primaryGreen),
+                        InkWell(
                           onTap: () async {
                             final date = await showDatePicker(
                                 context: context,
                                 initialDate: DateTime.now(),
                                 firstDate: DateTime(1900),
-                                lastDate: DateTime.now());
+                                lastDate: DateTime.now(),
+                                builder: (context, child) {
+                                  return Theme(
+                                    data: Theme.of(context).copyWith(
+                                      colorScheme: ColorScheme.light(
+                                        primary: primaryGreen,
+                                        onPrimary: Colors.white,
+                                        onSurface: Colors.black,
+                                      ),
+                                      textButtonTheme: TextButtonThemeData(
+                                        style: TextButton.styleFrom(
+                                          foregroundColor: primaryGreen,
+                                        ),
+                                      ),
+                                    ),
+                                    child: child!,
+                                  );
+                                },
+                            );
                             if (date != null) setState(() => fechaNacimiento = date);
                           },
+                          borderRadius: BorderRadius.circular(12),
+                          child: InputDecorator(
+                            decoration: _buildInputDecoration('Fecha de Nacimiento', Iconsax.calendar),
+                            child: Text(
+                              fechaNacimiento == null
+                                  ? 'Seleccionar fecha'
+                                  : '${fechaNacimiento!.day}/${fechaNacimiento!.month}/${fechaNacimiento!.year}',
+                              style: TextStyle(
+                                color: fechaNacimiento == null ? Colors.grey.shade600 : Colors.black87,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
                         ),
                         if (isSaving)
                           const Padding(
@@ -1228,7 +1271,8 @@ Widget build(BuildContext context) {
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 500),
                   child: AlertDialog(
-                    title: Text('Editar Paciente', style: TextStyle(color: primaryGreen)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    title: Text('Editar Paciente', style: GoogleFonts.roboto(color: primaryGreen, fontWeight: FontWeight.w600)),
                     content: SingleChildScrollView(
                       child: Form(
                         key: formKey,
@@ -1237,34 +1281,19 @@ Widget build(BuildContext context) {
                           children: [
                             TextFormField(
                               controller: nombreController,
-                              decoration: InputDecoration(
-                                labelText: 'Nombre',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8)
-                                )
-                              ),
+                              decoration: _buildInputDecoration('Nombre', Iconsax.user),
                               validator: (v) => v?.isEmpty ?? true ? 'Requerido' : null
                             ),
                             const SizedBox(height: 16),
                             TextFormField(
                               controller: apellidoController,
-                              decoration: InputDecoration(
-                                labelText: 'Apellido',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8)
-                                )
-                              ),
+                              decoration: _buildInputDecoration('Apellido', Iconsax.user),
                               validator: (v) => v?.isEmpty ?? true ? 'Requerido' : null
                             ),
                             const SizedBox(height: 16),
                             TextFormField(
                               controller: identificacionController,
-                              decoration: InputDecoration(
-                                labelText: 'Identificación',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8)
-                                )
-                              ),
+                              decoration: _buildInputDecoration('Identificación', Iconsax.card),
                               validator: (v) => v?.isEmpty ?? true ? 'Requerido' : null
                             ),
                             const SizedBox(height: 16),
@@ -1274,12 +1303,7 @@ Widget build(BuildContext context) {
                                 .map((g) => DropdownMenuItem(value: g, child: Text(g)))
                                 .toList(),
                               onChanged: (v) => setState(() => genero = v!),
-                              decoration: InputDecoration(
-                                labelText: 'Género',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8)
-                                )
-                              )
+                              decoration: _buildInputDecoration('Género', Iconsax.man)
                             ),
                             const SizedBox(height: 16),
                             // Verificar que sedeItems no esté vacío antes de crear el dropdown
@@ -1288,12 +1312,7 @@ Widget build(BuildContext context) {
                                   value: sedeSeleccionada,
                                   items: sedeItems,
                                   onChanged: (v) => setState(() => sedeSeleccionada = v),
-                                  decoration: InputDecoration(
-                                    labelText: 'Sede',
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8)
-                                    )
-                                  ),
+                                  decoration: _buildInputDecoration('Sede', Iconsax.building),
                                   validator: (v) => v == null || v.isEmpty ? 'Requerido' : null
                                 )
                               : Padding(
@@ -1304,21 +1323,44 @@ Widget build(BuildContext context) {
                                   ),
                                 ),
                             const SizedBox(height: 16),
-                            ListTile(
-                              title: const Text('Fecha de Nacimiento'),
-                              subtitle: Text(
-                                '${fechaNacimiento.day}/${fechaNacimiento.month}/${fechaNacimiento.year}'
-                              ),
-                              trailing: Icon(Iconsax.calendar, color: primaryGreen),
+                            InkWell(
                               onTap: () async {
                                 final date = await showDatePicker(
                                   context: context,
                                   initialDate: fechaNacimiento,
                                   firstDate: DateTime(1900),
-                                  lastDate: DateTime.now()
+                                  lastDate: DateTime.now(),
+                                  builder: (context, child) {
+                                    return Theme(
+                                      data: Theme.of(context).copyWith(
+                                        colorScheme: ColorScheme.light(
+                                          primary: primaryGreen,
+                                          onPrimary: Colors.white,
+                                          onSurface: Colors.black,
+                                        ),
+                                        textButtonTheme: TextButtonThemeData(
+                                          style: TextButton.styleFrom(
+                                            foregroundColor: primaryGreen,
+                                          ),
+                                        ),
+                                      ),
+                                      child: child!,
+                                    );
+                                  },
                                 );
                                 if (date != null) setState(() => fechaNacimiento = date);
-                              }
+                              },
+                              borderRadius: BorderRadius.circular(12),
+                              child: InputDecorator(
+                                decoration: _buildInputDecoration('Fecha de Nacimiento', Iconsax.calendar),
+                                child: Text(
+                                  '${fechaNacimiento.day}/${fechaNacimiento.month}/${fechaNacimiento.year}',
+                                  style: const TextStyle(
+                                    color: Colors.black87,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ),
                             ),
                             if (isSaving)
                               const Padding(

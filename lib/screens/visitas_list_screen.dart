@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:Bornive/models/medicamento_con_indicaciones.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -158,7 +159,11 @@ class _VisitasListScreenState extends State<VisitasListScreen> {
   showDialog(
     context: context,
     builder: (context) => AlertDialog(
-      title: Text('Visita del ${DateFormat('dd/MM/yyyy').format(visita.fecha)}'),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Text(
+        'Visita del ${DateFormat('dd/MM/yyyy').format(visita.fecha)}',
+        style: GoogleFonts.roboto(color: const Color(0xFF1B5E20), fontWeight: FontWeight.w600),
+      ),
       content: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -271,14 +276,14 @@ class _VisitasListScreenState extends State<VisitasListScreen> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cerrar'),
+          child: Text('Cerrar', style: GoogleFonts.roboto(fontWeight: FontWeight.w600)),
         ),
         TextButton(
           onPressed: () {
             Navigator.of(context).pop();
             _editVisita(visita);
           },
-          child: const Text('Editar'),
+          child: Text('Editar', style: GoogleFonts.roboto(fontWeight: FontWeight.w600)),
         ),
       ],
     ),
@@ -301,13 +306,13 @@ class _VisitasListScreenState extends State<VisitasListScreen> {
   // Widget para encabezados de sección
   Widget _buildSectionHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
+      padding: const EdgeInsets.only(bottom: 8.0, top: 4.0),
       child: Text(
         title,
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
+        style: GoogleFonts.roboto(
+          fontWeight: FontWeight.w600,
           fontSize: 16,
-          color: widget.theme.primaryColor,
+          color: const Color(0xFF1B5E20),
         ),
       ),
     );
@@ -404,7 +409,7 @@ class _VisitasListScreenState extends State<VisitasListScreen> {
               return Chip(
                 label: Text(
                   item,
-                  style: const TextStyle(fontSize: 12),
+                  style: GoogleFonts.roboto(fontSize: 12),
                 ),
                 backgroundColor: widget.theme.primaryColor.withOpacity(0.1),
                 side: BorderSide(color: widget.theme.primaryColor.withOpacity(0.3)),
@@ -477,12 +482,12 @@ class _VisitasListScreenState extends State<VisitasListScreen> {
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: RichText(
         text: TextSpan(
-          style: DefaultTextStyle.of(context).style,
+          style: GoogleFonts.roboto(color: Colors.black87, fontSize: 14),
           children: [
             if (label.isNotEmpty) ...[
               TextSpan(
                 text: '$label: ',
-                style: TextStyle(fontWeight: bold ? FontWeight.bold : FontWeight.w500),
+                style: GoogleFonts.roboto(fontWeight: bold ? FontWeight.w600 : FontWeight.w500),
               ),
             ],
             TextSpan(text: value),
@@ -499,27 +504,45 @@ class _VisitasListScreenState extends State<VisitasListScreen> {
         // Barra de búsqueda
         Padding(
           padding: const EdgeInsets.all(16.0),
-          child: TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              hintText: 'Buscar por nombre, ID, motivo, factores...',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: _searchQuery.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() => _searchQuery = '');
-                      },
-                    )
-                  : null,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(15),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-            onChanged: (value) {
-              setState(() => _searchQuery = value);
-            },
+            child: TextField(
+              controller: _searchController,
+              style: GoogleFonts.roboto(fontSize: 15),
+              decoration: InputDecoration(
+                hintText: 'Buscar por nombre, ID, motivo, factores...',
+                hintStyle: GoogleFonts.roboto(color: Colors.grey.shade500, fontSize: 15),
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _searchQuery = '');
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(15),
+                  borderSide: BorderSide.none,
+                ),
+                filled: true,
+                fillColor: Colors.white,
+              ),
+              onChanged: (value) {
+                setState(() => _searchQuery = value);
+              },
+            ),
           ),
         ),
         
@@ -569,9 +592,11 @@ class _VisitasListScreenState extends State<VisitasListScreen> {
                         itemBuilder: (context, index) {
                           final visita = _filteredVisitas[index];
                           return Card(
-                            elevation: 2,
+                            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                             child: ListTile(
+                              contentPadding: const EdgeInsets.all(12),
                               leading: CircleAvatar(
+                                radius: 24,
                                 backgroundColor: widget.theme.primaryColorLight,
                                 child: Icon(
                                   Icons.person,
@@ -580,18 +605,30 @@ class _VisitasListScreenState extends State<VisitasListScreen> {
                               ),
                               title: Text(
                                 visita.nombreApellido,
-                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                style: GoogleFonts.roboto(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 16,
+                                  color: Colors.black87,
+                                ),
                               ),
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
+                                  const SizedBox(height: 4),
                                   Text(
                                     'ID: ${visita.identificacion}',
-                                    style: const TextStyle(fontSize: 12),
+                                    style: GoogleFonts.roboto(
+                                      color: const Color(0xFF1B5E20),
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                    ),
                                   ),
                                   Text(
                                     'Fecha: ${DateFormat('dd/MM/yyyy').format(visita.fecha)}',
-                                    style: const TextStyle(fontSize: 12),
+                                    style: GoogleFonts.roboto(
+                                      color: Colors.grey.shade600,
+                                      fontSize: 13,
+                                    ),
                                   ),
                                   // Mostrar resumen de evaluación
                                   if (visita.familiar != null || visita.abandonoSocial != null)
@@ -599,7 +636,7 @@ class _VisitasListScreenState extends State<VisitasListScreen> {
                                       '${visita.familiar != null ? 'Familiar: ${visita.familiar}' : ''}'
                                       '${visita.familiar != null && visita.abandonoSocial != null ? ' | ' : ''}'
                                       '${visita.abandonoSocial != null ? 'Abandono: ${visita.abandonoSocial}' : ''}',
-                                      style: TextStyle(
+                                      style: GoogleFonts.roboto(
                                         fontSize: 11,
                                         color: Colors.blue[700],
                                         fontWeight: FontWeight.w500,
@@ -609,7 +646,7 @@ class _VisitasListScreenState extends State<VisitasListScreen> {
                                   if (visita.motivo != null && visita.motivo!.isNotEmpty)
                                     Text(
                                       'Motivos: ${visita.motivo}',
-                                      style: const TextStyle(
+                                      style: GoogleFonts.roboto(
                                         color: Colors.black87,
                                         fontSize: 11,
                                       ),

@@ -1,5 +1,6 @@
 // views/encuestas_list_view.dart
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:Bornive/models/encuesta_model.dart';
 import 'package:Bornive/models/paciente_model.dart';
 import 'package:Bornive/screens/encuesta_detail_view.dart';
@@ -50,7 +51,6 @@ class _EncuestasListViewState extends State<EncuestasListView> with TickerProvid
         _isLoading = false;
       });
     } catch (e) {
-      debugPrint('Error al cargar encuestas: $e');
       setState(() {
         _isLoading = false;
       });
@@ -63,7 +63,6 @@ class _EncuestasListViewState extends State<EncuestasListView> with TickerProvid
       String? token = prefs.getString('auth_token');
       
       if (token != null && token.isNotEmpty) {
-        debugPrint('✅ Token obtenido desde SharedPreferences');
         return token;
       }
       
@@ -73,22 +72,18 @@ class _EncuestasListViewState extends State<EncuestasListView> with TickerProvid
       
       if (token != null && token.isNotEmpty) {
         await prefs.setString('auth_token', token);
-        debugPrint('✅ Token recuperado desde usuario logueado y guardado en prefs');
         return token;
       }
       
-      debugPrint('❌ No se pudo obtener token válido de ninguna fuente');
       return null;
       
     } catch (e) {
-      debugPrint('❌ Error obteniendo token: $e');
       return null;
     }
   }
 
   Future<void> _sincronizarEncuestasPendientes() async {
     if (_isSyncing) {
-      debugPrint('⚠️ Ya hay una sincronización en progreso');
       return;
     }
 
@@ -115,8 +110,6 @@ class _EncuestasListViewState extends State<EncuestasListView> with TickerProvid
       final estadisticasAntes = await EncuestaService.obtenerEstadisticasEncuestas();
       final pendientesAntes = estadisticasAntes['pendientes'] ?? 0;
 
-      debugPrint('📊 Encuestas pendientes antes de sincronizar: $pendientesAntes');
-
       if (pendientesAntes == 0) {
         _mostrarMensajeInfo(
           'No hay encuestas pendientes por sincronizar',
@@ -133,8 +126,6 @@ class _EncuestasListViewState extends State<EncuestasListView> with TickerProvid
       final fallidas = resultado['fallidas'] ?? 0;
       final errores = resultado['errores'] as List<String>? ?? [];
       final total = resultado['total'] ?? 0;
-
-      debugPrint('📊 Resultado sincronización: $exitosas exitosas, $fallidas fallidas de $total total');
 
       await _loadEncuestas();
 
@@ -164,7 +155,6 @@ class _EncuestasListViewState extends State<EncuestasListView> with TickerProvid
       }
 
     } catch (e) {
-      debugPrint('❌ Error durante sincronización: $e');
       _mostrarMensajeError(
         'Error inesperado en sincronización',
         'Error: ${e.toString()}',
@@ -396,15 +386,23 @@ class _EncuestasListViewState extends State<EncuestasListView> with TickerProvid
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: const Color(0xFFF0F4F8),
       appBar: AppBar(
-        title: const Text(
-          'Encuestas de Satisfacción',
-          style: TextStyle(fontWeight: FontWeight.w600),
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            'Encuestas de Satisfacción',
+            style: GoogleFonts.roboto(
+              fontWeight: FontWeight.w600, 
+              fontSize: 18,
+              color: Colors.white,
+            ),
+          ),
         ),
-        backgroundColor: Colors.blue[800],
+        backgroundColor: const Color(0xFF1B5E20),
         foregroundColor: Colors.white,
         elevation: 0,
+        centerTitle: true,
         actions: [
           Container(
             margin: const EdgeInsets.only(right: 8),
@@ -461,12 +459,14 @@ class _EncuestasListViewState extends State<EncuestasListView> with TickerProvid
               child: TextField(
                 decoration: InputDecoration(
                   labelText: 'Buscar encuestas',
+                  labelStyle: GoogleFonts.roboto(),
                   hintText: 'ID, domicilio o entidad...',
+                  hintStyle: GoogleFonts.roboto(),
                   prefixIcon: Container(
                     padding: const EdgeInsets.all(12),
-                    child: Icon(
+                    child: const Icon(
                       Icons.search_rounded,
-                      color: Colors.blue[800],
+                      color: Color(0xFF1B5E20),
                       size: 24,
                     ),
                   ),
@@ -491,6 +491,7 @@ class _EncuestasListViewState extends State<EncuestasListView> with TickerProvid
                     vertical: 16,
                   ),
                 ),
+                style: GoogleFonts.roboto(),
                 onChanged: (value) {
                   setState(() {
                     _searchQuery = value;
@@ -531,10 +532,10 @@ class _EncuestasListViewState extends State<EncuestasListView> with TickerProvid
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showPacienteSelector,
-        backgroundColor: Colors.indigo,
+        backgroundColor: const Color(0xFF1B5E20),
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add_rounded),
-        label: const Text('Nueva Encuesta'),
+        label: Text('Nueva Encuesta', style: GoogleFonts.roboto(fontWeight: FontWeight.w600)),
         elevation: 6,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
@@ -591,7 +592,7 @@ class _EncuestasListViewState extends State<EncuestasListView> with TickerProvid
                   hasPendientes 
                     ? 'Sincronización pendiente'
                     : 'Todo sincronizado',
-                  style: TextStyle(
+                  style: GoogleFonts.roboto(
                     fontWeight: FontWeight.w600,
                     fontSize: 15,
                     color: statusColor,
@@ -602,7 +603,7 @@ class _EncuestasListViewState extends State<EncuestasListView> with TickerProvid
                   hasPendientes 
                     ? '$encuestasPendientes encuestas pendientes de sincronización'
                     : 'Todas las encuestas están sincronizadas ($encuestasSincronizadas)',
-                  style: const TextStyle(
+                  style: GoogleFonts.roboto(
                     fontSize: 13,
                     color: Colors.grey,
                   ),
@@ -631,7 +632,7 @@ class _EncuestasListViewState extends State<EncuestasListView> with TickerProvid
                   : Icon(Icons.sync_rounded, size: 18, color: statusColor),
                 label: Text(
                   _isSyncing ? 'Sincronizando...' : 'Sincronizar',
-                  style: TextStyle(color: statusColor),
+                  style: GoogleFonts.roboto(color: statusColor),
                 ),
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -657,8 +658,8 @@ class _EncuestasListViewState extends State<EncuestasListView> with TickerProvid
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Colors.blue[800]!.withOpacity(0.1),
-                    Colors.blue[600]!.withOpacity(0.05),
+                    const Color(0xFF1B5E20).withOpacity(0.1),
+                    const Color(0xFF1B5E20).withOpacity(0.05),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -668,7 +669,7 @@ class _EncuestasListViewState extends State<EncuestasListView> with TickerProvid
               child: Icon(
                 Icons.poll_outlined,
                 size: 60,
-                color: Colors.blue[800]!.withOpacity(0.6),
+                color: const Color(0xFF1B5E20).withOpacity(0.6),
               ),
             ),
             const SizedBox(height: 24),
@@ -676,7 +677,7 @@ class _EncuestasListViewState extends State<EncuestasListView> with TickerProvid
               _searchQuery.isEmpty 
                 ? 'No hay encuestas registradas'
                 : 'No se encontraron encuestas',
-              style: const TextStyle(
+              style: GoogleFonts.roboto(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
                 color: Colors.black87,
@@ -688,7 +689,7 @@ class _EncuestasListViewState extends State<EncuestasListView> with TickerProvid
               _searchQuery.isEmpty
                 ? 'Toca el botón + para crear tu primera encuesta'
                 : 'Intenta con otro término de búsqueda',
-              style: const TextStyle(
+              style: GoogleFonts.roboto(
                 fontSize: 15,
                 color: Colors.grey,
                 height: 1.4,
@@ -702,7 +703,7 @@ class _EncuestasListViewState extends State<EncuestasListView> with TickerProvid
                 icon: const Icon(Icons.add_rounded),
                 label: const Text('Crear Encuesta'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.indigo,
+                  backgroundColor: const Color(0xFF1B5E20),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                   shape: RoundedRectangleBorder(
@@ -720,8 +721,8 @@ class _EncuestasListViewState extends State<EncuestasListView> with TickerProvid
                 icon: const Icon(Icons.clear_all_rounded),
                 label: const Text('Limpiar búsqueda'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.blue[800],
-                  side: BorderSide(color: Colors.blue[800]!),
+                  foregroundColor: const Color(0xFF1B5E20),
+                  side: const BorderSide(color: Color(0xFF1B5E20)),
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -787,7 +788,7 @@ class _EncuestasListViewState extends State<EncuestasListView> with TickerProvid
                         children: [
                           Text(
                             'Encuesta ${encuesta.id.substring(0, 8)}...',
-                            style: const TextStyle(
+                            style: GoogleFonts.roboto(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
                               color: Colors.black87,
@@ -818,7 +819,7 @@ class _EncuestasListViewState extends State<EncuestasListView> with TickerProvid
                                 const SizedBox(width: 8),
                                 Text(
                                   isSynced ? 'Sincronizada' : 'Pendiente',
-                                  style: TextStyle(
+                                  style: GoogleFonts.roboto(
                                     color: statusColor,
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
@@ -897,10 +898,10 @@ class _EncuestasListViewState extends State<EncuestasListView> with TickerProvid
         Container(
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: Colors.blue[50],
+            color: const Color(0xFF1B5E20).withOpacity(0.05),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icon, color: Colors.blue[700], size: 16),
+          child: Icon(icon, color: const Color(0xFF1B5E20), size: 16),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -909,19 +910,19 @@ class _EncuestasListViewState extends State<EncuestasListView> with TickerProvid
             children: [
               Text(
                 label,
-                style: TextStyle(
+                style: GoogleFonts.roboto(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: Colors.blue[700],
+                  color: const Color(0xFF1B5E20),
                 ),
               ),
               const SizedBox(height: 2),
               Text(
                 value,
-                style: const TextStyle(
+                style: GoogleFonts.roboto(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                                    color: Colors.black87,
+                  color: Colors.black87,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -986,7 +987,6 @@ class _EncuestasListViewState extends State<EncuestasListView> with TickerProvid
         }
       });
     } catch (e) {
-      debugPrint('Error al cargar pacientes: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -1100,15 +1100,15 @@ class _PacienteSelectorDialogState extends State<_PacienteSelectorDialog> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Colors.indigo[700]!, Colors.indigo[500]!],
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF1B5E20), Color(0xFF4CAF50)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.indigo.withOpacity(0.3),
+                        color: const Color(0xFF1B5E20).withOpacity(0.3),
                         blurRadius: 8,
                         offset: const Offset(0, 4),
                       ),
@@ -1172,9 +1172,9 @@ class _PacienteSelectorDialogState extends State<_PacienteSelectorDialog> {
                   hintText: 'Nombre, apellido o identificación...',
                   prefixIcon: Container(
                     padding: const EdgeInsets.all(12),
-                    child: Icon(
+                    child: const Icon(
                       Icons.search_rounded,
-                      color: Colors.indigo[700],
+                      color: Color(0xFF1B5E20),
                       size: 24,
                     ),
                   ),
@@ -1280,8 +1280,8 @@ class _PacienteSelectorDialogState extends State<_PacienteSelectorDialog> {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        Colors.indigo[100]!.withOpacity(0.8),
-                        Colors.indigo[50]!.withOpacity(0.6),
+                        const Color(0xFF1B5E20).withOpacity(0.15),
+                        const Color(0xFF1B5E20).withOpacity(0.05),
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
@@ -1291,8 +1291,8 @@ class _PacienteSelectorDialogState extends State<_PacienteSelectorDialog> {
                   child: Center(
                     child: Text(
                       paciente.nombre[0].toUpperCase(),
-                      style: TextStyle(
-                        color: Colors.indigo[800],
+                      style: const TextStyle(
+                        color: Color(0xFF1B5E20),
                         fontWeight: FontWeight.bold,
                         fontSize: 20,
                       ),
@@ -1316,13 +1316,13 @@ class _PacienteSelectorDialogState extends State<_PacienteSelectorDialog> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.indigo[50],
+                          color: const Color(0xFF1B5E20).withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
                           'ID: ${paciente.identificacion}',
-                          style: TextStyle(
-                            color: Colors.indigo[700],
+                          style: const TextStyle(
+                            color: Color(0xFF1B5E20),
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
                           ),
@@ -1426,8 +1426,8 @@ class _PacienteSelectorDialogState extends State<_PacienteSelectorDialog> {
               icon: const Icon(Icons.clear_all_rounded),
               label: const Text('Limpiar búsqueda'),
               style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.indigo[700],
-                side: BorderSide(color: Colors.indigo[700]!),
+                foregroundColor: const Color(0xFF1B5E20),
+                side: const BorderSide(color: Color(0xFF1B5E20)),
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),

@@ -7,6 +7,15 @@ import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../providers/auth_provider.dart';
 import 'agregar_detalle_muestra_screen.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+// 🎨 TEMA DE COLORES UNIFICADO
+const Color primaryColor = Color(0xFF1B5E20);
+const Color primaryLightColor = Color(0xFF4CAF50);
+const Color surfaceColor = Color(0xFFF0F4F8);
+const Color textPrimaryColor = Color(0xFF212121);
+const Color textSecondaryColor = Color(0xFF757575);
+const Color dividerColor = Color(0xFFE0E0E0);
 
 class CrearEnvioMuestraScreen extends StatefulWidget {
   @override
@@ -77,15 +86,12 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
         setState(() {
           _usuarioLogueado = '${usuario['nombre'] ?? 'Usuario'} (${usuario['usuario'] ?? ''})';
         });
-        debugPrint('✅ Usuario logueado: $_usuarioLogueado');
       } else {
-        debugPrint('⚠️ No hay usuario logueado');
         setState(() {
           _usuarioLogueado = 'Usuario no identificado';
         });
       }
     } catch (e) {
-      debugPrint('❌ Error cargando usuario: $e');
       setState(() {
         _usuarioLogueado = 'Error al cargar usuario';
       });
@@ -99,9 +105,7 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
       setState(() {
         _pacientes = pacientes;
       });
-      debugPrint('✅ ${pacientes.length} pacientes cargados');
     } catch (e) {
-      debugPrint('❌ Error cargando pacientes: $e');
       throw e;
     }
   }
@@ -122,17 +126,13 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
         
         if (userSedeId != null && sedes.any((sede) => sede['id'] == userSedeId)) {
           _sedeSeleccionada = userSedeId;
-          debugPrint('✅ Sede del usuario seleccionada automáticamente: $userSedeId');
         } else if (sedes.isNotEmpty) {
           _sedeSeleccionada = sedes.first['id'].toString();
-          debugPrint('✅ Primera sede seleccionada por defecto: ${_sedeSeleccionada}');
         }
       });
       
-      debugPrint('✅ ${sedes.length} sedes cargadas desde base de datos local');
     } catch (e) {
       setState(() => _cargandoSedes = false);
-      debugPrint('❌ Error cargando sedes: $e');
       _mostrarError('Error cargando sedes: $e');
     }
   }
@@ -301,37 +301,71 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        title: const Text('Crear Envío de Muestras'),
-        backgroundColor: Colors.green,
-        foregroundColor: Colors.white,
-        actions: [
-          if (_detalles.isNotEmpty)
-            Padding(
-              padding: EdgeInsets.all(16),
-              child: Center(
-                child: Text(
-                  '${_detalles.length} muestras',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
+    return Theme(
+      data: Theme.of(context).copyWith(
+        colorScheme: ColorScheme.fromSeed(seedColor: primaryColor),
+        textTheme: GoogleFonts.robotoTextTheme(),
+        inputDecorationTheme: InputDecorationTheme(
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: primaryColor, width: 2),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: dividerColor),
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: dividerColor),
+          ),
+          filled: true,
+          fillColor: Colors.white,
+          floatingLabelStyle: const TextStyle(color: primaryColor),
+        ),
+      ),
+      child: Scaffold(
+        backgroundColor: surfaceColor,
+        appBar: AppBar(
+          title: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              'Crear Envío de Muestras',
+              style: GoogleFonts.roboto(
+                fontWeight: FontWeight.w600,
+                fontSize: 18,
+                color: Colors.white,
               ),
             ),
-        ],
-      ),
-      body: _isLoading
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('Cargando datos...'),
-                ],
+          ),
+          backgroundColor: primaryColor,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          centerTitle: true,
+          actions: [
+            if (_detalles.isNotEmpty)
+              Padding(
+                padding: EdgeInsets.all(16),
+                child: Center(
+                  child: Text(
+                    '${_detalles.length} muestras',
+                    style: GoogleFonts.roboto(fontWeight: FontWeight.bold),
+                  ),
+                ),
               ),
-            )
-          : Form(
+          ],
+        ),
+        body: _isLoading
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(color: primaryColor),
+                    SizedBox(height: 16),
+                    Text('Cargando datos...', style: GoogleFonts.roboto(color: textSecondaryColor)),
+                  ],
+                ),
+              )
+            : Form(
               key: _formKey,
               child: SingleChildScrollView(
                 padding: EdgeInsets.all(16),
@@ -353,7 +387,7 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
             heroTag: "add_sample",
             onPressed: _agregarMuestra,
             child: const Icon(Icons.add),
-            backgroundColor: Colors.green,
+            backgroundColor: primaryColor,
             tooltip: 'Agregar muestra',
           ),
           const SizedBox(height: 16),
@@ -370,41 +404,48 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
                     ),
                   )
                 : const Icon(Icons.save),
-            label: Text(_isSaving ? 'Guardando...' : 'Guardar Envío'),
-            backgroundColor: _detalles.isEmpty ? Colors.grey : Colors.green,
+            label: Text(_isSaving ? 'Guardando...' : 'Guardar Envío', style: GoogleFonts.roboto()),
+            backgroundColor: _detalles.isEmpty ? Colors.grey : primaryColor,
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildFormularioPrincipal() {
     return Card(
-      elevation: 4,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: dividerColor),
+      ),
       child: Padding(
-        padding: EdgeInsets.all(16),
+        padding: EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    color: primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(
-                    Icons.local_shipping,
-                    color: Colors.green,
+                    Icons.local_shipping_outlined,
+                    color: primaryColor,
+                    size: 24,
                   ),
                 ),
                 const SizedBox(width: 12),
-                const Text(
+                Text(
                   'Información del Envío',
-                  style: TextStyle(
+                  style: GoogleFonts.roboto(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
+                    color: primaryColor,
                   ),
                 ),
               ],
@@ -413,32 +454,41 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
             
             // RESPONSABLE DE TOMA (USUARIO LOGUEADO)
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.green[50],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.green[300]!),
+                color: primaryColor.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: primaryColor.withOpacity(0.1)),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.person_pin, color: Colors.green[700]),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.person_pin, color: primaryColor),
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Responsable de Toma',
-                          style: TextStyle(
+                          style: GoogleFonts.roboto(
                             fontSize: 12,
-                            color: Colors.grey,
+                            color: primaryColor,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         Text(
                           _usuarioLogueado ?? 'Cargando...',
-                          style: const TextStyle(
-                            fontSize: 14,
+                          style: GoogleFonts.roboto(
+                            fontSize: 15,
                             fontWeight: FontWeight.w500,
+                            color: textPrimaryColor,
                           ),
                         ),
                       ],
@@ -459,11 +509,11 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
               child: InputDecorator(
                 decoration: InputDecoration(
                   labelText: 'Fecha del Envío *',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.calendar_today, color: Colors.green[700]),
+                  prefixIcon: const Icon(Icons.calendar_today, color: primaryColor),
                 ),
                 child: Text(
                   '${_fechaSeleccionada.day}/${_fechaSeleccionada.month}/${_fechaSeleccionada.year}',
+                  style: GoogleFonts.roboto(),
                 ),
               ),
             ),
@@ -472,10 +522,10 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
             // LUGAR DE TOMA
             TextFormField(
               controller: _lugarTomaController,
-              decoration: InputDecoration(
+              style: GoogleFonts.roboto(),
+              decoration: const InputDecoration(
                 labelText: 'Lugar de Toma de Muestras *',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.location_on, color: Colors.green[700]),
+                prefixIcon: Icon(Icons.location_on, color: primaryColor),
               ),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
@@ -488,35 +538,36 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
             
             // INFORMACIÓN DE SALIDA
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.green[50],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.green[300]!),
+                color: primaryColor.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: primaryColor.withOpacity(0.1)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Información de Salida',
-                    style: TextStyle(
+                    style: GoogleFonts.roboto(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
+                      color: primaryColor,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   
                   // FECHA SALIDA
                   InkWell(
                     onTap: _seleccionarFechaSalida,
                     child: InputDecorator(
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         labelText: 'Fecha de Salida *',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.calendar_today, color: Colors.green[700]),
+                        prefixIcon: Icon(Icons.calendar_today, color: primaryColor),
                       ),
                       child: Text(
                         _formatearFecha(_fechaSalida),
+                        style: GoogleFonts.roboto(),
                       ),
                     ),
                   ),
@@ -529,15 +580,15 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
                         child: InkWell(
                           onTap: _seleccionarHoraSalida,
                           child: InputDecorator(
-                            decoration: InputDecoration(
+                            decoration: const InputDecoration(
                               labelText: 'Hora Salida *',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.access_time, color: Colors.green[700]),
+                              prefixIcon: Icon(Icons.access_time, color: primaryColor),
                             ),
                             child: Text(
                               _horaSalidaSeleccionada != null 
                                   ? '${_horaSalidaSeleccionada!.hour.toString().padLeft(2, '0')}:${_horaSalidaSeleccionada!.minute.toString().padLeft(2, '0')}'
                                   : 'Seleccionar',
+                              style: GoogleFonts.roboto(),
                             ),
                           ),
                         ),
@@ -546,10 +597,10 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
                       Expanded(
                         child: TextFormField(
                           controller: _temperaturaSalidaController,
-                          decoration: InputDecoration(
+                          style: GoogleFonts.roboto(),
+                          decoration: const InputDecoration(
                             labelText: 'Temp. Salida (°C) *',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.thermostat, color: Colors.green[700]),
+                            prefixIcon: Icon(Icons.thermostat, color: primaryColor),
                           ),
                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
                           validator: (value) {
@@ -567,10 +618,10 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
                   // RESPONSABLE DE TRANSPORTE
                   TextFormField(
                     controller: _responsableTransporteController,
-                    decoration: InputDecoration(
+                    style: GoogleFonts.roboto(),
+                    decoration: const InputDecoration(
                       labelText: 'Responsable de Transporte *',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.local_shipping, color: Colors.green[700]),
+                      prefixIcon: Icon(Icons.local_shipping, color: primaryColor),
                     ),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
@@ -586,33 +637,36 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
 
             // INFORMACIÓN DE LLEGADA (OPCIONALES)
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.blue[50],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue[300]!),
+                color: surfaceColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: dividerColor),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Información de Llegada (Opcional)',
-                    style: TextStyle(
+                    style: GoogleFonts.roboto(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
+                      color: textPrimaryColor,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   
                   InkWell(
                     onTap: _seleccionarFechaLlegada,
                     child: InputDecorator(
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         labelText: 'Fecha de Llegada',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.calendar_today, color: Colors.blue[700]),
+                        prefixIcon: Icon(Icons.calendar_today, color: textSecondaryColor),
                       ),
-                      child: Text(_formatearFecha(_fechaLlegada)),
+                      child: Text(
+                        _formatearFecha(_fechaLlegada),
+                        style: GoogleFonts.roboto(),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -623,15 +677,15 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
                         child: InkWell(
                           onTap: _seleccionarHoraLlegada,
                           child: InputDecorator(
-                            decoration: InputDecoration(
+                            decoration: const InputDecoration(
                               labelText: 'Hora Llegada',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.access_time, color: Colors.blue[700]),
+                              prefixIcon: Icon(Icons.access_time, color: textSecondaryColor),
                             ),
                             child: Text(
                               _horaLlegadaSeleccionada != null 
                                   ? '${_horaLlegadaSeleccionada!.hour.toString().padLeft(2, '0')}:${_horaLlegadaSeleccionada!.minute.toString().padLeft(2, '0')}'
                                   : 'No seleccionada',
+                              style: GoogleFonts.roboto(),
                             ),
                           ),
                         ),
@@ -640,10 +694,10 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
                       Expanded(
                         child: TextFormField(
                           controller: _temperaturaLlegadaController,
-                          decoration: InputDecoration(
+                          style: GoogleFonts.roboto(),
+                          decoration: const InputDecoration(
                             labelText: 'Temp. Llegada (°C)',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.thermostat, color: Colors.blue[700]),
+                            prefixIcon: Icon(Icons.thermostat, color: textSecondaryColor),
                           ),
                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         ),
@@ -655,10 +709,10 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
                   // LUGAR DE LLEGADA
                   TextFormField(
                     controller: _lugarLlegadaController,
-                    decoration: InputDecoration(
+                    style: GoogleFonts.roboto(),
+                    decoration: const InputDecoration(
                       labelText: 'Lugar de Llegada',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.location_city, color: Colors.blue[700]),
+                      prefixIcon: Icon(Icons.location_city, color: textSecondaryColor),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -666,10 +720,10 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
                   // RESPONSABLE DE RECEPCIÓN
                   TextFormField(
                     controller: _responsableRecepcionController,
-                    decoration: InputDecoration(
+                    style: GoogleFonts.roboto(),
+                    decoration: const InputDecoration(
                       labelText: 'Responsable de Recepción',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.how_to_reg, color: Colors.blue[700]),
+                      prefixIcon: Icon(Icons.how_to_reg, color: textSecondaryColor),
                     ),
                   ),
                 ],
@@ -679,10 +733,10 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
             
             TextFormField(
               controller: _observacionesController,
-              decoration: InputDecoration(
+              style: GoogleFonts.roboto(),
+              decoration: const InputDecoration(
                 labelText: 'Observaciones',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.note, color: Colors.grey[600]),
+                prefixIcon: Icon(Icons.note, color: textSecondaryColor),
               ),
               maxLines: 3,
             ),
@@ -701,18 +755,18 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
             ? Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.green[300]!),
-                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: primaryColor.withOpacity(0.3)),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   children: [
-                    SizedBox(
+                    const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.green),
+                      child: CircularProgressIndicator(strokeWidth: 2, color: primaryColor),
                     ),
                     const SizedBox(width: 12),
-                    const Text('Cargando sedes...'),
+                    Text('Cargando sedes...', style: GoogleFonts.roboto()),
                   ],
                 ),
               )
@@ -721,17 +775,17 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       border: Border.all(color: Colors.orange[300]!),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                child: const Row(
+                child: Row(
                   children: [
-                    SizedBox(
+                    const SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
-                    SizedBox(width: 12),
-                    Text('Cargando sedes...'),
+                    const SizedBox(width: 12),
+                    Text('Cargando sedes...', style: GoogleFonts.roboto()),
                   ],
                 ),
               )
@@ -766,10 +820,9 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
                   )
                 : DropdownButtonFormField<String>(
                     value: _sedeSeleccionada,
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       labelText: 'Sede *',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.business, color: Colors.green[700]),
+                      prefixIcon: Icon(Icons.business, color: primaryColor),
                     ),
                     hint: const Text('Seleccione una sede'),
                     items: _sedes.map((sede) {
@@ -809,9 +862,10 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
               children: [
                 Text(
                   'Muestras (${_detalles.length})',
-                  style: const TextStyle(
+                  style: GoogleFonts.roboto(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
+                    color: primaryColor,
                   ),
                 ),
                 if (_detalles.isEmpty)
@@ -829,26 +883,27 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(40),
                 decoration: BoxDecoration(
-                  color: Colors.green[50],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.green[200]!, style: BorderStyle.solid, width: 1.5),
+                  color: primaryColor.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: primaryColor.withOpacity(0.2), style: BorderStyle.solid, width: 1.5),
                 ),
                 child: Column(
                   children: [
-                    Icon(Icons.science_outlined, size: 48, color: Colors.green[300]),
+                    Icon(Icons.science_outlined, size: 48, color: primaryColor.withOpacity(0.4)),
                     const SizedBox(height: 16),
                     Text(
                       'No hay muestras agregadas',
-                      style: TextStyle(
+                      style: GoogleFonts.roboto(
                         fontSize: 16,
-                        color: Colors.green[700],
+                        color: primaryColor,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'Presiona + para agregar',
-                      style: TextStyle(
-                        color: Colors.green[600],
+                      style: GoogleFonts.roboto(
+                        color: primaryColor.withOpacity(0.7),
                         fontSize: 14,
                       ),
                     ),
@@ -876,7 +931,6 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
     try {
       pacienteInfo = _pacientes.firstWhere((p) => p.id == detalle.pacienteId);
     } catch (e) {
-      debugPrint('⚠️ Paciente no encontrado para ID: ${detalle.pacienteId}');
     }
 
     return Card(
@@ -893,13 +947,13 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: Colors.green,
+                    color: primaryColor,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Center(
                     child: Text(
                       '${detalle.numeroOrden}',
-                      style: const TextStyle(
+                      style: GoogleFonts.roboto(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                         fontSize: 18,
@@ -914,7 +968,7 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
                     children: [
                       Text(
                         'Muestra #${detalle.numeroOrden}',
-                        style: const TextStyle(
+                        style: GoogleFonts.roboto(
                           fontWeight: FontWeight.bold,
                           fontSize: 15,
                         ),
@@ -923,22 +977,22 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
                         const SizedBox(height: 4),
                         Text(
                           'CC: ${pacienteInfo.identificacion}',
-                          style: TextStyle(
+                          style: GoogleFonts.roboto(
                             fontSize: 13,
-                            color: Colors.grey[700],
+                            color: textSecondaryColor,
                           ),
                         ),
                         Text(
                           '${pacienteInfo.nombre} ${pacienteInfo.apellido}',
-                          style: TextStyle(
+                          style: GoogleFonts.roboto(
                             fontSize: 13,
-                            color: Colors.grey[700],
+                            color: textSecondaryColor,
                           ),
                         ),
                       ] else ...[
                         Text(
                           'Paciente no encontrado',
-                          style: TextStyle(
+                          style: GoogleFonts.roboto(
                             fontSize: 12,
                             color: Colors.red[600],
                             fontStyle: FontStyle.italic,
@@ -967,7 +1021,7 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
                     Chip(
                       label: Text(
                         'Dx: ${[detalle.dm, detalle.hta].where((e) => e?.isNotEmpty == true).join(', ')}',
-                        style: const TextStyle(fontSize: 12),
+                        style: GoogleFonts.roboto(fontSize: 12),
                       ),
                       backgroundColor: Colors.orange[50],
                       avatar: Icon(Icons.medical_services, size: 16, color: Colors.orange[700]),
@@ -976,7 +1030,7 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
                     Chip(
                       label: Text(
                         '# Muestras: ${detalle.numMuestrasEnviadas}',
-                        style: const TextStyle(fontSize: 12),
+                        style: GoogleFonts.roboto(fontSize: 12),
                       ),
                       backgroundColor: Colors.blue[50],
                       avatar: Icon(Icons.science, size: 16, color: Colors.blue[700]),
@@ -1143,7 +1197,6 @@ class _CrearEnvioMuestraScreenState extends State<CrearEnvioMuestraScreen> {
       }
     } catch (e) {
       _mostrarError('❌ Error: $e');
-      debugPrint('Error completo: $e');
     } finally {
       setState(() => _isSaving = false);
     }

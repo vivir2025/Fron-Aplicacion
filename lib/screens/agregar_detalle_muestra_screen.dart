@@ -7,6 +7,13 @@ import '../providers/paciente_provider.dart';
 import '../models/paciente_model.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+const Color primaryColor = Color(0xFF1B5E20);
+const Color surfaceColor = Color(0xFFF0F4F8);
+const Color textPrimaryColor = Color(0xFF212121);
+const Color textSecondaryColor = Color(0xFF757575);
+const Color dividerColor = Color(0xFFE0E0E0);
 
 class AgregarDetalleMuestraScreen extends StatefulWidget {
   final List<Paciente> pacientes;
@@ -457,14 +464,14 @@ Future<void> _mostrarDialogoAgregarPaciente() async {
             ), // 🆕 Padding adaptativo
             child: Text(
               label,
-              style: TextStyle(
-                fontSize: isSmallScreen ? 11 : (isMediumScreen ? 12 : 13), // 🆕 Tamaño adaptativo
+              style: GoogleFonts.roboto(
+                fontSize: isSmallScreen ? 11 : (isMediumScreen ? 12 : 13), 
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF1F2937),
+                color: textPrimaryColor,
                 letterSpacing: 0.5,
               ),
-              overflow: TextOverflow.ellipsis, // 🆕 Prevenir overflow
-              maxLines: 1, // 🆕 Limitar a una línea
+              overflow: TextOverflow.ellipsis, 
+              maxLines: 1, 
             ),
           ),
           Container(
@@ -495,10 +502,10 @@ Future<void> _mostrarDialogoAgregarPaciente() async {
             child: TextFormField(
               controller: controller,
               decoration: InputDecoration(
-                hintText: hint ?? 'Opcional', // ✅ Hint mejorado sin valores por defecto
-                hintStyle: TextStyle(
+                hintText: hint ?? 'Opcional', 
+                hintStyle: GoogleFonts.roboto(
                   color: Colors.grey[400],
-                  fontSize: isSmallScreen ? 12 : 14, // 🆕 Tamaño adaptativo
+                  fontSize: isSmallScreen ? 12 : 14, 
                   fontWeight: FontWeight.w500,
                 ),
                 border: OutlineInputBorder(
@@ -522,10 +529,10 @@ Future<void> _mostrarDialogoAgregarPaciente() async {
               ),
               keyboardType: TextInputType.text, // 🔄 Teclado normal
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: isSmallScreen ? 14 : 16, // 🆕 Tamaño adaptativo
+              style: GoogleFonts.roboto(
+                fontSize: isSmallScreen ? 14 : 16, 
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF111827),
+                color: textPrimaryColor,
                 letterSpacing: 0.3,
               ),
               // ✅ SIN VALIDACIÓN OBLIGATORIA - CAMPOS OPCIONALES
@@ -606,14 +613,14 @@ Future<void> _mostrarDialogoAgregarPaciente() async {
             Expanded( // 🆕 Expandir para evitar overflow
               child: Text(
                 title,
-                style: TextStyle(
-                  fontSize: isSmallScreen ? 15 : (isMediumScreen ? 17 : 18), // 🆕 Tamaño adaptativo
+                style: GoogleFonts.roboto(
+                  fontSize: isSmallScreen ? 15 : (isMediumScreen ? 17 : 18), 
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF111827),
+                  color: textPrimaryColor,
                   letterSpacing: 0.5,
                 ),
-                overflow: TextOverflow.ellipsis, // 🆕 Prevenir overflow
-                maxLines: 2, // 🆕 Permitir hasta 2 líneas en títulos largos
+                overflow: TextOverflow.ellipsis, 
+                maxLines: 2, 
               ),
             ),
           ],
@@ -676,14 +683,14 @@ Future<void> _mostrarDialogoAgregarPaciente() async {
           Expanded( // 🆕 Expandir para evitar overflow
             child: Text(
               title,
-              style: TextStyle(
-                fontSize: isSmallScreen ? 12 : 14, // 🆕 Tamaño adaptativo
+              style: GoogleFonts.roboto(
+                fontSize: isSmallScreen ? 12 : 14, 
                 fontWeight: FontWeight.w700,
                 color: color,
                 letterSpacing: 0.8,
               ),
               textAlign: TextAlign.center,
-              overflow: TextOverflow.ellipsis, // 🆕 Prevenir overflow
+              overflow: TextOverflow.ellipsis, 
             ),
           ),
         ],
@@ -789,50 +796,21 @@ Future<void> _mostrarDialogoAgregarPaciente() async {
       backgroundColor: Color(0xFFF8FAFC),
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: Text(
-          'Nueva Muestra #${widget.numeroOrden}',
-          style: TextStyle(
-            fontWeight: FontWeight.w800,
-            fontSize: isSmallScreen ? 16 : (isMediumScreen ? 18 : 20), // 🆕 Tamaño adaptativo
-            letterSpacing: 0.5,
-            color: Color(0xFF111827),
-          ),
-          overflow: TextOverflow.ellipsis, // 🆕 Prevenir overflow
-        ),
-        backgroundColor: Colors.white.withOpacity(0.95),
-        foregroundColor: Color(0xFF111827),
-        elevation: 0,
-        centerTitle: true,
-        leading: Container(
-          margin: EdgeInsets.all(isSmallScreen ? 6 : 8), // 🆕 Margen adaptativo
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(isSmallScreen ? 10 : 12), // 🆕 Border radius adaptativo
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 8,
-                offset: Offset(0, 2),
-              ),
-            ],
-          ),
-          child: IconButton(
-            icon: Icon(Icons.arrow_back_ios_rounded, size: isSmallScreen ? 18 : 20), // 🆕 Tamaño adaptativo
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-        ),
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Colors.white.withOpacity(0.95),
-                Colors.white.withOpacity(0.9),
-              ],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            'Nueva Muestra #${widget.numeroOrden}',
+            style: GoogleFonts.roboto(
+              fontWeight: FontWeight.w600,
+              fontSize: 18, 
+              color: Colors.white,
             ),
           ),
         ),
+        backgroundColor: primaryColor,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
       ),
       body: SlideTransition(
         position: _slideAnimation,
@@ -887,22 +865,22 @@ Future<void> _mostrarDialogoAgregarPaciente() async {
                                 children: [
                                   Text(
                                     'BUSCAR PACIENTE',
-                                    style: TextStyle(
-                                      fontSize: isSmallScreen ? 16 : (isMediumScreen ? 18 : 20), // 🆕 Tamaño adaptativo
+                                    style: GoogleFonts.roboto(
+                                      fontSize: isSmallScreen ? 16 : (isMediumScreen ? 18 : 20),
                                       fontWeight: FontWeight.w800,
-                                      color: Color(0xFF111827),
+                                      color: primaryColor,
                                       letterSpacing: 0.5,
                                     ),
-                                    overflow: TextOverflow.ellipsis, // 🆕 Prevenir overflow
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                   Text(
                                     'Ingrese la identificación',
-                                    style: TextStyle(
-                                      fontSize: isSmallScreen ? 12 : 14, // 🆕 Tamaño adaptativo
+                                    style: GoogleFonts.roboto(
+                                      fontSize: isSmallScreen ? 12 : 14,
                                       color: Color(0xFF6B7280),
                                       fontWeight: FontWeight.w500,
                                     ),
-                                    overflow: TextOverflow.ellipsis, // 🆕 Prevenir overflow
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ],
                               ),
@@ -937,17 +915,15 @@ Future<void> _mostrarDialogoAgregarPaciente() async {
                                 fontSize: isSmallScreen ? 14 : 16, // 🆕 Tamaño adaptativo
                               ),
                               hintText: 'Ej: 1234567890',
-                              hintStyle: TextStyle(
+                              hintStyle: GoogleFonts.roboto( // Changed to GoogleFonts.roboto
                                 color: Colors.grey[400],
-                                                                fontSize: isSmallScreen ? 13 : 14, // 🆕 Tamaño adaptativo
+                                fontSize: isSmallScreen ? 13 : 14, // 🆕 Tamaño adaptativo
                               ),
                               prefixIcon: Container(
                                 margin: EdgeInsets.all(isSmallScreen ? 10 : 12), // 🆕 Margen adaptativo
                                 padding: EdgeInsets.all(isSmallScreen ? 6 : 8), // 🆕 Padding adaptativo
                                 decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [Color(0xFF10B981), Color(0xFF059669)],
-                                  ),
+                                  color: primaryColor, // Changed to primaryColor
                                   borderRadius: BorderRadius.circular(isSmallScreen ? 8 : 10), // 🆕 Border radius adaptativo
                                 ),
                                 child: Icon(
@@ -990,16 +966,16 @@ Future<void> _mostrarDialogoAgregarPaciente() async {
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(isSmallScreen ? 16 : 20),
-                                borderSide: BorderSide(color: Color(0xFF10B981), width: 2.5),
+                                borderSide: BorderSide(color: primaryColor, width: 2.5), // Changed to primaryColor
                               ),
                               filled: true,
-                              fillColor: Colors.transparent,
+                              fillColor: Colors.white, // Changed to Colors.white
                               contentPadding: EdgeInsets.symmetric(
                                 horizontal: isSmallScreen ? 16 : 24, // 🆕 Padding adaptativo
                                 vertical: isSmallScreen ? 16 : 20 // 🆕 Padding adaptativo
                               ),
                             ),
-                            style: TextStyle(
+                            style: GoogleFonts.roboto( // Changed to GoogleFonts.roboto
                               fontSize: isSmallScreen ? 14 : 16, // 🆕 Tamaño adaptativo
                               fontWeight: FontWeight.w600,
                               color: Color(0xFF111827),
@@ -1457,11 +1433,12 @@ Future<void> _mostrarDialogoAgregarPaciente() async {
             ),
           ),
           label: Text(
-            isSmallScreen ? 'Guardar' : 'Guardar Muestra', // 🆕 Texto adaptativo
-            style: TextStyle(
-              fontSize: isSmallScreen ? 14 : 16, // 🆕 Tamaño adaptativo
+            isSmallScreen ? 'Guardar' : 'Guardar Muestra',
+            style: GoogleFonts.roboto(
+              fontSize: isSmallScreen ? 14 : 16,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.5,
+              color: Colors.white,
             ),
           ),
           backgroundColor: Colors.transparent,

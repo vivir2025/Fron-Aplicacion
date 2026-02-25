@@ -1,19 +1,34 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:Bornive/api/api_service.dart';
 import 'package:Bornive/database/database_helper.dart';
 import 'package:Bornive/screens/visitas_screen.dart';
+import 'package:Bornive/services/notification_service.dart';
 import 'package:provider/provider.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'providers/auth_provider.dart';
 import 'providers/paciente_provider.dart';
+import 'providers/notification_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/initial_sync_screen.dart';
 import 'package:flutter_localizations/flutter_localizations.dart'; // ✅ IMPORT PARA LOCALIZACIÓN
+import 'package:google_fonts/google_fonts.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // ✅ Inicializar Firebase (safe - no bloquea si falla)
+  try {
+    await Firebase.initializeApp();
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  } catch (e) {
+    // La app sigue funcionando sin Firebase
+  }
+  
   runApp(const MyApp());
 }
 
@@ -26,6 +41,8 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   final AuthProvider _authProvider = AuthProvider();
+  final NotificationService _notificationService = NotificationService();
+  final NotificationProvider _notificationProvider = NotificationProvider();
   late Connectivity _connectivity;
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
   bool _isInitialized = false;
@@ -39,6 +56,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     _connectivity = Connectivity();
     _setupConnectivityListener();
     _initializeApp();
+    _initializeNotifications();
   }
 
   @override
@@ -46,12 +64,46 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     super.didChangeAppLifecycleState(state);
 
     if (state == AppLifecycleState.resumed) {
-      debugPrint('App resumed - No reiniciar splash');
       if (_hasShownSplash && _isInitialized) {
         setState(() {
           _showSplash = false;
         });
       }
+    }
+  }
+
+  /// Inicializar servicio de notificaciones (no bloquea la app)
+  Future<void> _initializeNotifications() async {
+    try {
+      // Cargar notificaciones guardadas
+      await _notificationProvider.loadNotifications();
+      // Conectar provider con el servicio
+      _notificationService.setNotificationProvider(_notificationProvider);
+      await _notificationService.initialize();
+    } catch (e) {
+      // Silencioso
+    }
+  }
+
+  /// Registrar token FCM después de autoLogin (cuando el usuario ya tenía sesión)
+  void _registrarTokenFCMAutoLogin() {
+    try {
+      final user = _authProvider.user;
+      final token = _authProvider.token;
+
+      if (user == null || user['id'] == null || token == null) {
+        return;
+      }
+
+      final userId = user['id'].toString();
+
+      if (userId.isNotEmpty) {
+        _notificationService.registrarTokenConUsuario(userId, token).then((_) {
+        }).catchError((e) {
+        });
+      }
+    } catch (e) {
+      // Silencioso
     }
   }
 
@@ -78,7 +130,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       try {
         await DatabaseHelper.instance.migrarUUIDsAntiguos();
       } catch (e) {
-        debugPrint('⚠️ Error al migrar UUIDs antiguos: $e');
+        // Silencioso
       }
 
       if (_authProvider.isAuthenticated) {
@@ -90,9 +142,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             final sedes = await ApiService.getSedes(_authProvider.token!);
             await DatabaseHelper.instance.saveSedes(sedes);
           } catch (e) {
-            debugPrint('Error al cargar sedes: $e');
+            // Silencioso
           }
         }
+
+        // ✅ Registrar token FCM después del autoLogin exitoso
+        _registrarTokenFCMAutoLogin();
       }
 
       if (!_hasShownSplash) {
@@ -115,8 +170,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         await pacienteProvider.loadPacientes();
       }
     } catch (e) {
-      debugPrint('Error al inicializar app: $e');
-
+    } catch (e) {
       if (!_hasShownSplash) {
         await Future.delayed(const Duration(seconds: 3));
       }
@@ -140,8 +194,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               listen: false,
             ).syncData();
           }
+          
+          // ✅ Reintentar registro de token FCM pendiente
+          if (_authProvider.token != null) {
+            await _notificationService.reintentarRegistroPendiente(
+              _authProvider.token!,
+            );
+          }
         } catch (e) {
-          debugPrint('Error en sincronización: $e');
+          // Silencioso
         }
       }
     });
@@ -150,51 +211,41 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   // ✅ FUNCIÓN DE LOGOUT CON NAVEGACIÓN DIRECTA
   Future<void> _handleLogout() async {
     try {
-      debugPrint('🔘 main.dart: Iniciando logout...');
-      
-      // Ejecutar logout en el AuthProvider
+      await _notificationService.desregistrarToken(_authProvider.token);
       await _authProvider.logout();
       
-      debugPrint('✅ main.dart: Logout completado, navegando directamente...');
-      
-      // ✅ NAVEGAR DIRECTAMENTE AL LOGIN (bypasea el Consumer problemático)
       if (navigatorKey.currentContext != null) {
         Navigator.of(navigatorKey.currentContext!).pushAndRemoveUntil(
           MaterialPageRoute(
             builder: (context) => LoginScreen(
               authProvider: _authProvider,
               onLoginSuccess: () {
-                debugPrint('✅ Login exitoso - navegando a home');
                 Navigator.of(context).pushReplacementNamed('/home');
               },
             ),
           ),
-          (route) => false, // Remover todas las rutas anteriores
+          (route) => false,
         );
-        debugPrint('🚀 Navegación directa al LoginScreen completada');
-      } else {
-        debugPrint('❌ NavigatorKey.currentContext es null');
       }
-      
     } catch (e) {
-      debugPrint('❌ Error en logout: $e');
+      // Silencioso
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('🏗️ MyApp build()');
-    
     return MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: _authProvider),
         ChangeNotifierProvider(create: (_) => PacienteProvider(_authProvider)),
+        ChangeNotifierProvider.value(value: _notificationProvider),
       ],
       child: MaterialApp(
         title: 'Anavie 1.0',
         theme: ThemeData(
           primarySwatch: Colors.blue,
           visualDensity: VisualDensity.adaptivePlatformDensity,
+          textTheme: GoogleFonts.robotoTextTheme(),
         ),
         navigatorKey: navigatorKey,
         
@@ -212,25 +263,17 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         
         home: Consumer<AuthProvider>(
           builder: (context, auth, _) {
-            debugPrint('🔍 Consumer rebuild - Auth: ${auth.isReallyAuthenticated}');
-            
-            // Mostrar splash mientras inicializa
             if (!_isInitialized || (_showSplash && !_hasShownSplash)) {
-              debugPrint('📱 Mostrando SplashScreen');
               return SplashScreen();
             }
             
-            // ✅ USAR isReallyAuthenticated
             if (auth.isReallyAuthenticated) {
-              debugPrint('✅ Usuario autenticado, mostrando HomeScreen');
               return HomeScreen(onLogout: _handleLogout);
             }
             
-            debugPrint('❌ Usuario no autenticado, mostrando LoginScreen');
             return LoginScreen(
               authProvider: _authProvider,
               onLoginSuccess: () {
-                debugPrint('✅ Login exitoso');
               },
             );
           },

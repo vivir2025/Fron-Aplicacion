@@ -6,6 +6,9 @@ import '../models/paciente_model.dart';
 import '../services/tamizaje_service.dart';
 import '../services/sincronizacion_service.dart';
 import '../database/database_helper.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+const Color primaryColor = Color(0xFF1B5E20);
 
 class TamizajeScreen extends StatefulWidget {
   const TamizajeScreen({Key? key}) : super(key: key);
@@ -137,7 +140,6 @@ class _TamizajeScreenState extends State<TamizajeScreen> {
             : 'Tamizaje guardado. Se sincronizará cuando haya conexión.'
         );
         
-        // ← CAMBIO PRINCIPAL: Regresar inmediatamente con resultado exitoso
         // Esperar un momento para que se vea el mensaje de éxito
         await Future.delayed(const Duration(milliseconds: 1500));
         
@@ -174,8 +176,6 @@ class _TamizajeScreenState extends State<TamizajeScreen> {
     });
   }
 
-  // ← FUNCIÓN ELIMINADA: _mostrarResultadoTamizaje ya no se usa
-
   Color _getColorClasificacion(String clasificacion) {
     switch (clasificacion) {
       case 'NORMAL':
@@ -199,7 +199,7 @@ class _TamizajeScreenState extends State<TamizajeScreen> {
         return 'Presión elevada. Modificar estilo de vida.';
       case 'HIPERTENSIÓN ESTADIO 1':
         return 'Hipertensión Estadio 1. Consultar con médico.';
-      case 'HIPERTENSIÓN ESTADIO 2':
+      case 'HIPERTENSIÓN Estadio 2':
         return 'Hipertensión Estadio 2. Atención médica urgente.';
       default:
         return 'Crisis hipertensiva. Atención médica inmediata.';
@@ -228,25 +228,57 @@ class _TamizajeScreenState extends State<TamizajeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tamizaje de Presión Arterial'),
-        backgroundColor: Colors.blue[700],
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            'Tamizaje de Presión Arterial',
+            style: GoogleFonts.roboto(
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
+        ),
+        backgroundColor: primaryColor,
         foregroundColor: Colors.white,
+        centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: Icon(Icons.refresh),
             onPressed: _sincronizar,
             tooltip: 'Sincronizar',
           ),
           IconButton(
-            icon: const Icon(Icons.list),
+            icon: Icon(Icons.list),
             onPressed: () => Navigator.pushNamed(context, '/tamizajes_lista'),
             tooltip: 'Ver tamizajes',
           ),
         ],
       ),
-      body: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
+      body: Theme(
+        data: Theme.of(context).copyWith(
+          primaryColor: primaryColor,
+          colorScheme: ColorScheme.fromSeed(seedColor: primaryColor),
+          inputDecorationTheme: InputDecorationTheme(
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            focusedBorder: const OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(8)),
+              borderSide: BorderSide(color: primaryColor, width: 2),
+            ),
+            floatingLabelStyle: GoogleFonts.roboto(color: primaryColor),
+          ),
+        ),
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -258,20 +290,20 @@ class _TamizajeScreenState extends State<TamizajeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Buscar Paciente',
-                        style: TextStyle(
+                        style: GoogleFonts.roboto(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      SizedBox(height: 16),
                       Row(
                         children: [
                           Expanded(
                             child: TextFormField(
                               controller: _identificacionController,
-                              decoration: const InputDecoration(
+                              decoration: InputDecoration(
                                 labelText: 'Número de Identificación',
                                 border: OutlineInputBorder(),
                                 prefixIcon: Icon(Icons.search),
@@ -288,11 +320,11 @@ class _TamizajeScreenState extends State<TamizajeScreen> {
                               },
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          SizedBox(width: 8),
                           ElevatedButton(
                             onPressed: _buscandoPaciente ? null : _buscarPaciente,
                             child: _buscandoPaciente
-                                ? const SizedBox(
+                                ? SizedBox(
                                     width: 20,
                                     height: 20,
                                     child: CircularProgressIndicator(
@@ -308,7 +340,7 @@ class _TamizajeScreenState extends State<TamizajeScreen> {
                 ),
               ),
 
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
 
               // Información del paciente
               if (_pacienteSeleccionado != null) ...[
@@ -319,15 +351,15 @@ class _TamizajeScreenState extends State<TamizajeScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Información del Paciente',
-                          style: TextStyle(
+                          style: GoogleFonts.roboto(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: Colors.green,
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        SizedBox(height: 12),
                         _buildInfoRow('Nombre y Apellido:', _pacienteSeleccionado!.nombreCompleto),
                         _buildInfoRow('Identificación:', _pacienteSeleccionado!.identificacion),
                         _buildInfoRow('Fecha de Nacimiento:', _formatearFecha(_pacienteSeleccionado!.fecnacimiento)),
@@ -338,7 +370,7 @@ class _TamizajeScreenState extends State<TamizajeScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
               ],
 
               // Formulario de tamizaje
@@ -349,19 +381,19 @@ class _TamizajeScreenState extends State<TamizajeScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Datos del Tamizaje',
-                          style: TextStyle(
+                          style: GoogleFonts.roboto(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        SizedBox(height: 16),
 
                         // Vereda de residencia
                         TextFormField(
                           controller: _veredaController,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Vereda de Residencia *',
                             border: OutlineInputBorder(),
                             prefixIcon: Icon(Icons.location_on),
@@ -374,12 +406,12 @@ class _TamizajeScreenState extends State<TamizajeScreen> {
                           },
                         ),
 
-                        const SizedBox(height: 16),
+                        SizedBox(height: 16),
 
                         // Teléfono
                         TextFormField(
                           controller: _telefonoController,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Teléfono',
                             border: OutlineInputBorder(),
                             prefixIcon: Icon(Icons.phone),
@@ -387,7 +419,7 @@ class _TamizajeScreenState extends State<TamizajeScreen> {
                           keyboardType: TextInputType.phone,
                         ),
 
-                        const SizedBox(height: 16),
+                        SizedBox(height: 16),
 
                         // Brazo de toma
                         const Text('Brazo de Toma *'),
@@ -416,10 +448,9 @@ class _TamizajeScreenState extends State<TamizajeScreen> {
                           ],
                         ),
 
-                        const SizedBox(height: 16),
+                        SizedBox(height: 16),
 
                         // Posición de la persona
-                        const Text('Posición de la Persona *'),
                         Wrap(
                           children: [
                             Row(
@@ -470,7 +501,7 @@ class _TamizajeScreenState extends State<TamizajeScreen> {
                           ],
                         ),
 
-                        const SizedBox(height: 16),
+                        SizedBox(height: 16),
 
                         // Reposo de cinco minutos
                         const Text('¿Reposo de 5 minutos? *'),
@@ -499,7 +530,7 @@ class _TamizajeScreenState extends State<TamizajeScreen> {
                           ],
                         ),
 
-                        const SizedBox(height: 16),
+                        SizedBox(height: 16),
 
                         // Fecha de primera toma
                         InkWell(
@@ -525,14 +556,14 @@ class _TamizajeScreenState extends State<TamizajeScreen> {
                             child: Row(
                               children: [
                                 const Icon(Icons.calendar_today),
-                                const SizedBox(width: 8),
+                                SizedBox(width: 8),
                                 Text('Fecha de Toma: ${_formatearFecha(_fechaToma)}'),
                               ],
                             ),
                           ),
                         ),
 
-                        const SizedBox(height: 16),
+                        SizedBox(height: 16),
 
                         // Presión arterial
                         Row(
@@ -540,7 +571,7 @@ class _TamizajeScreenState extends State<TamizajeScreen> {
                             Expanded(
                               child: TextFormField(
                                 controller: _sistolicaController,
-                                decoration: const InputDecoration(
+                                decoration: InputDecoration(
                                   labelText: 'Presión Sistólica *',
                                   border: OutlineInputBorder(),
                                   suffixText: 'mmHg',
@@ -561,11 +592,11 @@ class _TamizajeScreenState extends State<TamizajeScreen> {
                                 },
                               ),
                             ),
-                            const SizedBox(width: 16),
+                            SizedBox(width: 16),
                             Expanded(
                               child: TextFormField(
                                 controller: _diastolicaController,
-                                decoration: const InputDecoration(
+                                decoration: InputDecoration(
                                   labelText: 'Presión Diastólica *',
                                   border: OutlineInputBorder(),
                                   suffixText: 'mmHg',
@@ -589,12 +620,12 @@ class _TamizajeScreenState extends State<TamizajeScreen> {
                           ],
                         ),
 
-                        const SizedBox(height: 16),
+                        SizedBox(height: 16),
 
                         // Conducta
                         TextFormField(
                           controller: _conductaController,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Conducta/Observaciones',
                             border: OutlineInputBorder(),
                             prefixIcon: Icon(Icons.note),
@@ -602,7 +633,7 @@ class _TamizajeScreenState extends State<TamizajeScreen> {
                           maxLines: 3,
                         ),
 
-                        const SizedBox(height: 24),
+                        SizedBox(height: 24),
 
                         // Botón guardar
                         SizedBox(
@@ -610,12 +641,12 @@ class _TamizajeScreenState extends State<TamizajeScreen> {
                           child: ElevatedButton(
                             onPressed: _isLoading ? null : _guardarTamizaje,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue[700],
+                              backgroundColor: primaryColor, // Changed to primaryColor
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 16),
                             ),
                             child: _isLoading
-                                ? const Row(
+                                ? Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       SizedBox(
@@ -630,9 +661,9 @@ class _TamizajeScreenState extends State<TamizajeScreen> {
                                       Text('Guardando...'),
                                     ],
                                   )
-                                : const Text(
+                                : Text(
                                     'Guardar Tamizaje',
-                                    style: TextStyle(fontSize: 16),
+                                    style: GoogleFonts.roboto(fontSize: 16),
                                   ),
                           ),
                         ),
@@ -644,6 +675,7 @@ class _TamizajeScreenState extends State<TamizajeScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }
@@ -658,7 +690,7 @@ class _TamizajeScreenState extends State<TamizajeScreen> {
             width: 120,
             child: Text(
               label,
-              style: const TextStyle(fontWeight: FontWeight.w500),
+              style: GoogleFonts.roboto(fontWeight: FontWeight.w500),
             ),
           ),
           Expanded(

@@ -60,10 +60,8 @@ class FileService {
       
       await imageFile.copy(savedFile.path);
       
-      debugPrint('✅ Foto de riesgo guardada: ${savedFile.path}');
       return savedFile.path;
     } catch (e) {
-      debugPrint('❌ Error al guardar foto de riesgo: $e');
       return null;
     }
   }
@@ -77,10 +75,8 @@ class FileService {
       
       await imageFile.copy(savedFile.path);
       
-      debugPrint('✅ Foto guardada: ${savedFile.path}');
       return savedFile.path;
     } catch (e) {
-      debugPrint('❌ Error al guardar foto: $e');
       return null;
     }
   }
@@ -95,10 +91,8 @@ class FileService {
       
       await file.copy(savedFile.path);
       
-      debugPrint('✅ Archivo adjunto guardado: ${savedFile.path}');
       return savedFile.path;
     } catch (e) {
-      debugPrint('❌ Error al guardar archivo adjunto: $e');
       return null;
     }
   }
@@ -112,10 +106,8 @@ class FileService {
       
       await savedFile.writeAsBytes(signatureBytes);
       
-      debugPrint('✅ Firma guardada: ${savedFile.path}');
       return savedFile.path;
     } catch (e) {
-      debugPrint('❌ Error al guardar firma: $e');
       return null;
     }
   }
@@ -129,13 +121,6 @@ static Future<Map<String, dynamic>?> createVisitaCompleta({
   List<Map<String, dynamic>>? medicamentosData,
 }) async {
   try {
-    debugPrint('📤 Creando visita completa con archivos');
-    debugPrint('🔗 URL: $baseUrl/visitas');
-    debugPrint('📋 Datos de visita: ${visitaData.keys.length} campos');
-    debugPrint('📷 Foto de riesgo: ${riskPhotoPath != null ? "SÍ" : "NO"}');
-    debugPrint('✍️ Firma: ${signaturePath != null ? "SÍ" : "NO"}');
-    debugPrint('💊 Medicamentos: ${medicamentosData?.length ?? 0}');
-
     final request = http.MultipartRequest(
       'POST', 
       Uri.parse('$baseUrl/visitas')
@@ -146,53 +131,32 @@ static Future<Map<String, dynamic>?> createVisitaCompleta({
     request.headers['Accept'] = 'application/json';
     
     // 🆕 VERIFICAR COORDENADAS ANTES DE AGREGAR CAMPOS
-    debugPrint('🔍 VERIFICACIÓN PRE-AGREGAR:');
-    debugPrint('   - visitaData contiene latitud: ${visitaData.containsKey('latitud')}');
-    debugPrint('   - visitaData contiene longitud: ${visitaData.containsKey('longitud')}');
-    debugPrint('   - visitaData[latitud]: "${visitaData['latitud']}"');
-    debugPrint('   - visitaData[longitud]: "${visitaData['longitud']}"');
-    
     // ✅ Agregar todos los campos de texto de la visita
     request.fields.addAll(visitaData);
     
     // 🆕 FORZAR COORDENADAS DESPUÉS DE addAll (CRÍTICO)
     if (visitaData.containsKey('latitud') && visitaData['latitud']!.isNotEmpty) {
       request.fields['latitud'] = visitaData['latitud']!;
-      debugPrint('🔧 FORZANDO latitud: ${visitaData['latitud']}');
     }
     
     if (visitaData.containsKey('longitud') && visitaData['longitud']!.isNotEmpty) {
       request.fields['longitud'] = visitaData['longitud']!;
-      debugPrint('🔧 FORZANDO longitud: ${visitaData['longitud']}');
     }
     
     // 🆕 VERIFICACIÓN POST-AGREGAR (CRÍTICA)
-    debugPrint('🔍 VERIFICACIÓN POST-AGREGAR:');
-    debugPrint('   - request.fields contiene latitud: ${request.fields.containsKey('latitud')}');
-    debugPrint('   - request.fields contiene longitud: ${request.fields.containsKey('longitud')}');
-    debugPrint('   - request.fields[latitud]: "${request.fields['latitud']}"');
-    debugPrint('   - request.fields[longitud]: "${request.fields['longitud']}"');
-    
     // 🆕 DEBUG: Mostrar todos los campos que se envían
-    debugPrint('📋 Todos los campos en request.fields:');
     request.fields.forEach((key, value) {
       if (key == 'latitud' || key == 'longitud') {
         debugPrint('📍 $key: "$value"'); // Destacar coordenadas con comillas
       } else {
-        debugPrint('  $key: $value');
       }
     });
     
     // ✅ CORREGIR ENVÍO DE MEDICAMENTOS - SOLO JSON STRING
     if (medicamentosData != null && medicamentosData.isNotEmpty) {
-      debugPrint('💊 Procesando ${medicamentosData.length} medicamentos...');
-      
       // ✅ SOLO enviar como JSON string (lo que espera el servidor)
       final medicamentosJson = json.encode(medicamentosData);
       request.fields['medicamentos'] = medicamentosJson;
-      debugPrint('💊 Medicamentos como JSON: $medicamentosJson');
-      
-      debugPrint('💊 Medicamentos enviados como JSON string');
     }
     
     // ✅ Agregar foto de riesgo si existe
@@ -205,9 +169,7 @@ static Future<Map<String, dynamic>?> createVisitaCompleta({
           filename: path.basename(riskPhotoPath),
         );
         request.files.add(multipartFile);
-        debugPrint('📷 Foto de riesgo agregada: ${path.basename(riskPhotoPath)}');
       } else {
-        debugPrint('⚠️ Archivo de foto de riesgo no existe: $riskPhotoPath');
       }
     }
     
@@ -221,13 +183,9 @@ static Future<Map<String, dynamic>?> createVisitaCompleta({
           filename: path.basename(signaturePath),
         );
         request.files.add(multipartFile);
-        debugPrint('✍️ Firma agregada: ${path.basename(signaturePath)}');
       } else {
-        debugPrint('⚠️ Archivo de firma no existe: $signaturePath');
       }
     }
-    
-    debugPrint('📤 Enviando request con ${request.files.length} archivos y ${request.fields.length} campos...');
     
     // ✅ AGREGAR TIMEOUT Y MEJOR MANEJO DE ERRORES
     final response = await request.send().timeout(
@@ -237,42 +195,28 @@ static Future<Map<String, dynamic>?> createVisitaCompleta({
       },
     );
     
-    debugPrint('📥 Respuesta recibida: ${response.statusCode}');
-    
     if (response.statusCode == 200 || response.statusCode == 201) {
       final responseBody = await response.stream.bytesToString();
-      debugPrint('✅ Visita creada exitosamente');
-      debugPrint('📄 Respuesta: $responseBody');
-      
       try {
         final Map<String, dynamic> responseData = json.decode(responseBody);
         
         if (responseData['success'] == true && responseData['data'] != null) {
           final visitaCreada = responseData['data'];
           
-          debugPrint('🆔 ID de visita creada: ${visitaCreada['id']}');
-          debugPrint('🔗 Foto URL: ${visitaCreada['riesgo_fotografico_url']}');
-          debugPrint('🔗 Firma URL: ${visitaCreada['firma_url']}');
         }
         
         return responseData;
       } catch (e) {
-        debugPrint('⚠️ Error parseando respuesta JSON: $e');
         return {'success': true, 'raw_response': responseBody};
       }
     } else {
       final errorBody = await response.stream.bytesToString();
-      debugPrint('❌ Error al crear visita: ${response.statusCode}');
-      debugPrint('❌ Error body: $errorBody');
-      
       // ✅ PARSEAR ERROR PARA MEJOR DEBUGGING
       try {
         final errorJson = json.decode(errorBody);
         if (errorJson['errors'] != null) {
-          debugPrint('❌ Errores específicos: ${errorJson['errors']}');
         }
       } catch (e) {
-        debugPrint('⚠️ No se pudo parsear error JSON');
       }
       
       return {
@@ -282,19 +226,16 @@ static Future<Map<String, dynamic>?> createVisitaCompleta({
       };
     }
   } on TimeoutException catch (e) {
-    debugPrint('⏰ Timeout al crear visita: $e');
     return {
       'success': false,
       'error': 'Tiempo de espera agotado. Verifique su conexión a internet.',
     };
   } on SocketException catch (e) {
-    debugPrint('🌐 Error de conexión: $e');
     return {
       'success': false,
       'error': 'Sin conexión a internet. La visita se guardó localmente.',
     };
   } catch (e) {
-    debugPrint('❌ Error en createVisitaCompleta: $e');
     return {'success': false, 'error': e.toString()};
   }
 }
@@ -310,8 +251,6 @@ static Future<Map<String, dynamic>?> updateVisitaCompleta({
   List<Map<String, dynamic>>? medicamentosData,
 }) async {
   try {
-    debugPrint('📤 Actualizando visita con archivos: $visitaId');
-
     final request = http.MultipartRequest(
       'POST',
       Uri.parse('$baseUrl/visitas/$visitaId')
@@ -326,12 +265,9 @@ static Future<Map<String, dynamic>?> updateVisitaCompleta({
     
     // 🆕 CORREGIR ENVÍO DE MEDICAMENTOS - IGUAL QUE EN CREATE
     if (medicamentosData != null && medicamentosData.isNotEmpty) {
-      debugPrint('💊 Procesando ${medicamentosData.length} medicamentos para actualización...');
-      
       // ✅ ENVIAR COMO JSON STRING (igual que en create)
       final medicamentosJson = json.encode(medicamentosData);
       request.fields['medicamentos'] = medicamentosJson;
-      debugPrint('💊 Medicamentos para actualización: $medicamentosJson');
     } else {
       // ✅ ENVIAR ARRAY VACÍO SI NO HAY MEDICAMENTOS
       request.fields['medicamentos'] = '[]';
@@ -340,12 +276,10 @@ static Future<Map<String, dynamic>?> updateVisitaCompleta({
     // ✅ FORZAR COORDENADAS (igual que en create)
     if (visitaData.containsKey('latitud') && visitaData['latitud']!.isNotEmpty) {
       request.fields['latitud'] = visitaData['latitud']!;
-      debugPrint('🔧 FORZANDO latitud en update: ${visitaData['latitud']}');
     }
     
     if (visitaData.containsKey('longitud') && visitaData['longitud']!.isNotEmpty) {
       request.fields['longitud'] = visitaData['longitud']!;
-      debugPrint('🔧 FORZANDO longitud en update: ${visitaData['longitud']}');
     }
     
     // ✅ Agregar archivos si existen
@@ -358,7 +292,6 @@ static Future<Map<String, dynamic>?> updateVisitaCompleta({
           filename: path.basename(riskPhotoPath),
         );
         request.files.add(multipartFile);
-        debugPrint('📷 Nueva foto de riesgo agregada para actualización');
       }
     }
     
@@ -371,11 +304,8 @@ static Future<Map<String, dynamic>?> updateVisitaCompleta({
           filename: path.basename(signaturePath),
         );
         request.files.add(multipartFile);
-        debugPrint('✍️ Nueva firma agregada para actualización');
       }
     }
-    
-    debugPrint('📤 Enviando actualización con ${request.files.length} archivos y ${request.fields.length} campos...');
     
     final response = await request.send().timeout(
       const Duration(seconds: 60),
@@ -384,33 +314,22 @@ static Future<Map<String, dynamic>?> updateVisitaCompleta({
       },
     );
     
-    debugPrint('📥 Respuesta de actualización: ${response.statusCode}');
-    
     if (response.statusCode == 200 || response.statusCode == 201) {
       final responseBody = await response.stream.bytesToString();
-      debugPrint('✅ Visita actualizada exitosamente');
-      debugPrint('📄 Respuesta: $responseBody');
-      
       try {
         final Map<String, dynamic> responseData = json.decode(responseBody);
         return responseData;
       } catch (e) {
-        debugPrint('⚠️ Error parseando respuesta: $e');
         return {'success': true, 'raw_response': responseBody};
       }
     } else {
       final errorBody = await response.stream.bytesToString();
-      debugPrint('❌ Error al actualizar visita: ${response.statusCode}');
-      debugPrint('❌ Error body: $errorBody');
-      
       // ✅ PARSEAR ERROR PARA MEJOR DEBUGGING
       try {
         final errorJson = json.decode(errorBody);
         if (errorJson['errors'] != null) {
-          debugPrint('❌ Errores específicos: ${errorJson['errors']}');
         }
       } catch (e) {
-        debugPrint('⚠️ No se pudo parsear error JSON');
       }
       
       return {
@@ -420,19 +339,16 @@ static Future<Map<String, dynamic>?> updateVisitaCompleta({
       };
     }
   } on TimeoutException catch (e) {
-    debugPrint('⏰ Timeout al actualizar visita: $e');
     return {
       'success': false,
       'error': 'Tiempo de espera agotado al actualizar.',
     };
   } on SocketException catch (e) {
-    debugPrint('🌐 Error de conexión al actualizar: $e');
     return {
       'success': false,
       'error': 'Sin conexión a internet.',
     };
   } catch (e) {
-    debugPrint('❌ Error en updateVisitaCompleta: $e');
     return {'success': false, 'error': e.toString()};
   }
 }
@@ -441,17 +357,14 @@ static Future<Map<String, dynamic>?> updateVisitaCompleta({
 
   // ✅ MÉTODOS LEGACY CORREGIDOS (por si los sigues usando en algún lugar)
   static Future<String?> uploadRiskPhoto(String filePath, String token) async {
-    debugPrint('⚠️ MÉTODO LEGACY: Usa createVisitaCompleta en su lugar');
     return null;
   }
 
   static Future<String?> uploadSignature(String filePath, String token) async {
-    debugPrint('⚠️ MÉTODO LEGACY: Usa createVisitaCompleta en su lugar');
     return null;
   }
 
   static Future<String?> uploadPhoto(String filePath, String token) async {
-    debugPrint('⚠️ MÉTODO LEGACY: Usa createVisitaCompleta en su lugar');
     return null;
   }
 
@@ -461,12 +374,10 @@ static Future<Map<String, dynamic>?> updateVisitaCompleta({
       final file = File(filePath);
       if (await file.exists()) {
         await file.delete();
-        debugPrint('✅ Archivo eliminado: $filePath');
         return true;
       }
       return false;
     } catch (e) {
-      debugPrint('❌ Error al eliminar archivo: $e');
       return false;
     }
   }
@@ -510,7 +421,6 @@ static Future<Map<String, dynamic>?> updateVisitaCompleta({
       }
       return {};
     } catch (e) {
-      debugPrint('❌ Error obteniendo info del archivo: $e');
       return {};
     }
   }
@@ -580,14 +490,11 @@ static Future<Map<String, dynamic>?> updateVisitaCompleta({
           if (age > daysOld) {
             await entity.delete();
             deletedCount++;
-            debugPrint('🗑️ Archivo antiguo eliminado: ${entity.path}');
           }
         }
       }
       
-      debugPrint('✅ Limpieza completada: $deletedCount archivos eliminados');
     } catch (e) {
-      debugPrint('❌ Error al limpiar archivos antiguos: $e');
     }
   }
 
@@ -605,7 +512,6 @@ static Future<Map<String, dynamic>?> updateVisitaCompleta({
       
       return files;
     } catch (e) {
-      debugPrint('❌ Error obteniendo archivos: $e');
       return [];
     }
   }
@@ -622,7 +528,6 @@ static Future<Map<String, dynamic>?> updateVisitaCompleta({
       
       return totalSize;
     } catch (e) {
-      debugPrint('❌ Error calculando espacio usado: $e');
       return 0;
     }
   }
@@ -640,7 +545,6 @@ static Future<Map<String, dynamic>?> uploadFileByType(String archivoPath, String
   try {
     final file = File(archivoPath);
     if (!file.existsSync()) {
-      debugPrint('❌ Archivo no existe: $archivoPath');
       return {
         'success': false,
         'error': 'El archivo no existe',
@@ -663,10 +567,6 @@ static Future<Map<String, dynamic>?> uploadFileByType(String archivoPath, String
       fieldName = 'risk_photo';
     }
 
-    debugPrint('📤 Subiendo archivo: $archivoPath');
-    debugPrint('🔗 Endpoint: $endpoint');
-    debugPrint('📝 Field name: $fieldName');
-
     // Crear la petición multipart
     var request = http.MultipartRequest('POST', Uri.parse(endpoint));
     
@@ -684,8 +584,6 @@ static Future<Map<String, dynamic>?> uploadFileByType(String archivoPath, String
     );
     request.files.add(multipartFile);
 
-    debugPrint('📊 Tamaño del archivo: ${file.lengthSync()} bytes');
-
     // Enviar la petición
     final streamedResponse = await request.send().timeout(
       const Duration(seconds: 60),
@@ -697,9 +595,6 @@ static Future<Map<String, dynamic>?> uploadFileByType(String archivoPath, String
     // Convertir la respuesta
     final response = await http.Response.fromStream(streamedResponse);
     
-    debugPrint('📊 Status code: ${response.statusCode}');
-    debugPrint('📄 Response body: ${response.body}');
-
     if (response.statusCode == 200 || response.statusCode == 201) {
       final responseData = json.decode(response.body);
       
@@ -719,19 +614,16 @@ static Future<Map<String, dynamic>?> uploadFileByType(String archivoPath, String
     }
 
   } on TimeoutException catch (e) {
-    debugPrint('⏰ Timeout al subir archivo: $e');
     return {
       'success': false,
       'error': 'Tiempo de espera agotado al subir archivo',
     };
   } on SocketException catch (e) {
-    debugPrint('🌐 Error de conexión al subir archivo: $e');
     return {
       'success': false,
       'error': 'Sin conexión a internet',
     };
   } catch (e) {
-    debugPrint('💥 Error general al subir archivo: $e');
     return {
       'success': false,
       'error': 'Error inesperado: ${e.toString()}',
@@ -761,11 +653,9 @@ static Future<Map<String, dynamic>> uploadMultipleFiles(
         }
         
         results[key] = result['url'];
-        debugPrint('✅ Archivo subido: $filePath -> ${result['url']}');
       } else {
         final error = result?['error'] ?? 'Error desconocido';
         errors.add('Error en $filePath: $error');
-        debugPrint('❌ Error al subir $filePath: $error');
       }
     }
   }
@@ -784,7 +674,6 @@ static bool isValidFile(String filePath) {
   try {
     final file = File(filePath);
     if (!file.existsSync()) {
-      debugPrint('❌ Archivo no existe: $filePath');
       return false;
     }
     
@@ -792,18 +681,15 @@ static bool isValidFile(String filePath) {
     const maxSize = 10 * 1024 * 1024; // 10MB
     
     if (fileSize > maxSize) {
-      debugPrint('❌ Archivo muy grande: ${fileSize / 1024 / 1024}MB');
       return false;
     }
     
     if (fileSize == 0) {
-      debugPrint('❌ Archivo vacío: $filePath');
       return false;
     }
     
     return true;
   } catch (e) {
-    debugPrint('❌ Error al validar archivo: $e');
     return false;
   }
 }

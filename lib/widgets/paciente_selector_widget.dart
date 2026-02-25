@@ -48,7 +48,6 @@ class _PacienteSelectorWidgetState extends State<PacienteSelectorWidget> {
       });
     } catch (e) {
       setState(() => _isLoading = false);
-      debugPrint('Error cargando pacientes: $e');
     }
   }
 

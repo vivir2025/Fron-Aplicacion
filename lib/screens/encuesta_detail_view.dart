@@ -1,5 +1,6 @@
 // views/encuesta_detail_view.dart
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:Bornive/models/encuesta_model.dart';
 import 'package:Bornive/models/paciente_model.dart';
 import 'package:Bornive/database/database_helper.dart';
@@ -13,11 +14,11 @@ class EncuestaDetailView extends StatelessWidget {
   }) : super(key: key);
 
   // 🎨 TEMA DE COLORES UNIFICADO
-  static const Color primaryColor = Color(0xFF1565C0);
-  static const Color primaryLightColor = Color(0xFF5E92F3);
-  static const Color primaryDarkColor = Color(0xFF003C8F);
-  static const Color accentColor = Color(0xFF00C853);
-  static const Color surfaceColor = Color(0xFFFAFAFA);
+  static const Color primaryColor = Color(0xFF1B5E20);
+  static const Color primaryLightColor = Color(0xFF4CAF50);
+  static const Color primaryDarkColor = Color(0xFF003300);
+  static const Color accentColor = Color(0xFF1B5E20);
+  static const Color surfaceColor = Color(0xFFF0F4F8);
   static const Color textPrimaryColor = Color(0xFF212121);
   static const Color textSecondaryColor = Color(0xFF757575);
   static const Color dividerColor = Color(0xFFE0E0E0);
@@ -33,28 +34,40 @@ class EncuestaDetailView extends StatelessWidget {
           seedColor: primaryColor,
           brightness: Brightness.light,
         ),
-        appBarTheme: const AppBarTheme(
+        appBarTheme: AppBarTheme(
           backgroundColor: primaryColor,
           foregroundColor: Colors.white,
           elevation: 0,
           centerTitle: true,
-          titleTextStyle: TextStyle(
+          titleTextStyle: GoogleFonts.roboto(
             fontSize: 20,
             fontWeight: FontWeight.w600,
             color: Colors.white,
           ),
         ),
         cardTheme: CardThemeData(
-          elevation: 3,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: primaryColor.withOpacity(0.15), width: 1.5),
+          ),
           color: Colors.white,
-          shadowColor: Colors.black12,
         ),
       ),
       child: Scaffold(
         backgroundColor: surfaceColor,
         appBar: AppBar(
-          title: const Text('Detalle de Encuesta'),
+          title: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              'Detalle de Encuesta',
+              style: GoogleFonts.roboto(
+                fontWeight: FontWeight.w600,
+                fontSize: 18,
+                color: Colors.white,
+              ),
+            ),
+          ),
           actions: [
             Container(
               margin: const EdgeInsets.only(right: 8),
@@ -237,9 +250,9 @@ class EncuestaDetailView extends StatelessWidget {
           children: [
             _buildSectionHeader('Respuestas de Calificación', Icons.star_rate_outlined, accentColor),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Evaluación de los servicios recibidos',
-              style: TextStyle(
+              style: GoogleFonts.roboto(
                 color: textSecondaryColor,
                 fontSize: 14,
               ),
@@ -338,7 +351,7 @@ class EncuestaDetailView extends StatelessWidget {
                   children: [
                     Text(
                       pregunta,
-                      style: const TextStyle(
+                      style: GoogleFonts.roboto(
                         fontWeight: FontWeight.w600,
                         fontSize: 15,
                         color: textPrimaryColor,
@@ -400,7 +413,7 @@ class EncuestaDetailView extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSectionHeader('Sugerencias y Comentarios', Icons.comment_outlined, Colors.purple[600]!),
+            _buildSectionHeader('Sugerencias y Comentarios', Icons.comment_outlined, primaryColor),
             const SizedBox(height: 8),
             const Text(
               'Observaciones adicionales del paciente',
@@ -414,26 +427,26 @@ class EncuestaDetailView extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.purple[50],
+                color: primaryColor.withOpacity(0.05),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.purple[200]!),
+                border: Border.all(color: primaryColor.withOpacity(0.2)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.format_quote,
-                        color: Colors.purple[600],
+                        color: primaryColor,
                         size: 20,
                       ),
                       const SizedBox(width: 8),
                       Text(
                         'Comentario del paciente',
-                        style: TextStyle(
+                        style: GoogleFonts.roboto(
                           fontWeight: FontWeight.w600,
-                          color: Colors.purple[600],
+                          color: const Color(0xFF1B5E20),
                           fontSize: 14,
                         ),
                       ),
@@ -442,7 +455,7 @@ class EncuestaDetailView extends StatelessWidget {
                   const SizedBox(height: 12),
                   Text(
                     encuesta.sugerencias!,
-                    style: const TextStyle(
+                    style: GoogleFonts.roboto(
                       fontSize: 15,
                       height: 1.4,
                       color: textPrimaryColor,
@@ -589,7 +602,7 @@ class EncuestaDetailView extends StatelessWidget {
         Expanded(
           child: Text(
             title,
-            style: TextStyle(
+            style: GoogleFonts.roboto(
               fontSize: 18,
               fontWeight: FontWeight.bold,
               color: color,
@@ -625,7 +638,7 @@ class EncuestaDetailView extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: TextStyle(
+                  style: GoogleFonts.roboto(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: color,
@@ -634,7 +647,7 @@ class EncuestaDetailView extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   value,
-                  style: const TextStyle(
+                  style: GoogleFonts.roboto(
                     fontSize: 15,
                     fontWeight: FontWeight.w500,
                     color: textPrimaryColor,

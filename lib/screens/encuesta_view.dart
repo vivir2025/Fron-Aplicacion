@@ -1,5 +1,6 @@
 // views/encuesta_view.dart
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:Bornive/models/encuesta_model.dart';
 import 'package:Bornive/models/paciente_model.dart';
 import 'package:Bornive/services/encuesta_service.dart';
@@ -40,11 +41,11 @@ class _EncuestaViewState extends State<EncuestaView> {
   bool _loadingSedes = true;
 
   // 🎨 TEMA DE COLORES UNIFICADO
-  static const Color primaryColor = Color(0xFF1565C0);
-  static const Color primaryLightColor = Color(0xFF5E92F3);
-  static const Color primaryDarkColor = Color(0xFF003C8F);
-  static const Color accentColor = Color(0xFF00C853);
-  static const Color surfaceColor = Color(0xFFFAFAFA);
+  static const Color primaryColor = Color(0xFF1B5E20);
+  static const Color primaryLightColor = Color(0xFF4CAF50);
+  static const Color primaryDarkColor = Color(0xFF003300);
+  static const Color accentColor = Color(0xFF1B5E20);
+  static const Color surfaceColor = Color(0xFFF0F4F8);
   static const Color textPrimaryColor = Color(0xFF212121);
   static const Color textSecondaryColor = Color(0xFF757575);
   static const Color dividerColor = Color(0xFFE0E0E0);
@@ -79,12 +80,9 @@ class _EncuestaViewState extends State<EncuestaView> {
         _loadingSedes = false;
       });
       
-      debugPrint('✅ Sedes cargadas: ${sedes.length}');
       for (var sede in sedes) {
-        debugPrint('   - ${sede['id']}: ${sede['nombresede']}');
       }
     } catch (e) {
-      debugPrint('❌ Error al cargar sedes: $e');
       setState(() {
         _loadingSedes = false;
       });
@@ -103,8 +101,6 @@ class _EncuestaViewState extends State<EncuestaView> {
           _selectedSedeId = sedeId;
         });
         
-        debugPrint('✅ Usuario logueado con sede ID: $sedeId');
-        
         final sedes = await dbHelper.getSedes();
         final sede = sedes.firstWhere(
           (s) => s['id'].toString() == sedeId,
@@ -115,12 +111,9 @@ class _EncuestaViewState extends State<EncuestaView> {
           _userSedeNombre = sede['nombresede'];
         });
         
-        debugPrint('✅ Nombre de sede del usuario: ${sede['nombresede']}');
       } else {
-        debugPrint('⚠️ Usuario sin sede asignada');
       }
     } catch (e) {
-      debugPrint('❌ Error al cargar sede del usuario: $e');
     }
   }
 
@@ -130,7 +123,6 @@ class _EncuestaViewState extends State<EncuestaView> {
       String? token = prefs.getString('auth_token');
       
       if (token != null && token.isNotEmpty) {
-        debugPrint('✅ Token obtenido desde SharedPreferences');
         return token;
       }
       
@@ -140,15 +132,12 @@ class _EncuestaViewState extends State<EncuestaView> {
       
       if (token != null && token.isNotEmpty) {
         await prefs.setString('auth_token', token);
-        debugPrint('✅ Token recuperado desde usuario logueado y guardado en prefs');
         return token;
       }
       
-      debugPrint('❌ No se pudo obtener token válido de ninguna fuente');
       return null;
       
     } catch (e) {
-      debugPrint('❌ Error obteniendo token: $e');
       return null;
     }
   }
@@ -193,46 +182,65 @@ class _EncuestaViewState extends State<EncuestaView> {
     }
   }
 
-@override
-Widget build(BuildContext context) {
-  return Theme(
-    data: Theme.of(context).copyWith(
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: primaryColor,
-        brightness: Brightness.light,
-      ),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: primaryColor,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        titleTextStyle: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
-          color: Colors.white,
+  @override
+  Widget build(BuildContext context) {
+    return Theme(
+      data: Theme.of(context).copyWith(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: primaryColor,
+          brightness: Brightness.light,
+          primary: primaryColor,
         ),
-      ),
-      // 🔧 CORRECCIÓN: Usar CardThemeData en lugar de CardTheme
-      cardTheme: CardThemeData(
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        color: Colors.white,
-        shadowColor: Colors.black12,
-      ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
+        textTheme: GoogleFonts.robotoTextTheme(),
+        appBarTheme: AppBarTheme(
           backgroundColor: primaryColor,
           foregroundColor: Colors.white,
-          elevation: 2,
-          shadowColor: Colors.black26,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          elevation: 0,
+          centerTitle: true,
+          titleTextStyle: GoogleFonts.roboto(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
+        ),
+        cardTheme: CardThemeData(
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: primaryColor.withOpacity(0.15), width: 1.5),
+          ),
+          color: Colors.white,
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: primaryColor, width: 2),
+          ),
+          floatingLabelStyle: const TextStyle(color: primaryColor),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: primaryColor,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
         ),
       ),
-    ),
     child: Scaffold(
       backgroundColor: surfaceColor,
       appBar: AppBar(
-        title: const Text('Encuesta de Satisfacción'),
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            'Encuesta de Satisfacción',
+            style: GoogleFonts.roboto(
+              fontWeight: FontWeight.w600,
+              fontSize: 18,
+              color: Colors.white,
+            ),
+          ),
+        ),
         actions: [
           Container(
             margin: const EdgeInsets.only(right: 8),
@@ -281,18 +289,18 @@ Widget build(BuildContext context) {
   Widget _buildLoadingState() {
     return Container(
       color: surfaceColor,
-      child: const Center(
+      child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(
+            const CircularProgressIndicator(
               strokeWidth: 3,
               color: primaryColor,
             ),
-            SizedBox(height: 24),
+            const SizedBox(height: 24),
             Text(
               'Guardando encuesta...',
-              style: TextStyle(
+              style: GoogleFonts.roboto(
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
                 color: textSecondaryColor,
@@ -351,7 +359,7 @@ Widget build(BuildContext context) {
                       const SizedBox(height: 8),
                       Text(
                         widget.paciente.nombreCompleto,
-                        style: const TextStyle(
+                        style: GoogleFonts.roboto(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
                           color: textPrimaryColor,
@@ -366,7 +374,7 @@ Widget build(BuildContext context) {
                         ),
                         child: Text(
                           'ID: ${widget.paciente.identificacion}',
-                          style: const TextStyle(
+                          style: GoogleFonts.roboto(
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
                             color: primaryColor,
@@ -445,12 +453,14 @@ Widget build(BuildContext context) {
           child: Icon(icon, color: primaryColor, size: 24),
         ),
         const SizedBox(width: 12),
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: primaryColor,
+        Expanded(
+          child: Text(
+            title,
+            style: GoogleFonts.roboto(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: primaryColor,
+            ),
           ),
         ),
       ],
@@ -560,7 +570,7 @@ Widget build(BuildContext context) {
                   const SizedBox(height: 4),
                   Text(
                     '${_fechaSeleccionada.day.toString().padLeft(2, '0')}/${_fechaSeleccionada.month.toString().padLeft(2, '0')}/${_fechaSeleccionada.year}',
-                    style: const TextStyle(
+                    style: GoogleFonts.roboto(
                       fontSize: 16,
                       color: textPrimaryColor,
                       fontWeight: FontWeight.w500,
@@ -742,7 +752,6 @@ Widget build(BuildContext context) {
                 orElse: () => {'nombresede': 'Sede $newValue'},
               );
               
-              debugPrint('✅ Sede seleccionada: ${sedeSeleccionada['nombresede']} (ID: $newValue)');
             }
           },
           validator: (value) {
@@ -766,9 +775,9 @@ Widget build(BuildContext context) {
           children: [
             _buildSectionHeader('Califique los servicios recibidos', Icons.star_rate_outlined),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Seleccione una opción para cada pregunta',
-              style: TextStyle(
+              style: GoogleFonts.roboto(
                 color: textSecondaryColor,
                 fontSize: 14,
               ),
@@ -810,7 +819,7 @@ Widget build(BuildContext context) {
                 child: Center(
                   child: Text(
                     '${index + 1}',
-                    style: const TextStyle(
+                    style: GoogleFonts.roboto(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
@@ -822,7 +831,7 @@ Widget build(BuildContext context) {
               Expanded(
                 child: Text(
                   pregunta,
-                  style: const TextStyle(
+                  style: GoogleFonts.roboto(
                     fontWeight: FontWeight.w500,
                     fontSize: 15,
                     color: textPrimaryColor,
@@ -866,7 +875,7 @@ Widget build(BuildContext context) {
                     ),
                     child: Text(
                       opcion,
-                      style: TextStyle(
+                      style: GoogleFonts.roboto(
                         color: isSelected ? Colors.white : primaryColor,
                         fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                         fontSize: 14,
@@ -891,9 +900,9 @@ Widget build(BuildContext context) {
           children: [
             _buildSectionHeader('Preguntas Adicionales', Icons.help_outline),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Complete las siguientes preguntas específicas',
-              style: TextStyle(
+              style: GoogleFonts.roboto(
                 color: textSecondaryColor,
                 fontSize: 14,
               ),
@@ -950,7 +959,7 @@ Widget build(BuildContext context) {
                 child: Center(
                   child: Text(
                     '${index + 1}',
-                    style: const TextStyle(
+                    style: GoogleFonts.roboto(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
@@ -962,7 +971,7 @@ Widget build(BuildContext context) {
               Expanded(
                 child: Text(
                   pregunta,
-                  style: const TextStyle(
+                  style: GoogleFonts.roboto(
                     fontWeight: FontWeight.w500,
                     fontSize: 15,
                     color: textPrimaryColor,
@@ -1006,7 +1015,7 @@ Widget build(BuildContext context) {
                     ),
                     child: Text(
                       opcion,
-                      style: TextStyle(
+                      style: GoogleFonts.roboto(
                         color: isSelected ? Colors.white : accentColor,
                         fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                         fontSize: 14,
@@ -1031,9 +1040,9 @@ Widget build(BuildContext context) {
           children: [
             _buildSectionHeader('Sugerencias (Opcional)', Icons.comment_outlined),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Comparta sus comentarios o sugerencias adicionales',
-              style: TextStyle(
+              style: GoogleFonts.roboto(
                 color: textSecondaryColor,
                 fontSize: 14,
               ),
@@ -1062,7 +1071,7 @@ Widget build(BuildContext context) {
               ),
               maxLines: 5,
               textInputAction: TextInputAction.newline,
-              style: const TextStyle(fontSize: 14),
+              style: GoogleFonts.roboto(fontSize: 14),
             ),
           ],
         ),
@@ -1097,10 +1106,10 @@ Widget build(BuildContext context) {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             child: _isLoading
-                ? const Row(
+                ? Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      SizedBox(
+                      const SizedBox(
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
@@ -1108,10 +1117,10 @@ Widget build(BuildContext context) {
                           strokeWidth: 2,
                         ),
                       ),
-                      SizedBox(width: 16),
+                      const SizedBox(width: 16),
                       Text(
                         'Guardando encuesta...',
-                        style: TextStyle(
+                        style: GoogleFonts.roboto(
                           color: Colors.white,
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -1119,18 +1128,18 @@ Widget build(BuildContext context) {
                       ),
                     ],
                   )
-                : const Row(
+                : Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.save_rounded,
                         size: 24,
                         color: Colors.white,
                       ),
-                      SizedBox(width: 12),
+                      const SizedBox(width: 12),
                       Text(
                         'Guardar Encuesta',
-                        style: TextStyle(
+                        style: GoogleFonts.roboto(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
@@ -1259,15 +1268,10 @@ Widget build(BuildContext context) {
 
     try {
       // Debug temporal
-      debugPrint('🔍 === DEBUGGING RESPUESTAS ===');
-      debugPrint('📊 Respuestas Calificación:');
       _respuestasCalificacion.forEach((key, value) {
-        debugPrint('   $key: "$value" (${value.runtimeType})');
       });
       
-      debugPrint('📊 Respuestas Adicionales:');
       _respuestasAdicionales.forEach((key, value) {
-        debugPrint('   $key: "$value" (${value.runtimeType})');
       });
 
       // Obtener nombre de la sede seleccionada para el mensaje
@@ -1296,8 +1300,6 @@ Widget build(BuildContext context) {
       // Obtener token
       String? token = await _obtenerTokenValido();
       
-      debugPrint('🔍 Token obtenido para encuesta: ${token != null ? "Disponible (${token.length} chars)" : "No disponible"}');
-
       // Guardar encuesta
       final success = await EncuestaService.guardarEncuesta(encuesta, token);
 
@@ -1319,7 +1321,6 @@ Widget build(BuildContext context) {
         _showSnackBar('Error al guardar la encuesta. Intente nuevamente.', Icons.error_rounded, Colors.red);
       }
     } catch (e) {
-      debugPrint('❌ Error al guardar encuesta: $e');
       _showSnackBar('Error inesperado: ${e.toString()}', Icons.error_rounded, Colors.red);
     } finally {
       setState(() {

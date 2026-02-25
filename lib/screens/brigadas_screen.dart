@@ -8,6 +8,9 @@ import 'crear_brigada_screen.dart';
 import 'crear_brigada_mejorada_screen.dart'; // 🆕 Nueva pantalla mejorada
 import 'detalle_brigada_screen.dart';
 import 'package:intl/intl.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+const Color primaryColor = Color(0xFF1B5E20);
 
 class BrigadasScreen extends StatefulWidget {
   const BrigadasScreen({Key? key}) : super(key: key);
@@ -139,9 +142,16 @@ class _BrigadasScreenState extends State<BrigadasScreen> {
         if (success) {
           debugPrint('✅ _eliminarBrigada: Brigada eliminada exitosamente');
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Brigada eliminada exitosamente'),
-              backgroundColor: Colors.green,
+            SnackBar(
+              content: Text(
+                'Brigada eliminada exitosamente',
+                style: GoogleFonts.roboto(color: Colors.white),
+              ),
+              backgroundColor: primaryColor,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           );
           _cargarBrigadas();
@@ -176,8 +186,18 @@ class _BrigadasScreenState extends State<BrigadasScreen> {
           children: [
             const Icon(Icons.medical_services, size: 24),
             const SizedBox(width: 8),
-            const Text('Brigadas de Salud'),
-            const Spacer(),
+            Expanded(
+              child: Text(
+                'Brigadas',
+                style: GoogleFonts.roboto(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                  color: Colors.white,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 8),
             // Mostrar contador en el AppBar
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -187,7 +207,7 @@ class _BrigadasScreenState extends State<BrigadasScreen> {
               ),
               child: Text(
                 '${_brigadas.length}',
-                style: const TextStyle(
+                style: GoogleFonts.roboto(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
@@ -196,8 +216,10 @@ class _BrigadasScreenState extends State<BrigadasScreen> {
             ),
           ],
         ),
-        backgroundColor: Colors.green,
+        backgroundColor: primaryColor,
         foregroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
         actions: [
           IconButton(
             onPressed: () {
@@ -217,6 +239,21 @@ class _BrigadasScreenState extends State<BrigadasScreen> {
             tooltip: 'Actualizar',
           ),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1.0),
+          child: Container(
+            height: 1.0,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.white,
+                  primaryColor,
+                  Colors.white,
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
       body: _buildBody(),
       floatingActionButton: FloatingActionButton.extended(
@@ -236,8 +273,9 @@ class _BrigadasScreenState extends State<BrigadasScreen> {
             debugPrint('ℹ️ FAB: Regresó con resultado: $result');
           }
         },
-        backgroundColor: Colors.green,
+        backgroundColor: primaryColor,
         foregroundColor: Colors.white,
+        elevation: 2,
         icon: const Icon(Icons.add),
         label: const Text('Nueva Brigada'),
       ),
@@ -249,15 +287,15 @@ class _BrigadasScreenState extends State<BrigadasScreen> {
     
     if (_isLoading && _brigadas.isEmpty) {
       debugPrint('⏳ _buildBody: Mostrando estado de carga');
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(color: Colors.green),
+            CircularProgressIndicator(color: primaryColor),
             SizedBox(height: 16),
             Text(
               'Cargando brigadas...',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              style: GoogleFonts.roboto(fontSize: 16, fontWeight: FontWeight.w500),
             ),
           ],
         ),
@@ -280,7 +318,7 @@ class _BrigadasScreenState extends State<BrigadasScreen> {
               const SizedBox(height: 16),
               Text(
                 'Error al cargar brigadas',
-                style: TextStyle(
+                style: GoogleFonts.roboto(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: Colors.red.shade700,
@@ -290,7 +328,7 @@ class _BrigadasScreenState extends State<BrigadasScreen> {
               Text(
                 _errorMessage,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.red.shade600),
+                style: GoogleFonts.roboto(color: Colors.red.shade600),
               ),
               const SizedBox(height: 24),
               ElevatedButton.icon(
@@ -299,8 +337,9 @@ class _BrigadasScreenState extends State<BrigadasScreen> {
                   _cargarBrigadas();
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
+                  backgroundColor: primaryColor,
                   foregroundColor: Colors.white,
+                  elevation: 2,
                 ),
                 icon: const Icon(Icons.refresh),
                 label: const Text('Reintentar'),
@@ -327,7 +366,7 @@ class _BrigadasScreenState extends State<BrigadasScreen> {
               const SizedBox(height: 24),
               Text(
                 'No hay brigadas registradas',
-                style: TextStyle(
+                style: GoogleFonts.roboto(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: Colors.grey.shade600,
@@ -337,7 +376,7 @@ class _BrigadasScreenState extends State<BrigadasScreen> {
               Text(
                 'Toque "Nueva Brigada" para crear la primera brigada',
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: GoogleFonts.roboto(
                   fontSize: 16,
                   color: Colors.grey.shade500,
                 ),
@@ -358,12 +397,13 @@ class _BrigadasScreenState extends State<BrigadasScreen> {
                   }
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
+                  backgroundColor: primaryColor,
                   foregroundColor: Colors.white,
+                  elevation: 2,
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 ),
                 icon: const Icon(Icons.add),
-                label: const Text('Crear Primera Brigada'),
+                label: const Text('a Brigada'),
               ),
             ],
           ),
@@ -374,7 +414,7 @@ class _BrigadasScreenState extends State<BrigadasScreen> {
     debugPrint('📋 _buildBody: Mostrando lista con ${_brigadas.length} brigadas');
     return RefreshIndicator(
       onRefresh: _cargarBrigadas,
-      color: Colors.green,
+      color: primaryColor,
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: _brigadas.length,
@@ -426,7 +466,7 @@ class _BrigadasScreenState extends State<BrigadasScreen> {
                       children: [
                         Text(
                           brigada.tema,
-                          style: const TextStyle(
+                          style: GoogleFonts.roboto(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF1F2937),
@@ -444,7 +484,7 @@ class _BrigadasScreenState extends State<BrigadasScreen> {
                             Expanded(
                               child: Text(
                                 brigada.lugarEvento,
-                                style: TextStyle(
+                                style: GoogleFonts.roboto(
                                   fontSize: 14,
                                   color: Colors.grey.shade600,
                                 ),
@@ -484,7 +524,7 @@ class _BrigadasScreenState extends State<BrigadasScreen> {
                         const SizedBox(width: 6),
                         Text(
                           brigada.syncStatus == 1 ? 'Sincronizado' : 'Pendiente',
-                          style: TextStyle(
+                          style: GoogleFonts.roboto(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: brigada.syncStatus == 1 
@@ -520,7 +560,7 @@ class _BrigadasScreenState extends State<BrigadasScreen> {
                         const SizedBox(width: 8),
                         Text(
                           'Fecha: ${formatter.format(brigada.fechaBrigada)}',
-                          style: TextStyle(
+                          style: GoogleFonts.roboto(
                             fontSize: 14,
                             color: Colors.grey.shade700,
                             fontWeight: FontWeight.w500,
@@ -540,7 +580,7 @@ class _BrigadasScreenState extends State<BrigadasScreen> {
                         Expanded(
                           child: Text(
                             'Conductor: ${brigada.nombreConductor}',
-                            style: TextStyle(
+                            style: GoogleFonts.roboto(
                               fontSize: 14,
                               color: Colors.grey.shade700,
                               fontWeight: FontWeight.w500,
@@ -555,14 +595,14 @@ class _BrigadasScreenState extends State<BrigadasScreen> {
                         Icon(
                           Icons.group,
                           size: 18,
-                          color: Colors.green.shade600,
+                          color: primaryColor,
                         ),
                         const SizedBox(width: 8),
                         Text(
                           'Pacientes: $pacientesCount asignados',
-                          style: TextStyle(
+                          style: GoogleFonts.roboto(
                             fontSize: 14,
-                            color: Colors.green.shade700,
+                            color: primaryColor,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -595,7 +635,7 @@ class _BrigadasScreenState extends State<BrigadasScreen> {
                           const SizedBox(width: 6),
                           Text(
                             'Observaciones:',
-                            style: TextStyle(
+                            style: GoogleFonts.roboto(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
                               color: Colors.blue.shade600,
@@ -606,7 +646,7 @@ class _BrigadasScreenState extends State<BrigadasScreen> {
                       const SizedBox(height: 6),
                       Text(
                         brigada.observaciones!,
-                        style: TextStyle(
+                        style: GoogleFonts.roboto(
                           fontSize: 13,
                           color: Colors.grey.shade700,
                           fontStyle: FontStyle.italic,
@@ -639,9 +679,9 @@ class _BrigadasScreenState extends State<BrigadasScreen> {
                         ),
                       ),
                       icon: const Icon(Icons.delete, size: 18),
-                      label: const Text(
+                      label: Text(
                         'Eliminar',
-                        style: TextStyle(fontWeight: FontWeight.w600),
+                        style: GoogleFonts.roboto(fontWeight: FontWeight.w600),
                       ),
                     ),
                   ),
@@ -663,17 +703,18 @@ class _BrigadasScreenState extends State<BrigadasScreen> {
                         }
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
+                        backgroundColor: primaryColor,
                         foregroundColor: Colors.white,
+                        elevation: 2,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
                       icon: const Icon(Icons.visibility, size: 18),
-                      label: const Text(
+                      label: Text(
                         'Ver Detalle',
-                        style: TextStyle(fontWeight: FontWeight.w600),
+                        style: GoogleFonts.roboto(fontWeight: FontWeight.w600),
                       ),
                     ),
                   ),

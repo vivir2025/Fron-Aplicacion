@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../database/database_helper.dart';
@@ -9,6 +11,8 @@ import '../models/medicamento_con_indicaciones.dart';
 import '../services/brigada_service.dart';
 import '../providers/auth_provider.dart';
 import 'asignar_medicamentos_brigada_screen.dart';
+
+const Color primaryColor = Color(0xFF1B5E20);
 
 class DetalleBrigadaScreen extends StatefulWidget {
   final String brigadaId;
@@ -72,14 +76,12 @@ class _DetalleBrigadaScreenState extends State<DetalleBrigadaScreen> {
         _isLoading = false;
       });
 
-      debugPrint('✅ Detalle de brigada cargado: ${pacientes.length} pacientes');
     } catch (e) {
       setState(() {
         _isLoading = false;
         _hasError = true;
         _errorMessage = 'Error al cargar detalle: $e';
       });
-      debugPrint('❌ Error cargando detalle de brigada: $e');
     }
   }
 
@@ -103,14 +105,16 @@ class _DetalleBrigadaScreenState extends State<DetalleBrigadaScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_brigada?.tema ?? 'Detalle de Brigada'),
-        backgroundColor: Colors.green,
+        title: Text(_brigada?.tema ?? 'Detalle de Brigada', style: GoogleFonts.roboto()),
+        backgroundColor: primaryColor,
         foregroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
         actions: [
           IconButton(
             onPressed: _cargarDetalleBrigada,
             icon: _isLoading
-                ? const SizedBox(
+                ? SizedBox(
                     width: 20,
                     height: 20,
                     child: CircularProgressIndicator(
@@ -118,10 +122,25 @@ class _DetalleBrigadaScreenState extends State<DetalleBrigadaScreen> {
                       color: Colors.white,
                     ),
                   )
-                : const Icon(Icons.refresh),
+                : Icon(Icons.refresh),
             tooltip: 'Actualizar',
           ),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1.0),
+          child: Container(
+            height: 1.0,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.white,
+                  primaryColor,
+                  Colors.white,
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
       body: _buildBody(),
     );
@@ -129,7 +148,7 @@ class _DetalleBrigadaScreenState extends State<DetalleBrigadaScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -151,16 +170,16 @@ class _DetalleBrigadaScreenState extends State<DetalleBrigadaScreen> {
               size: 64,
               color: Colors.red.shade300,
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             Text(
               _errorMessage,
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.red.shade600),
+              style: GoogleFonts.roboto(color: Colors.red.shade600),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             ElevatedButton(
               onPressed: _cargarDetalleBrigada,
-              child: const Text('Reintentar'),
+              child: Text('Reintentar'),
             ),
           ],
         ),
@@ -168,7 +187,7 @@ class _DetalleBrigadaScreenState extends State<DetalleBrigadaScreen> {
     }
 
     if (_brigada == null) {
-      return const Center(
+      return Center(
         child: Text('Brigada no encontrada'),
       );
     }
@@ -179,7 +198,7 @@ class _DetalleBrigadaScreenState extends State<DetalleBrigadaScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           _buildInfoBrigada(),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           _buildPacientesSection(),
         ],
       ),
@@ -190,6 +209,10 @@ class _DetalleBrigadaScreenState extends State<DetalleBrigadaScreen> {
     final formatter = DateFormat('dd/MM/yyyy');
     
     return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15.0),
+        side: BorderSide(color: primaryColor.withOpacity(0.2), width: 1),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -199,13 +222,13 @@ class _DetalleBrigadaScreenState extends State<DetalleBrigadaScreen> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.medical_services, color: Colors.green),
-                const SizedBox(width: 8),
+                Icon(Icons.medical_services, color: primaryColor),
+                SizedBox(width: 8),
                 // 🆕 Título expandible que puede ocupar múltiples líneas
                 Expanded(
                   child: Text(
                     'Información de la Brigada',
-                    style: const TextStyle(
+                    style: GoogleFonts.roboto(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
@@ -216,7 +239,7 @@ class _DetalleBrigadaScreenState extends State<DetalleBrigadaScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 12), // 🆕 Espaciado entre título y badge
+            SizedBox(height: 12), // 🆕 Espaciado entre título y badge
             
             // 🆕 Badge de sincronización abajo del título, alineado a la derecha
             Row(
@@ -229,19 +252,19 @@ class _DetalleBrigadaScreenState extends State<DetalleBrigadaScreen> {
                   ),
                   decoration: BoxDecoration(
                     color: _brigada!.syncStatus == 1 
-                        ? Colors.green.shade100 
+                        ? primaryColor.withOpacity(0.1) 
                         : Colors.orange.shade100,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: _brigada!.syncStatus == 1 
-                          ? Colors.green.shade300 
+                          ? primaryColor.withOpacity(0.4) 
                           : Colors.orange.shade300,
                       width: 1,
                     ),
                     boxShadow: [
                       BoxShadow(
                         color: (_brigada!.syncStatus == 1 
-                            ? Colors.green 
+                            ? primaryColor 
                             : Colors.orange).withOpacity(0.1),
                         blurRadius: 4,
                         offset: const Offset(0, 2),
@@ -257,16 +280,16 @@ class _DetalleBrigadaScreenState extends State<DetalleBrigadaScreen> {
                             : Icons.cloud_upload_rounded,
                         size: 14,
                         color: _brigada!.syncStatus == 1 
-                            ? Colors.green.shade700 
+                            ? primaryColor 
                             : Colors.orange.shade700,
                       ),
-                      const SizedBox(width: 4),
+                      SizedBox(width: 4),
                       Text(
                         _brigada!.syncStatus == 1 ? 'Sincronizada' : 'Pendiente',
-                        style: TextStyle(
+                        style: GoogleFonts.roboto(
                           fontSize: 11,
                           color: _brigada!.syncStatus == 1 
-                              ? Colors.green.shade700 
+                              ? primaryColor 
                               : Colors.orange.shade700,
                           fontWeight: FontWeight.w600,
                         ),
@@ -277,7 +300,7 @@ class _DetalleBrigadaScreenState extends State<DetalleBrigadaScreen> {
               ],
             ),
             
-            const SizedBox(height: 16), // 🆕 Espaciado antes del contenido
+            SizedBox(height: 16), // 🆕 Espaciado antes del contenido
             
             _buildInfoRow('Tema', _brigada!.tema),
             _buildInfoRow('Lugar', _brigada!.lugarEvento),
@@ -306,7 +329,7 @@ class _DetalleBrigadaScreenState extends State<DetalleBrigadaScreen> {
             width: 120,
             child: Text(
               '$label:',
-              style: const TextStyle(
+              style: GoogleFonts.roboto(
                 fontWeight: FontWeight.w500,
                 color: Colors.grey,
               ),
@@ -315,7 +338,7 @@ class _DetalleBrigadaScreenState extends State<DetalleBrigadaScreen> {
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(fontSize: 14),
+              style: GoogleFonts.roboto(fontSize: 14),
             ),
           ),
         ],
@@ -325,6 +348,10 @@ class _DetalleBrigadaScreenState extends State<DetalleBrigadaScreen> {
 
   Widget _buildPacientesSection() {
     return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15.0),
+        side: BorderSide(color: primaryColor.withOpacity(0.2), width: 1),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -332,18 +359,18 @@ class _DetalleBrigadaScreenState extends State<DetalleBrigadaScreen> {
           children: [
             Row(
               children: [
-                const Icon(Icons.group, color: Colors.blue),
-                const SizedBox(width: 8),
+                Icon(Icons.group, color: Colors.blue),
+                SizedBox(width: 8),
                 Text(
                   'Pacientes Asignados (${_pacientes.length})',
-                  style: const TextStyle(
+                  style: GoogleFonts.roboto(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             
             if (_pacientes.isEmpty)
               Container(
@@ -352,7 +379,7 @@ class _DetalleBrigadaScreenState extends State<DetalleBrigadaScreen> {
                   color: Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Center(
+                child: Center(
                   child: Column(
                     children: [
                       Icon(
@@ -363,7 +390,7 @@ class _DetalleBrigadaScreenState extends State<DetalleBrigadaScreen> {
                       SizedBox(height: 8),
                       Text(
                         'No hay pacientes asignados a esta brigada',
-                        style: TextStyle(color: Colors.grey),
+                        style: GoogleFonts.roboto(color: Colors.grey),
                       ),
                     ],
                   ),
@@ -383,6 +410,10 @@ class _DetalleBrigadaScreenState extends State<DetalleBrigadaScreen> {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15.0),
+        side: BorderSide(color: primaryColor.withOpacity(0.2), width: 1),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -394,27 +425,27 @@ class _DetalleBrigadaScreenState extends State<DetalleBrigadaScreen> {
                   backgroundColor: Colors.blue.shade100,
                   child: Text(
                     paciente.nombre[0].toUpperCase(),
-                    style: TextStyle(
+                    style: GoogleFonts.roboto(
                       color: Colors.blue.shade700,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         paciente.nombreCompleto,
-                        style: const TextStyle(
+                        style: GoogleFonts.roboto(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
                         'ID: ${paciente.identificacion} | ${paciente.genero}',
-                        style: TextStyle(
+                        style: GoogleFonts.roboto(
                           fontSize: 12,
                           color: Colors.grey.shade600,
                         ),
@@ -424,24 +455,24 @@ class _DetalleBrigadaScreenState extends State<DetalleBrigadaScreen> {
                 ),
                 IconButton(
                   onPressed: () => _asignarMedicamentosAPaciente(paciente),
-                  icon: const Icon(Icons.medication),
+                  icon: Icon(Icons.medication),
                   tooltip: 'Asignar medicamentos',
                   style: IconButton.styleFrom(
-                    backgroundColor: Colors.green.shade50,
-                    foregroundColor: Colors.green.shade700,
+                    backgroundColor: primaryColor.withOpacity(0.05),
+                    foregroundColor: primaryColor,
                   ),
                 ),
               ],
             ),
             
             if (medicamentos.isNotEmpty) ...[
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.green.shade50,
+                  color: primaryColor.withOpacity(0.05),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.green.shade200),
+                  border: Border.all(color: primaryColor.withOpacity(0.2)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -451,33 +482,33 @@ class _DetalleBrigadaScreenState extends State<DetalleBrigadaScreen> {
                         Icon(
                           Icons.medication,
                           size: 16,
-                          color: Colors.green.shade700,
+                          color: primaryColor,
                         ),
-                        const SizedBox(width: 8),
+                        SizedBox(width: 8),
                         Text(
                           '${medicamentos.length} medicamentos asignados:',
-                          style: TextStyle(
+                          style: GoogleFonts.roboto(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
-                            color: Colors.green.shade700,
+                            color: primaryColor,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8),
                     ...medicamentos.map((med) => Padding(
                       padding: const EdgeInsets.symmetric(vertical: 2),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('• ', style: TextStyle(fontSize: 12)),
+                          Text('• ', style: GoogleFonts.roboto(fontSize: 12)),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
                                   med['nombmedicamento'] ?? '',
-                                  style: const TextStyle(
+                                  style: GoogleFonts.roboto(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -485,7 +516,7 @@ class _DetalleBrigadaScreenState extends State<DetalleBrigadaScreen> {
                                 if (med['dosis'] != null && med['dosis'].toString().isNotEmpty)
                                   Text(
                                     'Dosis: ${med['dosis']}',
-                                    style: TextStyle(
+                                    style: GoogleFonts.roboto(
                                       fontSize: 10,
                                       color: Colors.grey.shade600,
                                     ),
@@ -493,7 +524,7 @@ class _DetalleBrigadaScreenState extends State<DetalleBrigadaScreen> {
                                 if (med['cantidad'] != null)
                                   Text(
                                     'Cantidad: ${med['cantidad']}',
-                                    style: TextStyle(
+                                    style: GoogleFonts.roboto(
                                       fontSize: 10,
                                       color: Colors.grey.shade600,
                                     ),
@@ -501,7 +532,7 @@ class _DetalleBrigadaScreenState extends State<DetalleBrigadaScreen> {
                                 if (med['indicaciones'] != null && med['indicaciones'].toString().isNotEmpty)
                                   Text(
                                     'Indicaciones: ${med['indicaciones']}',
-                                    style: TextStyle(
+                                    style: GoogleFonts.roboto(
                                       fontSize: 10,
                                       color: Colors.grey.shade600,
                                       fontStyle: FontStyle.italic,
@@ -517,7 +548,7 @@ class _DetalleBrigadaScreenState extends State<DetalleBrigadaScreen> {
                 ),
               ),
             ] else ...[
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -532,10 +563,10 @@ class _DetalleBrigadaScreenState extends State<DetalleBrigadaScreen> {
                       size: 16,
                       color: Colors.orange.shade700,
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8),
                     Text(
                       'Sin medicamentos asignados',
-                      style: TextStyle(
+                      style: GoogleFonts.roboto(
                         fontSize: 12,
                         color: Colors.orange.shade700,
                       ),
@@ -543,7 +574,7 @@ class _DetalleBrigadaScreenState extends State<DetalleBrigadaScreen> {
                     const Spacer(),
                     TextButton(
                       onPressed: () => _asignarMedicamentosAPaciente(paciente),
-                      child: const Text('Asignar', style: TextStyle(fontSize: 12)),
+                      child: Text('Asignar', style: GoogleFonts.roboto(fontSize: 12)),
                     ),
                   ],
                 ),

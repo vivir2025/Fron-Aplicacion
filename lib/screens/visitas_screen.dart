@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../providers/auth_provider.dart';
 import '../services/sincronizacion_service.dart';
 import '../api/api_service.dart';
@@ -19,26 +20,42 @@ class _VisitasScreenState extends State<VisitasScreen> {
 
   ThemeData get customTheme => ThemeData(
     primarySwatch: Colors.green,
-    colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2E7D32)),
-    appBarTheme: const AppBarTheme(
-      backgroundColor: Color(0xFF2E7D32),
+    colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1B5E20)),
+    scaffoldBackgroundColor: const Color(0xFFF0F4F8),
+    textTheme: GoogleFonts.robotoTextTheme(),
+    appBarTheme: AppBarTheme(
+      backgroundColor: const Color(0xFF1B5E20),
       foregroundColor: Colors.white,
       centerTitle: true,
-      elevation: 4,
+      elevation: 0,
+      titleTextStyle: GoogleFonts.roboto(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        color: Colors.white,
+      ),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ButtonStyle(
-        backgroundColor: MaterialStateProperty.all(Color(0xFF388E3C)),
+        backgroundColor: MaterialStateProperty.all(const Color(0xFF1B5E20)),
+        foregroundColor: MaterialStateProperty.all(Colors.white),
+        elevation: MaterialStateProperty.all(0),
         shape: MaterialStateProperty.all(
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        textStyle: MaterialStateProperty.all(
+          GoogleFonts.roboto(fontWeight: FontWeight.w600, fontSize: 15)
         ),
         minimumSize: MaterialStateProperty.all(const Size.fromHeight(48)),
       ),
     ),
-    cardTheme: const CardThemeData(
-      elevation: 3,
-      margin: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(14))),
+    cardTheme: CardThemeData(
+      elevation: 0,
+      color: Colors.white,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: const Color(0xFF1B5E20).withOpacity(0.15), width: 1.5),
+      ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       border: OutlineInputBorder(
@@ -184,11 +201,56 @@ Future<void> _sincronizarManualmente() async {
                 onPressed: _isLoading ? null : _sincronizarManualmente,
               ),
             ],
-            bottom: const TabBar(
-              tabs: [
-                Tab(icon: Icon(Icons.list), text: 'Listado'),
-                Tab(icon: Icon(Icons.add), text: 'Nueva Visita'),
-              ],
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(70),
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: TabBar(
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  dividerColor: Colors.transparent,
+                  indicator: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(30),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  labelColor: const Color(0xFF1B5E20),
+                  unselectedLabelColor: Colors.white,
+                  labelStyle: GoogleFonts.roboto(fontWeight: FontWeight.w700, fontSize: 14),
+                  unselectedLabelStyle: GoogleFonts.roboto(fontWeight: FontWeight.w500, fontSize: 14),
+                  tabs: const [
+                    Tab(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.list_alt, size: 20), 
+                          SizedBox(width: 8), 
+                          Text('Listado')
+                        ],
+                      ),
+                    ),
+                    Tab(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.add_circle_outline, size: 20), 
+                          SizedBox(width: 8), 
+                          Text('Nueva Visita')
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
           body: TabBarView(

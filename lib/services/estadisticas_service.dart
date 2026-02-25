@@ -25,9 +25,6 @@ class EstadisticasService {
     DateTime? fechaFin,
   }) async {
     try {
-      print('🌐 Intentando obtener estadísticas desde API...');
-      print('🔑 Token: ${token.substring(0, 20)}...');
-      
       // Construir URL con parámetros de fecha si existen
       String url = '$baseUrl/estadisticas';
       
@@ -35,7 +32,6 @@ class EstadisticasService {
         final inicio = DateFormat('yyyy-MM-dd').format(fechaInicio);
         final fin = DateFormat('yyyy-MM-dd').format(fechaFin);
         url += '?fecha_inicio=$inicio&fecha_fin=$fin';
-        print('📅 Filtro de fechas: $inicio a $fin');
       }
       
       final response = await http.get(
@@ -47,9 +43,6 @@ class EstadisticasService {
         },
       ).timeout(timeoutDuration);
 
-      print('📡 Status Code: ${response.statusCode}');
-      print('📄 Response Body: ${response.body}');
-
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
         
@@ -57,15 +50,29 @@ class EstadisticasService {
         if (jsonData['success'] == true && jsonData['data'] != null) {
           final data = jsonData['data'];
           
-          // ✅ CONVERTIR CORRECTAMENTE A ENTEROS
+          // � LOG SIMPLE DE DATOS RECIBIDOS
+          // ⚠️ DETECTAR DATOS SOSPECHOSOS
+          final pacientes = _toInt(data['total_pacientes']);
+          final visitas = _toInt(data['total_visitas']);
+          final rol = data['usuario']?['rol'] ?? '';
+          
+          if (rol == 'aux' && (pacientes > 100 || visitas > 200)) {
+          }
+          
+          // ✅ CONVERTIR Y RETORNAR
           return {
-            'pacientes': _toInt(data['total_pacientes'] ?? data['pacientes']),
-            'visitas': _toInt(data['total_visitas'] ?? data['visitas']),
+            'pacientes': pacientes,
+            'brigadas': _toInt(data['total_brigadas'] ?? data['brigadas'] ?? 0),
+            'visitas': visitas,
+            'tamizajes': _toInt(data['total_tamizajes'] ?? data['tamizajes'] ?? 0),
             'laboratorios': _toInt(data['total_laboratorios'] ?? data['total_envio_muestras'] ?? data['laboratorios']),
             'encuestas': _toInt(data['total_encuestas'] ?? data['encuestas']),
             'visitas_mes': _toInt(data['visitas_mes']),
             'laboratorios_mes': _toInt(data['laboratorios_mes']),
             'fecha_consulta': data['fecha_consulta'] ?? DateTime.now().toIso8601String(),
+            'filtros_aplicados': data['filtros_aplicados'],
+            'usuario_backend': data['usuario'],
+            'datos_sospechosos': (rol == 'aux' && (pacientes > 100 || visitas > 200)),
           };
         } else {
           throw Exception('Respuesta de API inválida: ${jsonData['message'] ?? 'Sin mensaje'}');
@@ -82,13 +89,10 @@ class EstadisticasService {
         throw Exception('Error HTTP ${response.statusCode}: ${response.body}');
       }
     } on http.ClientException catch (e) {
-      print('❌ Error de cliente HTTP: $e');
       throw Exception('Error de conexión: Verifica tu conexión a internet');
     } on FormatException catch (e) {
-      print('❌ Error de formato JSON: $e');
       throw Exception('Error al procesar la respuesta del servidor');
     } catch (e) {
-      print('❌ Error obteniendo estadísticas desde API: $e');
       if (e.toString().contains('TimeoutException')) {
         throw Exception('Tiempo de espera agotado. Intenta nuevamente');
       }
@@ -116,13 +120,11 @@ class EstadisticasService {
       // Obtener el usuario logueado para filtrar por ID
       final usuario = await db.getLoggedInUser();
       final usuarioId = usuario?['id'];
+      final usuarioNombre = usuario?['nombre'];
       
       if (usuarioId == null) {
-        print('⚠️ No hay usuario logueado, retornando estadísticas por defecto');
         return _getEstadisticasPorDefecto();
       }
-      
-      print('📊 Obteniendo estadísticas locales para usuario: $usuarioId');
       
       // Formatear fechas para consultas SQL si existen
       String? fechaInicioStr;
@@ -131,7 +133,6 @@ class EstadisticasService {
       if (fechaInicio != null && fechaFin != null) {
         fechaInicioStr = DateFormat('yyyy-MM-dd').format(fechaInicio);
         fechaFinStr = DateFormat('yyyy-MM-dd 23:59:59').format(fechaFin);
-        print('📅 Filtro de fechas local: $fechaInicioStr a $fechaFinStr');
       }
       
       // Estadísticas filtradas por usuario y opcionalmente por fecha
@@ -161,18 +162,17 @@ class EstadisticasService {
         fechaFin: fechaFinStr,
       );
       
-      print('✅ Estadísticas locales obtenidas exitosamente');
-      
       return {
         'pacientes': pacientesCount,
+        'brigadas': 0, // No disponible localmente
         'visitas': visitasCount,
+        'tamizajes': 0, // No disponible localmente
         'laboratorios': laboratoriosCount,
         'encuestas': encuestasCount,
         'visitas_mes': 0, // No disponible localmente
         'laboratorios_mes': 0, // No disponible localmente
       };
     } catch (e) {
-      print('❌ Error obteniendo estadísticas locales: $e');
       return _getEstadisticasPorDefecto();
     }
   }
@@ -196,7 +196,6 @@ class EstadisticasService {
     try {
       // Intentar obtener desde API si hay token
       if (token != null && token.isNotEmpty) {
-        print('🌐 Intentando obtener estadísticas desde API...');
         final estadisticasApi = await getEstadisticasDesdeApi(
           token,
           fechaInicio: fechaInicio,
@@ -210,11 +209,9 @@ class EstadisticasService {
         };
       }
     } catch (e) {
-      print('⚠️ Error obteniendo estadísticas de API, usando datos locales: $e');
     }
     
     // Fallback a datos locales
-    print('💾 Obteniendo estadísticas desde base de datos local...');
     final estadisticasLocales = await getEstadisticasLocales(
       fechaInicio: fechaInicio,
       fechaFin: fechaFin,
@@ -244,7 +241,9 @@ class EstadisticasService {
   static Map<String, int> _getEstadisticasPorDefecto() {
     return {
       'pacientes': 0,
+      'brigadas': 0,
       'visitas': 0,
+      'tamizajes': 0,
       'laboratorios': 0,
       'encuestas': 0,
       'visitas_mes': 0,
@@ -282,7 +281,6 @@ class EstadisticasService {
       
       return response.statusCode == 200;
     } catch (e) {
-      print('⚠️ API no disponible: $e');
       return false;
     }
   }

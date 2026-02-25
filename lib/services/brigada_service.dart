@@ -21,7 +21,6 @@ class BrigadaService {
       // 1. Guardar localmente
       final savedLocally = await dbHelper.createBrigada(brigada);
       if (!savedLocally) {
-        debugPrint('❌ No se pudo guardar brigada localmente');
         return false;
       }
       
@@ -29,8 +28,6 @@ class BrigadaService {
       if (pacientesIds.isNotEmpty) {
         await dbHelper.asignarPacientesABrigada(brigada.id, pacientesIds);
       }
-      
-      debugPrint('✅ Brigada y relaciones guardadas localmente');
       
       // 3. Intentar sincronizar con servidor si hay token
       if (token != null) {
@@ -66,8 +63,6 @@ class BrigadaService {
               medicamentosPorPaciente: medicamentosPorPaciente,
             );
             
-            debugPrint('📤 Creando brigada en servidor: ${jsonEncode(brigadaData)}');
-            
             final response = await http.post(
               Uri.parse('$baseUrl/brigadas'),
               headers: {
@@ -78,25 +73,18 @@ class BrigadaService {
               body: jsonEncode(brigadaData),
             ).timeout(const Duration(seconds: 30));
             
-            debugPrint('📥 Respuesta: ${response.statusCode} - ${response.body}');
-            
             if (response.statusCode == 200 || response.statusCode == 201) {
               await dbHelper.marcarBrigadaComoSincronizada(brigada.id);
-              debugPrint('✅ Brigada sincronizada con servidor incluyendo medicamentos');
               return true;
             } else {
-              debugPrint('❌ Error del servidor: ${response.statusCode}');
-              debugPrint('📄 Respuesta: ${response.body}');
             }
           }
         } catch (e) {
-          debugPrint('⚠️ Error al sincronizar: $e');
         }
       }
       
       return true; // Éxito si se guardó localmente
     } catch (e) {
-      debugPrint('💥 Error al crear brigada: $e');
       return false;
     }
   }
@@ -106,8 +94,6 @@ class BrigadaService {
   // Subir brigada al servidor
   static Future<Map<String, dynamic>?> _subirBrigadaAlServidor(Brigada brigada, String token) async {
     try {
-      debugPrint('📤 Enviando brigada al servidor...');
-      
       final response = await http.post(
         Uri.parse('$baseUrl/brigadas'),
         headers: {
@@ -118,19 +104,13 @@ class BrigadaService {
         body: jsonEncode(brigada.toServerJson()),
       ).timeout(const Duration(seconds: 30));
       
-      debugPrint('📥 Respuesta del servidor: ${response.statusCode}');
-      
       if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = jsonDecode(response.body);
-        debugPrint('✅ Brigada creada exitosamente en servidor');
         return responseData;
       } else {
-        debugPrint('❌ Error del servidor: ${response.statusCode}');
-        debugPrint('📄 Respuesta: ${response.body}');
         return null;
       }
     } catch (e) {
-      debugPrint('💥 Excepción al subir brigada: $e');
       return null;
     }
   }
@@ -148,11 +128,8 @@ class BrigadaService {
       final savedLocally = await dbHelper.asignarPacientesABrigada(brigadaId, pacientesIds);
       
       if (!savedLocally) {
-        debugPrint('❌ No se pudieron asignar pacientes localmente');
         return false;
       }
-      
-      debugPrint('✅ Pacientes asignados localmente');
       
       // 2. Intentar sincronizar con servidor
       if (token != null) {
@@ -163,13 +140,11 @@ class BrigadaService {
                         await _sincronizarAsignacionPacientes(brigadaId, pacientesIds, token);
           }
         } catch (e) {
-          debugPrint('⚠️ Error al sincronizar asignación: $e');
         }
       }
       
       return true;
     } catch (e) {
-      debugPrint('💥 Error al asignar pacientes: $e');
       return false;
     }
   }
@@ -188,10 +163,8 @@ class BrigadaService {
       ).timeout(const Duration(seconds: 30));
       
       if (response.statusCode == 200) {
-        debugPrint('✅ Asignación de pacientes sincronizada con servidor');
       }
     } catch (e) {
-      debugPrint('❌ Error sincronizando asignación de pacientes: $e');
     }
   }
 
@@ -245,17 +218,14 @@ class BrigadaService {
             ).timeout(const Duration(seconds: 30));
             
             if (response.statusCode == 200) {
-              debugPrint('✅ Medicamentos sincronizados con servidor');
             }
           }
         } catch (e) {
-          debugPrint('⚠️ Error sincronizando medicamentos: $e');
         }
       }
       
       return true;
     } catch (e) {
-      debugPrint('💥 Error asignando medicamentos: $e');
       return false;
     }
   }
@@ -279,26 +249,20 @@ class BrigadaService {
       ).timeout(const Duration(seconds: 30));
       
       if (response.statusCode == 200) {
-        debugPrint('✅ Medicamentos de paciente sincronizados con servidor');
       }
     } catch (e) {
-      debugPrint('❌ Error sincronizando medicamentos de paciente: $e');
     }
   }
 
 // services/brigada_service.dart - MÉTODO CORREGIDO
 static Future<Map<String, dynamic>> sincronizarBrigadasPendientes(String token) async {
   try {
-    debugPrint('🔄 Iniciando sincronización de brigadas pendientes...');
-    
     final dbHelper = DatabaseHelper.instance;
     final brigadasPendientes = await dbHelper.getBrigadasNoSincronizadas();
     
     int exitosas = 0;
     int fallidas = 0;
     List<String> errores = [];
-    
-    debugPrint('📊 Sincronizando ${brigadasPendientes.length} brigadas pendientes...');
     
     // Verificar conectividad
     final hasConnection = await ApiService.verificarConectividad();
@@ -308,8 +272,6 @@ static Future<Map<String, dynamic>> sincronizarBrigadasPendientes(String token) 
     
     for (final brigada in brigadasPendientes) {
       try {
-        debugPrint('🔄 Sincronizando brigada ${brigada.id}...');
-        
         // 🆕 OBTENER MEDICAMENTOS DE CADA PACIENTE
         Map<String, List<Map<String, dynamic>>> medicamentosPorPaciente = {};
         
@@ -332,7 +294,6 @@ static Future<Map<String, dynamic>> sincronizarBrigadasPendientes(String token) 
               }).toList();
               
               medicamentosPorPaciente[pacienteId] = medicamentosLimpios;
-              debugPrint('💊 Paciente $pacienteId tiene ${medicamentosLimpios.length} medicamentos');
             }
           }
         }
@@ -341,8 +302,6 @@ static Future<Map<String, dynamic>> sincronizarBrigadasPendientes(String token) 
         final brigadaData = brigada.toServerJson(
           medicamentosPorPaciente: medicamentosPorPaciente,
         );
-        
-        debugPrint('📤 Enviando al servidor: ${jsonEncode(brigadaData)}');
         
         // 2. Subir brigada completa al servidor
         final response = await http.post(
@@ -355,21 +314,16 @@ static Future<Map<String, dynamic>> sincronizarBrigadasPendientes(String token) 
           body: jsonEncode(brigadaData),
         ).timeout(const Duration(seconds: 30));
         
-        debugPrint('📥 Respuesta del servidor: ${response.statusCode}');
-        debugPrint('📄 Cuerpo de respuesta: ${response.body}');
-        
         // 🔧 VERIFICAR CORRECTAMENTE LA RESPUESTA
         if (response.statusCode == 200 || response.statusCode == 201) {
           // ✅ Solo marcar como sincronizada si el servidor respondió OK
           await dbHelper.marcarBrigadaComoSincronizada(brigada.id);
           exitosas++;
-          debugPrint('✅ Brigada ${brigada.id} sincronizada exitosamente con medicamentos');
         } else {
           // ❌ Error del servidor - NO marcar como sincronizada
           fallidas++;
           String errorMsg = 'Servidor respondió con error ${response.statusCode}: ${response.body}';
           errores.add(errorMsg);
-          debugPrint('❌ $errorMsg');
         }
         
         // Pausa entre sincronizaciones
@@ -379,16 +333,12 @@ static Future<Map<String, dynamic>> sincronizarBrigadasPendientes(String token) 
         fallidas++;
         String errorMsg = 'Error en brigada ${brigada.id}: $e';
         errores.add(errorMsg);
-        debugPrint('💥 $errorMsg');
       }
     }
     
     if (exitosas > 0) {
-      debugPrint('🎉 $exitosas brigadas sincronizadas exitosamente');
     }
     if (fallidas > 0) {
-      debugPrint('⚠️ $fallidas brigadas fallaron en la sincronización');
-      debugPrint('📝 Errores: ${errores.join(', ')}');
     }
     
     return {
@@ -399,7 +349,6 @@ static Future<Map<String, dynamic>> sincronizarBrigadasPendientes(String token) 
     };
     
   } catch (e) {
-    debugPrint('💥 Error en sincronización de brigadas: $e');
     return {
       'exitosas': 0,
       'fallidas': 1,
@@ -413,8 +362,6 @@ static Future<Map<String, dynamic>> sincronizarBrigadasPendientes(String token) 
   // Obtener brigadas desde servidor
   static Future<List<Brigada>> obtenerBrigadasDesdeServidor(String token) async {
     try {
-      debugPrint('📥 Obteniendo brigadas desde servidor...');
-      
       final response = await http.get(
         Uri.parse('$baseUrl/brigadas'),
         headers: {
@@ -435,15 +382,11 @@ static Future<Map<String, dynamic>> sincronizarBrigadasPendientes(String token) 
         }
 
         final brigadas = brigadasData.map((data) => Brigada.fromJson(data)).toList();
-        debugPrint('✅ ${brigadas.length} brigadas obtenidas desde servidor');
-        
         return brigadas;
       } else {
-        debugPrint('❌ Error del servidor: ${response.statusCode}');
         return [];
       }
     } catch (e) {
-      debugPrint('❌ Error obteniendo brigadas: $e');
       return [];
     }
   }
@@ -457,11 +400,8 @@ static Future<Map<String, dynamic>> sincronizarBrigadasPendientes(String token) 
       final deletedLocally = await dbHelper.deleteBrigada(brigadaId);
       
       if (!deletedLocally) {
-        debugPrint('❌ No se pudo eliminar brigada localmente');
         return false;
       }
-      
-      debugPrint('✅ Brigada eliminada localmente');
       
       // 2. Intentar eliminar del servidor
       if (token != null) {
@@ -478,17 +418,14 @@ static Future<Map<String, dynamic>> sincronizarBrigadasPendientes(String token) 
             ).timeout(const Duration(seconds: 30));
             
             if (response.statusCode == 200) {
-              debugPrint('✅ Brigada eliminada del servidor');
             }
           }
         } catch (e) {
-          debugPrint('⚠️ Error al eliminar del servidor: $e');
         }
       }
       
       return true;
     } catch (e) {
-      debugPrint('💥 Error al eliminar brigada: $e');
       return false;
     }
   }

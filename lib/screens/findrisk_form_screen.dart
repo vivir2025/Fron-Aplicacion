@@ -1,9 +1,12 @@
 // screens/findrisk/findrisk_form_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../models/paciente_model.dart';
 import '../../services/findrisk_service.dart';
 import '../../database/database_helper.dart';
+
+const Color primaryColor = Color(0xFF1B5E20);
 
 class FindriskFormScreen extends StatefulWidget {
   const FindriskFormScreen({Key? key}) : super(key: key);
@@ -44,7 +47,7 @@ class _FindriskFormScreenState extends State<FindriskFormScreen> {
   bool _isLoading = false;
   bool _buscandoPaciente = false;
   double _imc = 0;
-  int _puntajeCalculado = 0;
+  int _puntajeCalculado = 0; // Se mantiene por si se usará
 
   @override
   void initState() {
@@ -69,7 +72,6 @@ class _FindriskFormScreenState extends State<FindriskFormScreen> {
         }
       });
     } catch (e) {
-      debugPrint('Error cargando sedes: $e');
     }
   }
 
@@ -88,45 +90,77 @@ class _FindriskFormScreenState extends State<FindriskFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF0F4F8),
       appBar: AppBar(
-        title: const Text('Nuevo Test FINDRISK'),
-        backgroundColor: Colors.blue[700],
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            'Nuevo Test FINDRISK',
+            style: GoogleFonts.roboto(fontWeight: FontWeight.w600, color: Colors.white),
+          ),
+        ),
+        backgroundColor: primaryColor,
         foregroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
         actions: [
           if (_currentPage > 0)
             IconButton(
-              icon: const Icon(Icons.arrow_back),
+              icon: Icon(Icons.arrow_back),
               onPressed: _previousPage,
             ),
         ],
       ),
-      body: Form(
-        key: _formKey,
-        child: Column(
-          children: [
-            // Indicador de progreso
-            _buildProgressIndicator(),
-            
-            // Contenido de las páginas
-            Expanded(
-              child: PageView(
-                controller: _pageController,
-                physics: const NeverScrollableScrollPhysics(),
-                onPageChanged: (index) {
-                  setState(() => _currentPage = index);
-                },
-                children: [
-                  _buildPage1(), // Datos del paciente
-                  _buildPage2(), // Preguntas 1-3
-                  _buildPage3(), // Datos físicos
-                  _buildPage4(), // Antecedentes y finalización
-                ],
-              ),
+      body: Theme(
+        data: Theme.of(context).copyWith(
+          primaryColor: primaryColor,
+          colorScheme: ColorScheme.fromSeed(seedColor: primaryColor),
+          inputDecorationTheme: InputDecorationTheme(
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey[300]!),
             ),
-            
-            // Botones de navegación
-            _buildNavigationButtons(),
-          ],
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            focusedBorder: const OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(8)),
+              borderSide: BorderSide(color: primaryColor, width: 2),
+            ),
+            floatingLabelStyle: const TextStyle(color: primaryColor),
+          ),
+        ),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              // Indicador de progreso
+              _buildProgressIndicator(),
+              
+              // Contenido de las páginas
+              Expanded(
+                child: PageView(
+                  controller: _pageController,
+                  physics: const NeverScrollableScrollPhysics(),
+                  onPageChanged: (index) {
+                    setState(() => _currentPage = index);
+                  },
+                  children: [
+                    _buildPage1(), // Datos del paciente
+                    _buildPage2(), // Preguntas 1-3
+                    _buildPage3(), // Datos físicos
+                    _buildPage4(), // Antecedentes y finalización
+                  ],
+                ),
+              ),
+              
+              // Botones de navegación
+              _buildNavigationButtons(),
+            ],
+          ),
         ),
       ),
     );
@@ -142,7 +176,7 @@ class _FindriskFormScreenState extends State<FindriskFormScreen> {
               height: 4,
               margin: EdgeInsets.only(right: index < 3 ? 8 : 0),
               decoration: BoxDecoration(
-                color: index <= _currentPage ? Colors.blue[700] : Colors.grey[300],
+                color: index <= _currentPage ? primaryColor : Colors.grey[300],
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -159,11 +193,11 @@ class _FindriskFormScreenState extends State<FindriskFormScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Datos del Paciente',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            style: GoogleFonts.roboto(fontSize: 24, fontWeight: FontWeight.bold, color: primaryColor),
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: 20),
           
           // Búsqueda de paciente
           TextFormField(
@@ -173,7 +207,7 @@ class _FindriskFormScreenState extends State<FindriskFormScreen> {
               hintText: 'Ingrese el número de identificación',
               prefixIcon: const Icon(Icons.search),
               suffixIcon: _buscandoPaciente
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
@@ -195,7 +229,7 @@ class _FindriskFormScreenState extends State<FindriskFormScreen> {
             onFieldSubmitted: (_) => _buscarPaciente(),
           ),
           
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           
           // Información del paciente encontrado
           if (_pacienteSeleccionado != null) ...[
@@ -212,22 +246,22 @@ class _FindriskFormScreenState extends State<FindriskFormScreen> {
                   Row(
                     children: [
                       Icon(Icons.check_circle, color: Colors.green[600]),
-                      const SizedBox(width: 8),
-                      const Text(
+                      SizedBox(width: 8),
+                      Text(
                         'Paciente Encontrado',
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                        style: GoogleFonts.roboto(fontWeight: FontWeight.bold, color: Colors.green[800]),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  Text('Nombre: ${_pacienteSeleccionado!.nombreCompleto}'),
-                  Text('Género: ${_pacienteSeleccionado!.genero}'),
-                  Text('Fecha de nacimiento: ${_formatDate(_pacienteSeleccionado!.fecnacimiento)}'),
-                  Text('Edad: ${_calcularEdad(_pacienteSeleccionado!.fecnacimiento)} años'),
+                  SizedBox(height: 8),
+                  Text('Nombre: ${_pacienteSeleccionado!.nombreCompleto}', style: GoogleFonts.roboto(fontSize: 15)),
+                  Text('Género: ${_pacienteSeleccionado!.genero}', style: GoogleFonts.roboto(fontSize: 15)),
+                  Text('Fecha de nacimiento: ${_formatDate(_pacienteSeleccionado!.fecnacimiento)}', style: GoogleFonts.roboto(fontSize: 15)),
+                  Text('Edad: ${_calcularEdad(_pacienteSeleccionado!.fecnacimiento)} años', style: GoogleFonts.roboto(fontSize: 15, fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
           ],
           
           // Selección de sede
@@ -255,7 +289,7 @@ class _FindriskFormScreenState extends State<FindriskFormScreen> {
             },
           ),
           
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           
           // Campos opcionales
           TextFormField(
@@ -267,7 +301,7 @@ class _FindriskFormScreenState extends State<FindriskFormScreen> {
             ),
           ),
           
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           
           TextFormField(
             controller: _telefonoController,
@@ -290,11 +324,11 @@ class _FindriskFormScreenState extends State<FindriskFormScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Preguntas de Evaluación',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            style: GoogleFonts.roboto(fontSize: 24, fontWeight: FontWeight.bold, color: primaryColor),
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: 20),
           
           // Pregunta 1: Actividad física
           _buildQuestionCard(
@@ -307,7 +341,7 @@ class _FindriskFormScreenState extends State<FindriskFormScreen> {
             (value) => setState(() => _actividadFisica = value),
           ),
           
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           
           // Pregunta 2: Medicamentos
           _buildQuestionCard(
@@ -320,7 +354,7 @@ class _FindriskFormScreenState extends State<FindriskFormScreen> {
             (value) => setState(() => _medicamentosHipertension = value),
           ),
           
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           
           // Pregunta 3: Frutas y verduras
           _buildQuestionCard(
@@ -333,7 +367,7 @@ class _FindriskFormScreenState extends State<FindriskFormScreen> {
             (value) => setState(() => _frecuenciaFrutas = value),
           ),
           
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           
           // Pregunta 4: Azúcar alto
           _buildQuestionCard(
@@ -357,11 +391,11 @@ class _FindriskFormScreenState extends State<FindriskFormScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Datos Físicos',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            style: GoogleFonts.roboto(fontSize: 24, fontWeight: FontWeight.bold, color: primaryColor),
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: 20),
           
           // Peso
           TextFormField(
@@ -385,7 +419,7 @@ class _FindriskFormScreenState extends State<FindriskFormScreen> {
             },
           ),
           
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           
           // Talla
           TextFormField(
@@ -409,7 +443,7 @@ class _FindriskFormScreenState extends State<FindriskFormScreen> {
             },
           ),
           
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           
           // IMC calculado
           if (_imc > 0) ...[
@@ -423,26 +457,28 @@ class _FindriskFormScreenState extends State<FindriskFormScreen> {
               child: Row(
                 children: [
                   Icon(Icons.calculate, color: Colors.blue[700]),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   Text(
                     'IMC Calculado: ${_imc.toStringAsFixed(2)}',
-                    style: TextStyle(
+                    style: GoogleFonts.roboto(
                       fontWeight: FontWeight.bold,
-                      color: Colors.blue[700],
+                      fontSize: 16,
+                      color: primaryColor,
                     ),
                   ),
                   const Spacer(),
                   Text(
                     _getIMCCategory(_imc),
-                    style: TextStyle(
+                    style: GoogleFonts.roboto(
                       color: _getIMCColor(_imc),
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
           ],
           
           // Perímetro abdominal
@@ -481,11 +517,11 @@ class _FindriskFormScreenState extends State<FindriskFormScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Antecedentes y Finalización',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            style: GoogleFonts.roboto(fontSize: 24, fontWeight: FontWeight.bold, color: primaryColor),
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: 20),
           
           // Pregunta 5: Antecedentes familiares
           _buildQuestionCard(
@@ -499,7 +535,7 @@ class _FindriskFormScreenState extends State<FindriskFormScreen> {
             (value) => setState(() => _antecedentesFamiliares = value),
           ),
           
-          const SizedBox(height: 20),
+          SizedBox(height: 20),
           
           // Conducta (opcional)
           TextFormField(
@@ -512,7 +548,7 @@ class _FindriskFormScreenState extends State<FindriskFormScreen> {
             maxLines: 3,
           ),
           
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           
           // Promotor de vida (opcional)
           TextFormField(
@@ -524,7 +560,7 @@ class _FindriskFormScreenState extends State<FindriskFormScreen> {
             ),
           ),
           
-          const SizedBox(height: 20),
+          SizedBox(height: 20),
           
           // Resumen del test (si está completo)
           if (_canCalculateScore()) ...[
@@ -542,6 +578,11 @@ class _FindriskFormScreenState extends State<FindriskFormScreen> {
     Function(String) onChanged,
   ) {
     return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: Colors.grey.withOpacity(0.2), width: 1),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -549,16 +590,17 @@ class _FindriskFormScreenState extends State<FindriskFormScreen> {
           children: [
             Text(
               question,
-              style: const TextStyle(
+              style: GoogleFonts.roboto(
                 fontSize: 16,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
+                color: primaryColor,
               ),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             ...options.map((option) {
               return RadioListTile<String>(
-                title: Text(option['text']),
-                subtitle: Text('Puntos: ${option['points']}'),
+                title: Text(option['text'], style: GoogleFonts.roboto(fontSize: 15, fontWeight: FontWeight.w500)),
+                subtitle: Text('Puntos: ${option['points']}', style: GoogleFonts.roboto(fontSize: 13, color: Colors.grey[600])),
                 value: option['value'],
                 groupValue: currentValue,
                 onChanged: (value) {
@@ -567,6 +609,7 @@ class _FindriskFormScreenState extends State<FindriskFormScreen> {
                   }
                 },
                 contentPadding: EdgeInsets.zero,
+                activeColor: primaryColor,
               );
             }).toList(),
           ],
@@ -584,7 +627,7 @@ class _FindriskFormScreenState extends State<FindriskFormScreen> {
       decoration: BoxDecoration(
         color: Color(interpretacion['color']).withOpacity(0.1),
         border: Border.all(color: Color(interpretacion['color'])),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(15),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -595,45 +638,46 @@ class _FindriskFormScreenState extends State<FindriskFormScreen> {
                 Icons.assessment,
                 color: Color(interpretacion['color']),
               ),
-              const SizedBox(width: 8),
-              const Text(
+              SizedBox(width: 8),
+              Text(
                 'Resultado del Test',
-                style: TextStyle(
+                style: GoogleFonts.roboto(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
+                  color: Color(interpretacion['color']),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           Text(
             'Puntaje Total: $puntajeTotal puntos',
-            style: const TextStyle(
+            style: GoogleFonts.roboto(
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Text(
             'Nivel de Riesgo: ${interpretacion['nivel']}',
-            style: TextStyle(
+            style: GoogleFonts.roboto(
               fontSize: 16,
               fontWeight: FontWeight.bold,
               color: Color(interpretacion['color']),
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Text(
             'Probabilidad: ${interpretacion['riesgo']}',
-            style: TextStyle(
+            style: GoogleFonts.roboto(
               fontSize: 14,
               color: Color(interpretacion['color']),
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Text(
             interpretacion['descripcion'],
-            style: const TextStyle(fontSize: 14),
+            style: GoogleFonts.roboto(fontSize: 14),
           ),
         ],
       ),
@@ -653,21 +697,23 @@ class _FindriskFormScreenState extends State<FindriskFormScreen> {
                   backgroundColor: Colors.grey[300],
                   foregroundColor: Colors.black,
                   padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
-                child: const Text('Anterior'),
+                child: Text('Anterior', style: GoogleFonts.roboto(fontWeight: FontWeight.bold, fontSize: 16)),
               ),
             ),
-          if (_currentPage > 0) const SizedBox(width: 16),
+          if (_currentPage > 0) SizedBox(width: 16),
           Expanded(
             child: ElevatedButton(
               onPressed: _currentPage == 3 ? _submitForm : _nextPage,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue[700],
+                backgroundColor: primaryColor,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               child: _isLoading
-                  ? const SizedBox(
+                  ? SizedBox(
                       height: 20,
                       width: 20,
                       child: CircularProgressIndicator(
@@ -675,7 +721,10 @@ class _FindriskFormScreenState extends State<FindriskFormScreen> {
                         valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
                     )
-                  : Text(_currentPage == 3 ? 'Guardar Test' : 'Siguiente'),
+                  : Text(
+                      _currentPage == 3 ? 'Guardar Test' : 'Siguiente',
+                      style: GoogleFonts.roboto(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
             ),
           ),
         ],
@@ -825,34 +874,37 @@ class _FindriskFormScreenState extends State<FindriskFormScreen> {
               color: Colors.green[600],
             ),
             const SizedBox(width: 8),
-            const Text('Test Completado'),
+            Text('Test Completado'),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('El test FINDRISK se ha guardado exitosamente.'),
+            Text('El test FINDRISK se ha guardado exitosamente.', style: GoogleFonts.roboto(fontSize: 15)),
             const SizedBox(height: 16),
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Color(interpretacion['color']).withOpacity(0.1),
                 border: Border.all(color: Color(interpretacion['color'])),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(15),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'Resultado: ${interpretacion['nivel']}',
-                    style: TextStyle(
+                    style: GoogleFonts.roboto(
                       fontWeight: FontWeight.bold,
+                      fontSize: 16,
                       color: Color(interpretacion['color']),
                     ),
                   ),
-                  Text('Puntaje: ${_calculateTotalScore()} puntos'),
-                  Text('Riesgo: ${interpretacion['riesgo']}'),
+                  const SizedBox(height: 8),
+                  Text('Puntaje: ${_calculateTotalScore()} puntos', style: GoogleFonts.roboto(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  Text('Riesgo: ${interpretacion['riesgo']}', style: GoogleFonts.roboto()),
                 ],
               ),
             ),
@@ -861,7 +913,7 @@ class _FindriskFormScreenState extends State<FindriskFormScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Entendido'),
+            child: Text('Entendido', style: GoogleFonts.roboto(fontWeight: FontWeight.bold, color: primaryColor)),
           ),
         ],
       ),
@@ -1024,7 +1076,6 @@ int _calculateTotalScore() {
       final user = await dbHelper.getLoggedInUser();
       return user?['token'];
     } catch (e) {
-      debugPrint('Error obteniendo token: $e');
       return null;
     }
   }

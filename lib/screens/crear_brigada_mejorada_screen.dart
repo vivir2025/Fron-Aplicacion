@@ -1,6 +1,8 @@
 // screens/crear_brigada_mejorada_screen.dart
 // ✅ FLUJO CON PANTALLAS SEPARADAS
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
@@ -11,6 +13,8 @@ import '../models/medicamento.dart';
 import '../services/brigada_service.dart';
 import '../services/medicamento_service.dart';
 import '../providers/auth_provider.dart';
+
+const Color primaryColor = Color(0xFF1B5E20);
 
 // 🆕 MODELO PARA DATOS DE LA BRIGADA
 class DatosBrigada {
@@ -120,7 +124,7 @@ class _CrearBrigadaMejoradaScreenState extends State<CrearBrigadaMejoradaScreen>
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
-              primary: Colors.green,
+              primary: primaryColor,
               onPrimary: Colors.white,
               surface: Colors.white,
               onSurface: Colors.black,
@@ -176,22 +180,88 @@ class _CrearBrigadaMejoradaScreenState extends State<CrearBrigadaMejoradaScreen>
     }
   }
 
+  InputDecoration _buildInputDecoration(String label, [IconData? icon]) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: GoogleFonts.roboto(
+        color: Colors.grey[700],
+        fontWeight: FontWeight.w500,
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: primaryColor, width: 2),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.red, width: 1),
+      ),
+      filled: true,
+      fillColor: Colors.white,
+      prefixIcon: icon != null 
+          ? Container(
+              margin: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: primaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: primaryColor, size: 20),
+            )
+          : null,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('Nueva Brigada - Paso 1/3'),
-        backgroundColor: Colors.green,
+        title: Text(
+          'Nueva Brigada',
+          style: GoogleFonts.roboto(
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
+          ),
+        ),
+        backgroundColor: primaryColor,
         foregroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1.0),
+          child: Container(
+            height: 1.0,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.white,
+                  primaryColor,
+                  Colors.white,
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Card(
                 elevation: 3,
-                child: Padding(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15.0),
+        side: BorderSide(color: primaryColor.withOpacity(0.2), width: 1),
+      ),
+      child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Form(
                     key: _formKey,
@@ -203,164 +273,133 @@ class _CrearBrigadaMejoradaScreenState extends State<CrearBrigadaMejoradaScreen>
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: Colors.green.withOpacity(0.1),
+                                color: primaryColor.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.info_outline,
-                                color: Colors.green,
+                                color: primaryColor,
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            const Text(
+                            SizedBox(width: 12),
+                            Text(
                               'Información de la Brigada',
-                              style: TextStyle(
+                              style: GoogleFonts.roboto(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 16),
+                        SizedBox(height: 16),
                         
                         TextFormField(
                           controller: _temaController,
-                          decoration: const InputDecoration(
-                            labelText: 'Tema de la Brigada *',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.topic),
-                          ),
+                          decoration: _buildInputDecoration('Tema de la Brigada *', Icons.topic),
                           validator: (v) => v!.trim().isEmpty ? 'Requerido' : null,
                         ),
-                        const SizedBox(height: 12),
+                        SizedBox(height: 12),
                         
                         TextFormField(
                           controller: _lugarEventoController,
-                          decoration: const InputDecoration(
-                            labelText: 'Lugar del Evento *',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.location_on),
-                          ),
+                          decoration: _buildInputDecoration('Lugar del Evento *', Icons.location_on),
                           validator: (v) => v!.trim().isEmpty ? 'Requerido' : null,
                         ),
-                        const SizedBox(height: 12),
+                        SizedBox(height: 12),
                         
                         InkWell(
                           onTap: _seleccionarFecha,
                           child: InputDecorator(
-                            decoration: const InputDecoration(
-                              labelText: 'Fecha de la Brigada',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.calendar_today),
-                            ),
+                            decoration: _buildInputDecoration('Fecha de la Brigada', Icons.calendar_today),
                             child: Text(
                               DateFormat('dd/MM/yyyy').format(_fechaBrigada),
                             ),
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        SizedBox(height: 12),
                         
                         TextFormField(
                           controller: _nombreConductorController,
-                          decoration: const InputDecoration(
-                            labelText: 'Nombre del Conductor *',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.person),
-                          ),
+                          decoration: _buildInputDecoration('Nombre del Conductor *', Icons.person),
                           validator: (v) => v!.trim().isEmpty ? 'Requerido' : null,
                         ),
-                        const SizedBox(height: 16),
+                        SizedBox(height: 16),
                         
                         const Divider(),
-                        const SizedBox(height: 8),
-                        const Text(
+                        SizedBox(height: 8),
+                        Text(
                           'Información de Usuarios',
-                          style: TextStyle(
+                          style: GoogleFonts.roboto(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        SizedBox(height: 12),
                         
                         Row(
                           children: [
                             Expanded(
                               child: TextFormField(
                                 controller: _usuariosHtaController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Usuarios HTA *',
-                                  border: OutlineInputBorder(),
-                                ),
+                                decoration: _buildInputDecoration('Usuarios HTA *'),
                                 keyboardType: TextInputType.number,
                                 validator: (v) => v!.trim().isEmpty ? 'Requerido' : null,
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            SizedBox(width: 8),
                             Expanded(
                               child: TextFormField(
                                 controller: _usuariosDnController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Usuarios DM *',
-                                  border: OutlineInputBorder(),
-                                ),
+                                decoration: _buildInputDecoration('Usuarios DM *'),
                                 keyboardType: TextInputType.number,
                                 validator: (v) => v!.trim().isEmpty ? 'Requerido' : null,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
+                        SizedBox(height: 12),
                         
                         Row(
                           children: [
                             Expanded(
                               child: TextFormField(
                                 controller: _usuariosHtaRcuController,
-                                decoration: const InputDecoration(
-                                  labelText: 'HTA RCU',
-                                  border: OutlineInputBorder(),
-                                ),
+                                decoration: _buildInputDecoration('HTA RCU'),
                                 keyboardType: TextInputType.number,
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            SizedBox(width: 8),
                             Expanded(
                               child: TextFormField(
                                 controller: _usuariosDmRcuController,
-                                decoration: const InputDecoration(
-                                  labelText: 'DM RCU',
-                                  border: OutlineInputBorder(),
-                                ),
+                                decoration: _buildInputDecoration('DM RCU'),
                                 keyboardType: TextInputType.number,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
+                        SizedBox(height: 12),
                         
                         TextFormField(
                           controller: _observacionesController,
-                          decoration: const InputDecoration(
-                            labelText: 'Observaciones',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.note),
-                          ),
+                          decoration: _buildInputDecoration('Observaciones', Icons.note),
                           maxLines: 3,
                         ),
-                        const SizedBox(height: 24),
+                        SizedBox(height: 24),
                         
                         // Botón Siguiente
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(
                             onPressed: _irAPantallaPacientes,
-                            icon: const Icon(Icons.arrow_forward),
-                            label: const Text('Siguiente: Seleccionar Pacientes'),
+                            icon: Icon(Icons.arrow_forward),
+                            label: Text('Siguiente'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
+                              backgroundColor: primaryColor,
                               foregroundColor: Colors.white,
+                              elevation: 2,
                               padding: const EdgeInsets.all(16),
-                              textStyle: const TextStyle(
+                              textStyle: GoogleFonts.roboto(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -424,7 +463,6 @@ class _PantallaPacientesBrigadaState extends State<PantallaPacientesBrigada> {
       });
     } catch (e) {
       setState(() => _isLoading = false);
-      debugPrint('Error cargando pacientes: $e');
     }
   }
 
@@ -480,7 +518,11 @@ class _PantallaPacientesBrigadaState extends State<PantallaPacientesBrigada> {
           content: Text(
             '${paciente.nombreCompleto} agregado con ${medicamentosAsignados.length} medicamentos',
           ),
-          backgroundColor: Colors.green,
+          backgroundColor: primaryColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       );
     }
@@ -490,14 +532,20 @@ class _PantallaPacientesBrigadaState extends State<PantallaPacientesBrigada> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Confirmar'),
+        title: Text(
+          'Confirmar',
+          style: GoogleFonts.roboto(
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
+          ),
+        ),
         content: Text(
           '¿Eliminar a ${_pacientesAgregados[index].paciente.nombreCompleto}?',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
+            child: Text('Cancelar'),
           ),
           ElevatedButton(
             onPressed: () {
@@ -507,7 +555,7 @@ class _PantallaPacientesBrigadaState extends State<PantallaPacientesBrigada> {
               Navigator.pop(context);
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Eliminar'),
+            child: Text('Eliminar'),
           ),
         ],
       ),
@@ -610,13 +658,16 @@ class _PantallaPacientesBrigadaState extends State<PantallaPacientesBrigada> {
             content: Text(
               'Brigada creada con ${_pacientesAgregados.length} pacientes',
             ),
-            backgroundColor: Colors.green,
+            backgroundColor: primaryColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
         );
         Navigator.of(context).pop(true);
       }
     } catch (e) {
-      debugPrint('Error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -637,12 +688,35 @@ class _PantallaPacientesBrigadaState extends State<PantallaPacientesBrigada> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('Paso 2/3: Seleccionar Pacientes'),
-        backgroundColor: Colors.green,
+        title: Text(
+          'Seleccionar Pacientes',
+          style: GoogleFonts.roboto(
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
+          ),
+        ),
+        backgroundColor: primaryColor,
         foregroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1.0),
+          child: Container(
+            height: 1.0,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.white,
+                  primaryColor,
+                  Colors.white,
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: CircularProgressIndicator())
           : Column(
               children: [
                 // Buscador
@@ -653,7 +727,7 @@ class _PantallaPacientesBrigadaState extends State<PantallaPacientesBrigada> {
                     controller: _searchController,
                     decoration: InputDecoration(
                       labelText: 'Buscar paciente',
-                      prefixIcon: const Icon(Icons.search),
+                      prefixIcon: Icon(Icons.search),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -665,7 +739,7 @@ class _PantallaPacientesBrigadaState extends State<PantallaPacientesBrigada> {
                 // Lista de pacientes
                 Expanded(
                   child: _filteredPacientes.isEmpty
-                      ? const Center(child: Text('No hay pacientes disponibles'))
+                      ? Center(child: Text('No hay pacientes disponibles'))
                       : ListView.builder(
                           padding: const EdgeInsets.all(16),
                           itemCount: _filteredPacientes.length,
@@ -675,30 +749,40 @@ class _PantallaPacientesBrigadaState extends State<PantallaPacientesBrigada> {
                                 .any((p) => p.paciente.id == paciente.id);
 
                             return Card(
-                              color: yaAgregado ? Colors.green[100] : null,
+                              color: yaAgregado ? primaryColor.withOpacity(0.1) : null,
                               margin: const EdgeInsets.only(bottom: 8),
-                              child: ListTile(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15.0),
+        side: BorderSide(color: primaryColor.withOpacity(0.2), width: 1),
+      ),
+      child: ListTile(
                                 leading: CircleAvatar(
                                   backgroundColor:
-                                      yaAgregado ? Colors.green : Colors.blue,
+                                      yaAgregado ? primaryColor : Colors.blue,
                                   child: Text(
                                     paciente.nombreCompleto[0].toUpperCase(),
-                                    style: const TextStyle(color: Colors.white),
+                                    style: GoogleFonts.roboto(color: Colors.white),
                                   ),
                                 ),
                                 title: Text(
                                   paciente.nombreCompleto,
-                                  style: TextStyle(
+                                  style: GoogleFonts.roboto(
                                     fontWeight: yaAgregado
                                         ? FontWeight.bold
                                         : FontWeight.normal,
                                   ),
                                 ),
-                                subtitle: Text('ID: ${paciente.identificacion}'),
+                                subtitle: Text(
+          'ID: ${paciente.identificacion}',
+          style: GoogleFonts.roboto(
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
+          ),
+        ),
                                 trailing: yaAgregado
-                                    ? const Icon(Icons.check_circle,
-                                        color: Colors.green)
-                                    : const Icon(Icons.arrow_forward),
+                                    ? Icon(Icons.check_circle,
+                                        color: primaryColor)
+                                    : Icon(Icons.arrow_forward),
                                 onTap: () => _seleccionarPaciente(paciente),
                               ),
                             );
@@ -716,18 +800,18 @@ class _PantallaPacientesBrigadaState extends State<PantallaPacientesBrigada> {
                       children: [
                         Row(
                           children: [
-                            const Icon(Icons.people, color: Colors.green),
-                            const SizedBox(width: 8),
+                            Icon(Icons.people, color: primaryColor),
+                            SizedBox(width: 8),
                             Text(
                               '${_pacientesAgregados.length} pacientes agregados',
-                              style: const TextStyle(
+                              style: GoogleFonts.roboto(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
+                        SizedBox(height: 12),
 
                         // Lista resumida
                         SizedBox(
@@ -738,9 +822,13 @@ class _PantallaPacientesBrigadaState extends State<PantallaPacientesBrigada> {
                             itemBuilder: (context, index) {
                               final item = _pacientesAgregados[index];
                               return Card(
-                                color: Colors.green[50],
+                                color: primaryColor.withOpacity(0.05),
                                 margin: const EdgeInsets.only(right: 8),
-                                child: Container(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15.0),
+        side: BorderSide(color: primaryColor.withOpacity(0.2), width: 1),
+      ),
+      child: Container(
                                   width: 200,
                                   padding: const EdgeInsets.all(12),
                                   child: Column(
@@ -752,7 +840,7 @@ class _PantallaPacientesBrigadaState extends State<PantallaPacientesBrigada> {
                                           Expanded(
                                             child: Text(
                                               item.paciente.nombreCompleto,
-                                              style: const TextStyle(
+                                              style: GoogleFonts.roboto(
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 13,
                                               ),
@@ -761,7 +849,7 @@ class _PantallaPacientesBrigadaState extends State<PantallaPacientesBrigada> {
                                             ),
                                           ),
                                           IconButton(
-                                            icon: const Icon(Icons.delete,
+                                            icon: Icon(Icons.delete,
                                                 size: 18, color: Colors.red),
                                             onPressed: () =>
                                                 _eliminarPaciente(index),
@@ -770,10 +858,10 @@ class _PantallaPacientesBrigadaState extends State<PantallaPacientesBrigada> {
                                           ),
                                         ],
                                       ),
-                                      const SizedBox(height: 4),
+                                      SizedBox(height: 4),
                                       Text(
                                         '${item.medicamentos.length} medicamentos',
-                                        style: TextStyle(
+                                        style: GoogleFonts.roboto(
                                           fontSize: 12,
                                           color: Colors.grey[600],
                                         ),
@@ -786,20 +874,21 @@ class _PantallaPacientesBrigadaState extends State<PantallaPacientesBrigada> {
                           ),
                         ),
 
-                        const SizedBox(height: 12),
+                        SizedBox(height: 12),
 
                         // Botón guardar brigada
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(
                             onPressed: _guardarBrigadaCompleta,
-                            icon: const Icon(Icons.save),
-                            label: const Text('Guardar Brigada Completa'),
+                            icon: Icon(Icons.save),
+                            label: Text('Guardar Brigada Completa'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
+                              backgroundColor: primaryColor,
                               foregroundColor: Colors.white,
+                              elevation: 2,
                               padding: const EdgeInsets.all(16),
-                              textStyle: const TextStyle(
+                              textStyle: GoogleFonts.roboto(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -868,7 +957,6 @@ class _PantallaMedicamentosPacienteState
       });
     } catch (e) {
       setState(() => _isLoading = false);
-      debugPrint('Error: $e');
     }
   }
 
@@ -891,72 +979,142 @@ class _PantallaMedicamentosPacienteState
     final cantidadController = TextEditingController(text: med.cantidad);
     final indicacionesController =
         TextEditingController(text: med.indicaciones);
+    final formKey = GlobalKey<FormState>();
+
+    InputDecoration buildInputDecor(String label, IconData icon, {String? hintText}) {
+      return InputDecoration(
+        labelText: label,
+        hintText: hintText,
+        labelStyle: GoogleFonts.roboto(
+          color: Colors.grey[700],
+          fontWeight: FontWeight.w500,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: primaryColor, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.red, width: 1),
+        ),
+        filled: true,
+        fillColor: Colors.white,
+        prefixIcon: Container(
+          margin: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: primaryColor.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: primaryColor, size: 20),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      );
+    }
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(med.medicamento.nombmedicamento),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
           children: [
-            TextField(
-              controller: dosisController,
-              decoration: const InputDecoration(
-                labelText: 'Dosis *',
-                hintText: 'Ej: 500mg',
-                border: OutlineInputBorder(),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: primaryColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.medication_liquid_rounded,
+                color: primaryColor,
+                size: 20,
               ),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: cantidadController,
-              decoration: const InputDecoration(
-                labelText: 'Cantidad *',
-                hintText: 'Ej: 30',
-                border: OutlineInputBorder(),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                med.medicamento.nombmedicamento,
+                style: GoogleFonts.roboto(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: primaryColor,
+                ),
               ),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: indicacionesController,
-              decoration: const InputDecoration(
-                labelText: 'Indicaciones',
-                hintText: 'Opcional',
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 2,
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: dosisController,
+                style: GoogleFonts.roboto(),
+                decoration: buildInputDecor('Dosis *', Icons.medication_liquid, hintText: 'Ej: 500mg'),
+                validator: (v) => v!.trim().isEmpty ? 'Requerido' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: cantidadController,
+                style: GoogleFonts.roboto(),
+                decoration: buildInputDecor('Cantidad *', Icons.numbers, hintText: 'Ej: 30'),
+                keyboardType: TextInputType.number,
+                validator: (v) {
+                  if (v!.trim().isEmpty) return 'Requerido';
+                  if (int.tryParse(v.trim()) == null || int.parse(v.trim()) <= 0) return 'Número válido';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: indicacionesController,
+                style: GoogleFonts.roboto(),
+                decoration: buildInputDecor('Indicaciones', Icons.note_alt, hintText: 'Opcional'),
+                maxLines: 2,
+              ),
+            ],
           ),
-          ElevatedButton(
+        ),
+        actions: [
+          TextButton.icon(
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.close_rounded, size: 18),
+            label: Text('Cancelar', style: GoogleFonts.roboto()),
+          ),
+          ElevatedButton.icon(
             onPressed: () {
-              if (dosisController.text.trim().isEmpty ||
-                  cantidadController.text.trim().isEmpty) {
+              if (formKey.currentState!.validate()) {
+                setState(() {
+                  med.isSelected = true;
+                  med.dosis = dosisController.text.trim();
+                  med.cantidad = cantidadController.text.trim();
+                  med.indicaciones = indicacionesController.text.trim();
+                });
+                Navigator.pop(context);
+              } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Dosis y cantidad son requeridos'),
+                  SnackBar(
+                    content: Text('Por favor, complete los campos correctamente', style: GoogleFonts.roboto()),
                     backgroundColor: Colors.orange,
                   ),
                 );
-                return;
               }
-
-              setState(() {
-                med.isSelected = true;
-                med.dosis = dosisController.text.trim();
-                med.cantidad = cantidadController.text.trim();
-                med.indicaciones = indicacionesController.text.trim();
-              });
-              Navigator.pop(context);
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-            child: const Text('Guardar'),
+            icon: const Icon(Icons.check_rounded, size: 18),
+            label: Text('Guardar', style: GoogleFonts.roboto(fontWeight: FontWeight.bold)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
           ),
         ],
       ),
@@ -990,18 +1148,35 @@ class _PantallaMedicamentosPacienteState
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Paso 3/3: Medicamentos'),
+            Text('Seleccionar Medicamentos'),
             Text(
               widget.paciente.nombreCompleto,
-              style: const TextStyle(fontSize: 14),
+              style: GoogleFonts.roboto(fontSize: 14),
             ),
           ],
         ),
-        backgroundColor: Colors.green,
+        backgroundColor: primaryColor,
         foregroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1.0),
+          child: Container(
+            height: 1.0,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.white,
+                  primaryColor,
+                  Colors.white,
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: CircularProgressIndicator())
           : Column(
               children: [
                 // Buscador
@@ -1012,13 +1187,14 @@ class _PantallaMedicamentosPacienteState
                     controller: _searchController,
                     decoration: InputDecoration(
                       labelText: 'Buscar medicamento',
-                      prefixIcon: const Icon(Icons.search),
+                      prefixIcon: Icon(Icons.search),
                       suffixIcon: seleccionados > 0
                           ? Chip(
                               label: Text('$seleccionados'),
-                              backgroundColor: Colors.green,
+                              backgroundColor: primaryColor,
+                              elevation: 0,
                               labelStyle:
-                                  const TextStyle(color: Colors.white),
+                                  GoogleFonts.roboto(color: Colors.white),
                             )
                           : null,
                       border: OutlineInputBorder(
@@ -1038,14 +1214,18 @@ class _PantallaMedicamentosPacienteState
                       final med = _filteredMedicamentos[index];
 
                       return Card(
-                        color: med.isSelected ? Colors.green[50] : null,
+                        color: med.isSelected ? primaryColor.withOpacity(0.05) : null,
                         margin: const EdgeInsets.only(bottom: 8),
-                        child: Column(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15.0),
+        side: BorderSide(color: primaryColor.withOpacity(0.2), width: 1),
+      ),
+      child: Column(
                           children: [
                             CheckboxListTile(
                               title: Text(
                                 med.medicamento.nombmedicamento,
-                                style: TextStyle(
+                                style: GoogleFonts.roboto(
                                   fontWeight: med.isSelected
                                       ? FontWeight.bold
                                       : FontWeight.normal,
@@ -1064,7 +1244,7 @@ class _PantallaMedicamentosPacienteState
                                   });
                                 }
                               },
-                              activeColor: Colors.green,
+                              activeColor: primaryColor,
                             ),
 
                             if (med.isSelected)
@@ -1080,7 +1260,7 @@ class _PantallaMedicamentosPacienteState
                                         Expanded(
                                           child: Text(
                                             'Dosis: ${med.dosis}',
-                                            style: const TextStyle(
+                                            style: GoogleFonts.roboto(
                                               fontSize: 12,
                                               fontWeight: FontWeight.w500,
                                             ),
@@ -1089,14 +1269,14 @@ class _PantallaMedicamentosPacienteState
                                         Expanded(
                                           child: Text(
                                             'Cantidad: ${med.cantidad}',
-                                            style: const TextStyle(
+                                            style: GoogleFonts.roboto(
                                               fontSize: 12,
                                               fontWeight: FontWeight.w500,
                                             ),
                                           ),
                                         ),
                                         IconButton(
-                                          icon: const Icon(Icons.edit,
+                                          icon: Icon(Icons.edit,
                                               size: 18),
                                           onPressed: () =>
                                               _mostrarDialogoDetalles(med),
@@ -1106,7 +1286,7 @@ class _PantallaMedicamentosPacienteState
                                     if (med.indicaciones.isNotEmpty)
                                       Text(
                                         'Indicaciones: ${med.indicaciones}',
-                                        style: TextStyle(
+                                        style: GoogleFonts.roboto(
                                           fontSize: 11,
                                           color: Colors.grey[600],
                                         ),
@@ -1129,13 +1309,14 @@ class _PantallaMedicamentosPacienteState
                     width: double.infinity,
                     child: ElevatedButton.icon(
                       onPressed: _guardarMedicamentos,
-                      icon: const Icon(Icons.check),
+                      icon: Icon(Icons.check),
                       label: Text('Guardar Medicamentos ($seleccionados)'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
+                        backgroundColor: primaryColor,
                         foregroundColor: Colors.white,
+                        elevation: 2,
                         padding: const EdgeInsets.all(16),
-                        textStyle: const TextStyle(
+                        textStyle: GoogleFonts.roboto(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),

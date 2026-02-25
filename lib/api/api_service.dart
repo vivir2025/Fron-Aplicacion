@@ -67,7 +67,7 @@ class ApiService {
   try {
     // Verificar conexión primero
     final connectivityResult = await Connectivity().checkConnectivity();
-    if (connectivityResult == ConnectivityResult.none) {
+    if (connectivityResult.contains(ConnectivityResult.none)) {
       throw Exception('No hay conexión a internet');
     }
 
@@ -77,7 +77,13 @@ class ApiService {
       body: jsonEncode({'usuario': usuario, 'contrasena': contrasena}),
     ).timeout(const Duration(seconds: 10)); // Añadir timeout
     
-    print('Respuesta del login: ${response.body}');
+    print('Respuesta del login: ${response.statusCode} - ${response.body}');
+    
+    // ✅ MANEJO ESPECIAL PARA 401 EN LOGIN: Contraseña incorrecta
+    if (response.statusCode == 401) {
+      throw Exception('Usuario o contraseña incorrectos');
+    }
+    
     return _handleResponse(response) as Map<String, dynamic>;
   } on SocketException catch (e) {
     print('Error de conexión: $e');
@@ -214,7 +220,8 @@ static Future<bool> verificarSaludServidor() async {
     debugPrint('🔄 Verificando conectividad...');
     
     // 1. Primero verifica si hay conexión de red básica
-    final hasNetwork = await Connectivity().checkConnectivity() != ConnectivityResult.none;
+    final connectivityResult = await Connectivity().checkConnectivity();
+    final hasNetwork = !connectivityResult.contains(ConnectivityResult.none);
     if (!hasNetwork) {
       debugPrint('📵 No hay conexión de red');
       return false;

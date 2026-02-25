@@ -3,7 +3,9 @@ import '../providers/auth_provider.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:provider/provider.dart';
 import 'initial_sync_screen.dart';
-import '../database/database_helper.dart'; 
+import '../database/database_helper.dart';
+import '../services/notification_service.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class LoginScreen extends StatefulWidget {
   final AuthProvider authProvider;
@@ -28,10 +30,10 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isCleaningTokens = false; // ✅ NUEVA VARIABLE
 
   // Colores del tema
-  static const Color primaryGreen = Color(0xFF2E7D32);
+  static const Color primaryGreen = Color(0xFF1B5E20); // Un verde más oscuro y premium
   static const Color lightGreen = Color(0xFF4CAF50);
-  static const Color accentGreen = Color(0xFF66BB6A);
-  static const Color backgroundColor = Color(0xFFF8F9FA);
+  static const Color accentGreen = Color(0xFF81C784);
+  static const Color backgroundColor = Color(0xFFF0F4F8); // Un fondo ligeramente azul cobalto/gris que se ve moderno
   static const Color cardColor = Colors.white;
 
   @override
@@ -197,6 +199,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
+      // ✅ Registrar token FCM después del login exitoso (no bloquea)
+      _registrarTokenFCM();
+
       if (needsSync) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const InitialSyncScreen()),
@@ -212,6 +217,34 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
       }
+    }
+  }
+
+  /// Registrar token FCM en background (no bloquea el flujo de login)
+  void _registrarTokenFCM() {
+    try {
+      final user = widget.authProvider.user;
+      final token = widget.authProvider.token;
+      
+      if (user == null) {
+        return;
+      }
+      if (user['id'] == null) {
+        return;
+      }
+      if (token == null) {
+        return;
+      }
+      
+      final userId = user['id'].toString();
+      
+      if (userId.isNotEmpty) {
+        NotificationService().registrarTokenConUsuario(userId, token).then((_) {
+        }).catchError((e) {
+        });
+      }
+    } catch (e) {
+      // Silencioso
     }
   }
 
@@ -339,19 +372,22 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  const Text(
+                  Text(
                     'Bienvenido',
-                    style: TextStyle(
+                    style: GoogleFonts.roboto(
                       color: Colors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 32,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
                     ),
                   ),
-                  const Text(
+                  const SizedBox(height: 8),
+                  Text(
                     'Inicia sesión para continuar',
-                    style: TextStyle(
-                      color: Colors.white70,
+                    style: GoogleFonts.roboto(
+                      color: Colors.white.withOpacity(0.9),
                       fontSize: 16,
+                      fontWeight: FontWeight.w400,
                     ),
                   ),
                 ],
@@ -387,10 +423,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            const Text(
+                            Text(
                               'Iniciar Sesión',
-                              style: TextStyle(
-                                fontSize: 24,
+                              style: GoogleFonts.roboto(
+                                fontSize: 28,
                                 fontWeight: FontWeight.bold,
                                 color: primaryGreen,
                               ),
@@ -529,24 +565,34 @@ class _LoginScreenState extends State<LoginScreen> {
                                         decoration: BoxDecoration(
                                           gradient: LinearGradient(
                                             colors: [primaryGreen, lightGreen],
+                                            begin: Alignment.centerLeft,
+                                            end: Alignment.centerRight,
                                           ),
                                           borderRadius: BorderRadius.circular(16),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: primaryGreen.withOpacity(0.3),
+                                              blurRadius: 12,
+                                              offset: const Offset(0, 6),
+                                            ),
+                                          ],
                                         ),
                                         child: Container(
                                           alignment: Alignment.center,
-                                          child: const Text(
+                                          child: Text(
                                             'INICIAR SESIÓN',
-                                            style: TextStyle(
+                                            style: GoogleFonts.roboto(
                                               fontSize: 16,
                                               fontWeight: FontWeight.bold,
                                               color: Colors.white,
+                                              letterSpacing: 1.2,
                                             ),
                                           ),
                                         ),
                                       ),
                                     ),
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 24),
                             
                             // ✅ ENLACE PARA LIMPIAR TOKENS (REEMPLAZA "¿Olvidaste tu contraseña?")
                             _isCleaningTokens

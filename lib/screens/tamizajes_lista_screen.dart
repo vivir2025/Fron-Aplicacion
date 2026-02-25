@@ -5,6 +5,9 @@ import '../services/tamizaje_service.dart';
 import '../services/sincronizacion_service.dart';
 import '../database/database_helper.dart';
 import 'tamizaje_screen.dart'; // ← LÍNEA AGREGADA PARA IMPORTAR LA PANTALLA
+import 'package:google_fonts/google_fonts.dart';
+
+const Color primaryColor = Color(0xFF1B5E20);
 
 class TamizajesListaScreen extends StatefulWidget {
   const TamizajesListaScreen({Key? key}) : super(key: key);
@@ -86,9 +89,19 @@ class _TamizajesListaScreenState extends State<TamizajesListaScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tamizajes Realizados'),
-        backgroundColor: Colors.blue[700],
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            'Tamizajes Realizados',
+            style: GoogleFonts.roboto(
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
+        ),
+        backgroundColor: primaryColor,
         foregroundColor: Colors.white,
+        centerTitle: true,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -107,7 +120,16 @@ class _TamizajesListaScreenState extends State<TamizajesListaScreen> {
           // Filtros
           Container(
             padding: const EdgeInsets.all(16),
-            color: Colors.grey[100],
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
             child: Column(
               children: [
                 Row(
@@ -115,15 +137,36 @@ class _TamizajesListaScreenState extends State<TamizajesListaScreen> {
                     Expanded(
                       child: DropdownButtonFormField<String>(
                         value: _filtroClasificacion,
-                        decoration: const InputDecoration(
+                        isExpanded: true,
+                        decoration: InputDecoration(
                           labelText: 'Clasificación',
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          labelStyle: GoogleFonts.roboto(color: Colors.grey[700]),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey.shade300),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey.shade300),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: primaryColor, width: 2),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         ),
+                        icon: const Icon(Icons.keyboard_arrow_down, color: primaryColor),
                         items: _clasificaciones.map((clasificacion) {
                           return DropdownMenuItem(
                             value: clasificacion,
-                            child: Text(clasificacion),
+                            child: Text(
+                              clasificacion,
+                              style: GoogleFonts.roboto(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           );
                         }).toList(),
                         onChanged: (value) {
@@ -133,19 +176,40 @@ class _TamizajesListaScreenState extends State<TamizajesListaScreen> {
                         },
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
                         value: _filtroSincronizacion,
-                        decoration: const InputDecoration(
+                        isExpanded: true,
+                        decoration: InputDecoration(
                           labelText: 'Estado',
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          labelStyle: GoogleFonts.roboto(color: Colors.grey[700]),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey.shade300),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey.shade300),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: primaryColor, width: 2),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         ),
+                        icon: const Icon(Icons.keyboard_arrow_down, color: primaryColor),
                         items: _estadosSincronizacion.map((estado) {
                           return DropdownMenuItem(
                             value: estado,
-                            child: Text(estado),
+                            child: Text(
+                              estado,
+                              style: GoogleFonts.roboto(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           );
                         }).toList(),
                         onChanged: (value) {
@@ -157,13 +221,20 @@ class _TamizajesListaScreenState extends State<TamizajesListaScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Mostrando ${tamizajesFiltrados.length} de ${_tamizajes.length} tamizajes',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 12,
-                  ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Icon(Icons.filter_list, size: 16, color: Colors.grey[600]),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Mostrando ${tamizajesFiltrados.length} de ${_tamizajes.length} tamizajes',
+                      style: GoogleFonts.roboto(
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -188,7 +259,7 @@ class _TamizajesListaScreenState extends State<TamizajesListaScreen> {
                               _tamizajes.isEmpty
                                   ? 'No hay tamizajes registrados'
                                   : 'No hay tamizajes que coincidan con los filtros',
-                              style: TextStyle(
+                              style: GoogleFonts.roboto(
                                 color: Colors.grey[600],
                                 fontSize: 16,
                               ),
@@ -197,13 +268,16 @@ class _TamizajesListaScreenState extends State<TamizajesListaScreen> {
                             ElevatedButton.icon(
                               onPressed: _irANuevoTamizaje,
                               icon: const Icon(Icons.add),
-                              label: const Text('Crear Primer Tamizaje'),
+                              label: Text('Crear Primer Tamizaje', style: GoogleFonts.roboto(fontWeight: FontWeight.bold)),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue[700],
+                                backgroundColor: primaryColor,
                                 foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 24,
                                   vertical: 12,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
                             ),
@@ -224,12 +298,13 @@ class _TamizajesListaScreenState extends State<TamizajesListaScreen> {
         ],
       ),
       // Botón flotante para agregar nuevo tamizaje
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: _irANuevoTamizaje,
-        backgroundColor: Colors.blue[700],
+        backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         tooltip: 'Nuevo Tamizaje',
-        child: const Icon(Icons.add),
+        icon: const Icon(Icons.add),
+        label: Text('Nuevo Tamizaje', style: GoogleFonts.roboto(fontWeight: FontWeight.bold)),
       ),
     );
   }
@@ -252,142 +327,235 @@ class _TamizajesListaScreenState extends State<TamizajesListaScreen> {
   Widget _buildTamizajeCard(Tamizaje tamizaje) {
     final colorClasificacion = _getColorClasificacion(tamizaje.clasificacionPresion);
 
-    return Card(
+    return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: InkWell(
-        onTap: () => _mostrarDetallesTamizaje(tamizaje),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header con nombre del paciente y estado de sincronización
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      tamizaje.nombrePaciente ?? 'Paciente desconocido',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: tamizaje.isSincronizado ? Colors.green : Colors.orange,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      tamizaje.isSincronizado ? 'Sincronizado' : 'Pendiente',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 8),
-
-              // Información básica
-              Row(
-                children: [
-                  Icon(Icons.badge, size: 16, color: Colors.grey[600]),
-                  const SizedBox(width: 4),
-                  Text(
-                    'ID: ${tamizaje.identificacionPaciente ?? 'N/A'}',
-                    style: TextStyle(color: Colors.grey[600]),
-                  ),
-                  const SizedBox(width: 16),
-                  Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
-                  const SizedBox(width: 4),
-                  Text(
-                    _formatearFecha(tamizaje.fechaPrimeraToma),
-                    style: TextStyle(color: Colors.grey[600]),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 8),
-
-              // Presión arterial y clasificación
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.blue[50],
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.blue[200]!),
-                    ),
-                    child: Text(
-                      '${tamizaje.presionArterial} mmHg',
-                      style: TextStyle(
-                        color: Colors.blue[700],
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+          BoxShadow(
+            color: colorClasificacion.withOpacity(0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 0),
+          ),
+        ],
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: () => _mostrarDetallesTamizaje(tamizaje),
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header (Patient name and status)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: colorClasificacion.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: colorClasificacion.withOpacity(0.3)),
+                        color: primaryColor.withOpacity(0.1),
+                        shape: BoxShape.circle,
                       ),
-                      child: Text(
-                        tamizaje.clasificacionPresion,
-                        style: TextStyle(
-                          color: colorClasificacion,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
+                      child: const Icon(Icons.person, color: primaryColor, size: 24),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            tamizaje.nombrePaciente ?? 'Paciente desconocido',
+                            style: GoogleFonts.roboto(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.badge, size: 14, color: Colors.grey[600]),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'ID: ${tamizaje.identificacionPaciente ?? 'N/A'}',
+                                    style: GoogleFonts.roboto(color: Colors.grey[600], fontSize: 13),
+                                  ),
+                                ],
+                              ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.calendar_today, size: 14, color: Colors.grey[600]),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _formatearFecha(tamizaje.fechaPrimeraToma),
+                                    style: GoogleFonts.roboto(color: Colors.grey[600], fontSize: 13),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Sync Status
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: tamizaje.isSincronizado ? Colors.green.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        tamizaje.isSincronizado ? Icons.cloud_done : Icons.cloud_upload,
+                        size: 20,
+                        color: tamizaje.isSincronizado ? Colors.green : Colors.orange,
+                      ),
+                    ),
+                  ],
+                ),
+                
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Divider(height: 1),
+                ),
+
+                // BP and Classification
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.blue.withOpacity(0.1)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Presión Arterial',
+                              style: GoogleFonts.roboto(
+                                color: Colors.blue[700],
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${tamizaje.presionArterial} mmHg',
+                              style: GoogleFonts.roboto(
+                                color: Colors.blue[900],
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: colorClasificacion.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: colorClasificacion.withOpacity(0.2)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Clasificación',
+                              style: GoogleFonts.roboto(
+                                color: colorClasificacion,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              tamizaje.clasificacionPresion,
+                              style: GoogleFonts.roboto(
+                                color: colorClasificacion,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 12),
+
+                // Location and Promotor
+                if (tamizaje.veredaResidencia.isNotEmpty || tamizaje.promotorVida != null)
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      children: [
+                        if (tamizaje.veredaResidencia.isNotEmpty)
+                          Row(
+                            children: [
+                              Icon(Icons.location_on, size: 14, color: Colors.grey[500]),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  tamizaje.veredaResidencia,
+                                  style: GoogleFonts.roboto(color: Colors.grey[600], fontSize: 13),
+                                ),
+                              ),
+                            ],
+                          ),
+                        if (tamizaje.veredaResidencia.isNotEmpty && tamizaje.promotorVida != null)
+                          const SizedBox(height: 4),
+                        if (tamizaje.promotorVida != null)
+                          Row(
+                            children: [
+                              Icon(Icons.health_and_safety, size: 14, color: Colors.grey[500]),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  'Promotor: ${tamizaje.promotorVida}',
+                                  style: GoogleFonts.roboto(color: Colors.grey[600], fontSize: 13),
+                                ),
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
                   ),
-                ],
-              ),
-
-              const SizedBox(height: 8),
-
-              // Información adicional
-              if (tamizaje.veredaResidencia.isNotEmpty) ...[
-                Row(
-                  children: [
-                    Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        tamizaje.veredaResidencia,
-                        style: TextStyle(color: Colors.grey[600]),
-                      ),
-                    ),
-                  ],
-                ),
               ],
-
-              if (tamizaje.promotorVida != null) ...[
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(Icons.person, size: 16, color: Colors.grey[600]),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        'Promotor: ${tamizaje.promotorVida}',
-                        style: TextStyle(color: Colors.grey[600]),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ],
+            ),
           ),
         ),
       ),
@@ -398,7 +566,7 @@ class _TamizajesListaScreenState extends State<TamizajesListaScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Tamizaje - ${tamizaje.nombrePaciente}'),
+        title: Text('Tamizaje - ${tamizaje.nombrePaciente}', style: GoogleFonts.roboto(fontWeight: FontWeight.bold)),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -432,7 +600,7 @@ class _TamizajesListaScreenState extends State<TamizajesListaScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cerrar'),
+            child: Text('Cerrar', style: GoogleFonts.roboto()),
           ),
           if (!tamizaje.isSincronizado)
             ElevatedButton(
@@ -440,7 +608,7 @@ class _TamizajesListaScreenState extends State<TamizajesListaScreen> {
                 Navigator.of(context).pop();
                 _sincronizarTamizajeEspecifico(tamizaje);
               },
-              child: const Text('Sincronizar'),
+              child: Text('Sincronizar', style: GoogleFonts.roboto()),
             ),
         ],
       ),
@@ -457,7 +625,7 @@ class _TamizajesListaScreenState extends State<TamizajesListaScreen> {
             width: 100,
             child: Text(
               label,
-              style: const TextStyle(fontWeight: FontWeight.w500),
+              style: TextStyle(fontWeight: FontWeight.w500),
             ),
           ),
           Expanded(
@@ -550,7 +718,7 @@ class _TamizajesListaScreenState extends State<TamizajesListaScreen> {
                   'Clasificación de Presión Arterial:',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 if (estadisticas['clasificacion_presion'] != null) ...[
                   Text('Normal: ${estadisticas['clasificacion_presion']['normal'] ?? 0}'),
                   Text('Elevada: ${estadisticas['clasificacion_presion']['elevada'] ?? 0}'),

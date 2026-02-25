@@ -1,11 +1,14 @@
 // screens/findrisk/findrisk_list_screen.dart
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:Bornive/database/database_helper.dart';
 import 'package:Bornive/services/sincronizacion_service.dart';
 import '../../models/findrisk_test_model.dart';
 import '../../services/findrisk_service.dart';
 import 'findrisk_form_screen.dart';
 import 'findrisk_detail_screen.dart';
+
+const Color primaryColor = Color(0xFF1B5E20);
 
 class FindriskListScreen extends StatefulWidget {
   const FindriskListScreen({Key? key}) : super(key: key);
@@ -89,8 +92,8 @@ class _FindriskListScreenState extends State<FindriskListScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const CircularProgressIndicator(),
-                const SizedBox(height: 16),
-                const Text('Sincronizando tests FINDRISK pendientes...'),
+                SizedBox(height: 16),
+                Text('Sincronizando tests FINDRISK pendientes...'),
               ],
             ),
           ),
@@ -156,7 +159,7 @@ class _FindriskListScreenState extends State<FindriskListScreen> {
             content: Row(
               children: [
                 Icon(icono, color: Colors.white),
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 Expanded(child: Text(mensaje)),
               ],
             ),
@@ -182,8 +185,8 @@ class _FindriskListScreenState extends State<FindriskListScreen> {
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.error, color: Colors.white),
-                const SizedBox(width: 8),
+                Icon(Icons.error, color: Colors.white),
+                SizedBox(width: 8),
                 Expanded(child: Text('Error de sincronización FINDRISK: $e')),
               ],
             ),
@@ -205,7 +208,7 @@ class _FindriskListScreenState extends State<FindriskListScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
             Icon(Icons.error, color: Colors.red),
             SizedBox(width: 8),
@@ -222,7 +225,7 @@ class _FindriskListScreenState extends State<FindriskListScreen> {
                 'Se encontraron ${errores.length} errores durante la sincronización:',
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               Flexible(
                 child: ListView.builder(
                   shrinkWrap: true,
@@ -256,7 +259,7 @@ class _FindriskListScreenState extends State<FindriskListScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
+            child: Text('Cerrar'),
           ),
         ],
       ),
@@ -277,19 +280,28 @@ class _FindriskListScreenState extends State<FindriskListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF0F4F8),
       appBar: AppBar(
-        title: const Text('Tests FINDRISK'),
-        backgroundColor: Colors.blue[700],
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            'Tests FINDRISK',
+            style: GoogleFonts.roboto(fontWeight: FontWeight.w600, color: Colors.white),
+          ),
+        ),
+        backgroundColor: primaryColor,
         foregroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.analytics),
+            icon: Icon(Icons.analytics),
             onPressed: _showEstadisticas,
           ),
           // 🔄 BOTÓN DE SINCRONIZACIÓN FINDRISK
           IconButton(
             icon: _isSyncing 
-                ? const SizedBox(
+                ? SizedBox(
                     width: 20,
                     height: 20,
                     child: CircularProgressIndicator(
@@ -297,7 +309,7 @@ class _FindriskListScreenState extends State<FindriskListScreen> {
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
                   )
-                : const Icon(Icons.sync),
+                : Icon(Icons.sync),
             onPressed: _isSyncing ? null : _sincronizarTestsPendientes,
             tooltip: 'Sincronizar tests FINDRISK pendientes',
           ),
@@ -308,19 +320,35 @@ class _FindriskListScreenState extends State<FindriskListScreen> {
           // Barra de búsqueda
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Buscar tests...',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                filled: true,
-                fillColor: Colors.grey[100],
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(15),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
-              onChanged: (value) {
-                setState(() => _searchQuery = value);
-              },
+              child: TextField(
+                style: GoogleFonts.roboto(fontSize: 15),
+                decoration: InputDecoration(
+                  hintText: 'Buscar tests...',
+                  hintStyle: GoogleFonts.roboto(color: Colors.grey.shade500, fontSize: 15),
+                  prefixIcon: Icon(Icons.search),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15),
+                    borderSide: BorderSide.none,
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
+                onChanged: (value) {
+                  setState(() => _searchQuery = value);
+                },
+              ),
             ),
           ),
           
@@ -348,8 +376,8 @@ class _FindriskListScreenState extends State<FindriskListScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _navigateToForm(),
-        backgroundColor: Colors.blue[700],
-        child: const Icon(Icons.add, color: Colors.white),
+        backgroundColor: primaryColor,
+        child: Icon(Icons.add, color: Colors.white),
       ),
     );
   }
@@ -363,9 +391,15 @@ class _FindriskListScreenState extends State<FindriskListScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.blue[50],
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.blue[200]!),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -383,17 +417,18 @@ class _FindriskListScreenState extends State<FindriskListScreen> {
       children: [
         Text(
           value,
-          style: TextStyle(
+          style: GoogleFonts.roboto(
             fontSize: 24,
             fontWeight: FontWeight.bold,
-            color: color,
+            color: color == Colors.blue ? primaryColor : color,
           ),
         ),
         Text(
           label,
-          style: TextStyle(
+          style: GoogleFonts.roboto(
             fontSize: 12,
             color: Colors.grey[600],
+            fontWeight: FontWeight.w500,
           ),
         ),
       ],
@@ -422,13 +457,20 @@ class _FindriskListScreenState extends State<FindriskListScreen> {
         : nombrePaciente;
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: primaryColor.withOpacity(0.15), width: 1.5),
+      ),
       child: ListTile(
+        contentPadding: const EdgeInsets.all(12),
         leading: CircleAvatar(
+          radius: 24,
           backgroundColor: color.withOpacity(0.2),
           child: Text(
             test.puntajeFinal.toString(),
-            style: TextStyle(
+            style: GoogleFonts.roboto(
               color: color,
               fontWeight: FontWeight.bold,
             ),
@@ -436,29 +478,32 @@ class _FindriskListScreenState extends State<FindriskListScreen> {
         ),
         title: Text(
           'Test $displayTestId',
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: GoogleFonts.roboto(fontWeight: FontWeight.w800, fontSize: 16, color: Colors.black87),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            SizedBox(height: 4),
             // 🆕 MOSTRAR SOLO NOMBRE DEL PACIENTE
             Text(
               'Paciente: $displayNombrePaciente',
-              style: const TextStyle(
-                fontWeight: FontWeight.w500,
+              style: GoogleFonts.roboto(
+                fontWeight: FontWeight.w600,
+                color: primaryColor,
                 fontSize: 14,
               ),
             ),
             Text(
               'Riesgo: ${interpretacion['nivel']} (${interpretacion['riesgo']})',
-              style: TextStyle(
+              style: GoogleFonts.roboto(
                 color: color,
                 fontWeight: FontWeight.w600,
+                fontSize: 13,
               ),
             ),
             Text(
               'Creado: ${_formatDate(test.createdAt)}',
-              style: TextStyle(
+              style: GoogleFonts.roboto(
                 fontSize: 12,
                 color: Colors.grey[600],
               ),
@@ -472,7 +517,7 @@ class _FindriskListScreenState extends State<FindriskListScreen> {
               Icon(Icons.sync_problem, color: Colors.orange[600], size: 20),
             if (test.syncStatus == 1)
               Icon(Icons.cloud_done, color: Colors.green[600], size: 20),
-            const Icon(Icons.chevron_right),
+            Icon(Icons.chevron_right),
           ],
         ),
         onTap: () => _navigateToDetail(test),
@@ -490,18 +535,19 @@ class _FindriskListScreenState extends State<FindriskListScreen> {
             size: 100,
             color: Colors.grey[400],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           Text(
             'No hay tests FINDRISK',
-            style: TextStyle(
+            style: GoogleFonts.roboto(
               fontSize: 18,
               color: Colors.grey[600],
+              fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Text(
             'Toca el botón + para crear el primer test',
-            style: TextStyle(
+            style: GoogleFonts.roboto(
               color: Colors.grey[500],
             ),
           ),
@@ -553,15 +599,15 @@ class _FindriskListScreenState extends State<FindriskListScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Estadísticas FINDRISK'),
+        title: Text('Estadísticas FINDRISK'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildEstadisticaItem('Total de tests', estadisticas['total_tests']?.toString() ?? '0'),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             const Divider(),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             _buildEstadisticaItem('Riesgo bajo', estadisticas['riesgo_bajo']?.toString() ?? '0', Colors.green),
             _buildEstadisticaItem('Riesgo ligeramente elevado', estadisticas['riesgo_ligeramente_elevado']?.toString() ?? '0', Colors.yellow[700]!),
             _buildEstadisticaItem('Riesgo moderado', estadisticas['riesgo_moderado']?.toString() ?? '0', Colors.orange),
@@ -572,7 +618,7 @@ class _FindriskListScreenState extends State<FindriskListScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
+            child: Text('Cerrar'),
           ),
         ],
       ),
@@ -588,7 +634,7 @@ class _FindriskListScreenState extends State<FindriskListScreen> {
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(fontSize: 14),
+              style: GoogleFonts.roboto(fontSize: 14, fontWeight: FontWeight.w500),
             ),
           ),
           Container(
@@ -602,7 +648,7 @@ class _FindriskListScreenState extends State<FindriskListScreen> {
             ),
             child: Text(
               value,
-              style: TextStyle(
+              style: GoogleFonts.roboto(
                 fontWeight: FontWeight.bold,
                 color: color ?? Colors.black,
                 fontSize: 14,

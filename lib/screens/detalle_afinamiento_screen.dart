@@ -5,6 +5,9 @@ import '../models/paciente_model.dart';
 import '../services/afinamiento_service.dart';
 import '../database/database_helper.dart';
 import 'crear_afinamiento_screen.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+const Color primaryColor = Color(0xFF1B5E20);
 
 class DetalleAfinamientoScreen extends StatefulWidget {
   final String afinamientoId;
@@ -66,13 +69,23 @@ class _DetalleAfinamientoScreenState extends State<DetalleAfinamientoScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Detalle del Afinamiento'),
-        backgroundColor: Colors.blue[700],
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            'Detalle del Afinamiento',
+            style: GoogleFonts.roboto(
+              fontWeight: FontWeight.w600,
+              fontSize: 18,
+              color: Colors.white,
+            ),
+          ),
+        ),
+        backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         actions: [
           if (_afinamiento != null)
             IconButton(
-              icon: const Icon(Icons.edit),
+              icon: Icon(Icons.edit),
               onPressed: () async {
                 final result = await Navigator.push(
                   context,
@@ -92,7 +105,7 @@ class _DetalleAfinamientoScreenState extends State<DetalleAfinamientoScreen> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: CircularProgressIndicator())
           : _error != null
               ? _buildErrorState()
               : _afinamiento == null
@@ -107,33 +120,33 @@ class _DetalleAfinamientoScreenState extends State<DetalleAfinamientoScreen> {
                             // Estado de sincronización
                             _buildEstadoSincronizacion(),
                             
-                            const SizedBox(height: 16),
+                            SizedBox(height: 16),
                             
                             // Información del paciente
                             if (_paciente != null) _buildInformacionPaciente(),
                             
-                            const SizedBox(height: 16),
+                            SizedBox(height: 16),
                             
                             // Información del tamizaje
                             _buildInformacionTamizaje(),
                             
-                            const SizedBox(height: 16),
+                            SizedBox(height: 16),
                             
                             // Afinamientos realizados
                             _buildAfinamientosRealizados(),
                             
-                            const SizedBox(height: 16),
+                            SizedBox(height: 16),
                             
                             // Promedios
                             if (_afinamiento!.tienePromedios) _buildPromedios(),
                             
-                            const SizedBox(height: 16),
+                            SizedBox(height: 16),
                             
                             // Conducta
                             if (_afinamiento!.conducta != null && _afinamiento!.conducta!.isNotEmpty)
                               _buildConducta(),
                             
-                            const SizedBox(height: 16),
+                            SizedBox(height: 16),
                             
                             // Información adicional
                             _buildInformacionAdicional(),
@@ -154,19 +167,19 @@ class _DetalleAfinamientoScreenState extends State<DetalleAfinamientoScreen> {
             size: 80,
             color: Colors.red[400],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           Text(
             _error!,
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: GoogleFonts.roboto(
               fontSize: 16,
               color: Colors.grey[600],
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           ElevatedButton(
             onPressed: _cargarDatos,
-            child: const Text('Reintentar'),
+            child: Text('Reintentar'),
           ),
         ],
       ),
@@ -183,19 +196,19 @@ class _DetalleAfinamientoScreenState extends State<DetalleAfinamientoScreen> {
             size: 80,
             color: Colors.grey[400],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           Text(
             'Afinamiento no encontrado',
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: GoogleFonts.roboto(
               fontSize: 16,
               color: Colors.grey[600],
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           ElevatedButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Volver'),
+            child: Text('Volver'),
           ),
         ],
       ),
@@ -220,14 +233,14 @@ class _DetalleAfinamientoScreenState extends State<DetalleAfinamientoScreen> {
             estaSincronizado ? Icons.cloud_done : Icons.cloud_upload,
             color: estaSincronizado ? Colors.green[700] : Colors.orange[700],
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   estaSincronizado ? 'Sincronizado' : 'Pendiente de sincronización',
-                  style: TextStyle(
+                  style: GoogleFonts.roboto(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: estaSincronizado ? Colors.green[700] : Colors.orange[700],
@@ -237,7 +250,7 @@ class _DetalleAfinamientoScreenState extends State<DetalleAfinamientoScreen> {
                   estaSincronizado
                       ? 'Los datos están guardados en el servidor'
                       : 'Los datos se sincronizarán cuando haya conexión',
-                  style: TextStyle(
+                  style: GoogleFonts.roboto(
                     fontSize: 14,
                     color: Colors.grey[600],
                   ),
@@ -257,40 +270,40 @@ class _DetalleAfinamientoScreenState extends State<DetalleAfinamientoScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Información del Paciente',
-              style: TextStyle(
+              style: GoogleFonts.roboto(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             
             Row(
               children: [
-                Icon(Icons.person, color: Colors.blue[700]),
-                const SizedBox(width: 12),
+                Icon(Icons.person, color: primaryColor),
+                SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         _paciente!.nombreCompleto,
-                        style: const TextStyle(
+                        style: GoogleFonts.roboto(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
                         'Identificación: ${_paciente!.identificacion}',
-                        style: TextStyle(
+                        style: GoogleFonts.roboto(
                           fontSize: 14,
                           color: Colors.grey[600],
                         ),
                       ),
                       Text(
                         'Género: ${_paciente!.genero}',
-                        style: TextStyle(
+                        style: GoogleFonts.roboto(
                           fontSize: 14,
                           color: Colors.grey[600],
                         ),
@@ -313,14 +326,14 @@ class _DetalleAfinamientoScreenState extends State<DetalleAfinamientoScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Información del Tamizaje',
-              style: TextStyle(
+              style: GoogleFonts.roboto(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             
             _buildInfoRow(
               Icons.location_on,
@@ -328,7 +341,7 @@ class _DetalleAfinamientoScreenState extends State<DetalleAfinamientoScreen> {
               _afinamiento!.procedencia,
             ),
             
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             
             _buildInfoRow(
               Icons.calendar_today,
@@ -336,7 +349,7 @@ class _DetalleAfinamientoScreenState extends State<DetalleAfinamientoScreen> {
               DateFormat('dd/MM/yyyy').format(_afinamiento!.fechaTamizaje),
             ),
             
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             
             _buildInfoRow(
               Icons.favorite,
@@ -356,14 +369,14 @@ class _DetalleAfinamientoScreenState extends State<DetalleAfinamientoScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Afinamientos Realizados',
-              style: TextStyle(
+              style: GoogleFonts.roboto(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             
             // Primer afinamiento
             if (_afinamiento!.primerAfinamientoFecha != null)
@@ -376,7 +389,7 @@ class _DetalleAfinamientoScreenState extends State<DetalleAfinamientoScreen> {
             
             // Segundo afinamiento
             if (_afinamiento!.segundoAfinamientoFecha != null) ...[
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               _buildAfinamientoDetalle(
                 numero: 2,
                 fecha: _afinamiento!.segundoAfinamientoFecha!,
@@ -387,7 +400,7 @@ class _DetalleAfinamientoScreenState extends State<DetalleAfinamientoScreen> {
             
             // Tercer afinamiento
             if (_afinamiento!.tercerAfinamientoFecha != null) ...[
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               _buildAfinamientoDetalle(
                 numero: 3,
                 fecha: _afinamiento!.tercerAfinamientoFecha!,
@@ -408,10 +421,10 @@ class _DetalleAfinamientoScreenState extends State<DetalleAfinamientoScreen> {
                 child: Row(
                   children: [
                     Icon(Icons.info_outline, color: Colors.grey[600]),
-                    const SizedBox(width: 12),
+                    SizedBox(width: 12),
                     Text(
                       'No se han realizado afinamientos aún',
-                      style: TextStyle(
+                      style: GoogleFonts.roboto(
                         fontSize: 14,
                         color: Colors.grey[600],
                       ),
@@ -436,7 +449,7 @@ class _DetalleAfinamientoScreenState extends State<DetalleAfinamientoScreen> {
       decoration: BoxDecoration(
         color: Colors.blue[50],
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.blue[200]!),
+        border: Border.all(color: primaryColor.withOpacity(0.2)),
       ),
       child: Row(
         children: [
@@ -444,13 +457,13 @@ class _DetalleAfinamientoScreenState extends State<DetalleAfinamientoScreen> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: Colors.blue[700],
+              color: primaryColor,
               borderRadius: BorderRadius.circular(20),
             ),
             child: Center(
               child: Text(
                 numero.toString(),
-                style: const TextStyle(
+                style: GoogleFonts.roboto(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                 ),
@@ -458,7 +471,7 @@ class _DetalleAfinamientoScreenState extends State<DetalleAfinamientoScreen> {
             ),
           ),
           
-          const SizedBox(width: 16),
+          SizedBox(width: 16),
           
           Expanded(
             child: Column(
@@ -466,14 +479,14 @@ class _DetalleAfinamientoScreenState extends State<DetalleAfinamientoScreen> {
               children: [
                 Text(
                   'Afinamiento $numero',
-                  style: const TextStyle(
+                  style: GoogleFonts.roboto(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 Text(
                   DateFormat('dd/MM/yyyy').format(fecha),
-                  style: TextStyle(
+                  style: GoogleFonts.roboto(
                     fontSize: 14,
                     color: Colors.grey[600],
                   ),
@@ -488,21 +501,21 @@ class _DetalleAfinamientoScreenState extends State<DetalleAfinamientoScreen> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.blue[300]!),
+                border: Border.all(color: primaryColor),
               ),
               child: Text(
                 '$sistolica/$diastolica',
-                style: TextStyle(
+                style: GoogleFonts.roboto(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Colors.blue[700],
+                  color: primaryColor,
                 ),
               ),
             )
           else
             Text(
               'Sin datos',
-              style: TextStyle(
+              style: GoogleFonts.roboto(
                 fontSize: 14,
                 color: Colors.grey[500],
                 fontStyle: FontStyle.italic,
@@ -520,25 +533,25 @@ class _DetalleAfinamientoScreenState extends State<DetalleAfinamientoScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Promedios Calculados',
-              style: TextStyle(
+              style: GoogleFonts.roboto(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             
             Container(
                            padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Colors.blue[50]!, Colors.blue[100]!],
+                  colors: [primaryColor.withOpacity(0.05), primaryColor.withOpacity(0.2)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.blue[200]!),
+                border: Border.all(color: primaryColor.withOpacity(0.2)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -550,27 +563,27 @@ class _DetalleAfinamientoScreenState extends State<DetalleAfinamientoScreen> {
                         color: Colors.red[600],
                         size: 24,
                       ),
-                      const SizedBox(height: 8),
+                      SizedBox(height: 8),
                       Text(
                         'Sistólica',
-                        style: TextStyle(
+                        style: GoogleFonts.roboto(
                           fontSize: 14,
                           color: Colors.grey[700],
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      SizedBox(height: 4),
                       Text(
                         _afinamiento!.presionSistolicaPromedio!.toStringAsFixed(1),
-                        style: TextStyle(
+                        style: GoogleFonts.roboto(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
-                          color: Colors.blue[700],
+                          color: primaryColor,
                         ),
                       ),
                       Text(
                         'mmHg',
-                        style: TextStyle(
+                        style: GoogleFonts.roboto(
                           fontSize: 12,
                           color: Colors.grey[600],
                         ),
@@ -581,37 +594,37 @@ class _DetalleAfinamientoScreenState extends State<DetalleAfinamientoScreen> {
                   Container(
                     width: 2,
                     height: 80,
-                    color: Colors.blue[300],
+                    color: primaryColor,
                   ),
                   
                   Column(
                     children: [
                       Icon(
                         Icons.arrow_downward,
-                        color: Colors.blue[600],
+                        color: primaryColor,
                         size: 24,
                       ),
-                      const SizedBox(height: 8),
+                      SizedBox(height: 8),
                       Text(
                         'Diastólica',
-                        style: TextStyle(
+                        style: GoogleFonts.roboto(
                           fontSize: 14,
                           color: Colors.grey[700],
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      SizedBox(height: 4),
                       Text(
                         _afinamiento!.presionDiastolicaPromedio!.toStringAsFixed(1),
-                        style: TextStyle(
+                        style: GoogleFonts.roboto(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
-                          color: Colors.blue[700],
+                          color: primaryColor,
                         ),
                       ),
                       Text(
                         'mmHg',
-                        style: TextStyle(
+                        style: GoogleFonts.roboto(
                           fontSize: 12,
                           color: Colors.grey[600],
                         ),
@@ -622,7 +635,7 @@ class _DetalleAfinamientoScreenState extends State<DetalleAfinamientoScreen> {
               ),
             ),
             
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             
             // Interpretación de los valores
             _buildInterpretacionPresion(),
@@ -672,10 +685,10 @@ class _DetalleAfinamientoScreenState extends State<DetalleAfinamientoScreen> {
       child: Row(
         children: [
           Icon(icono, color: color, size: 20),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           Text(
             'Clasificación: $categoria',
-            style: TextStyle(
+            style: GoogleFonts.roboto(
               fontSize: 14,
               fontWeight: FontWeight.w600,
               color: color,
@@ -693,14 +706,14 @@ class _DetalleAfinamientoScreenState extends State<DetalleAfinamientoScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Conducta',
-              style: TextStyle(
+              style: GoogleFonts.roboto(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             
             Container(
               padding: const EdgeInsets.all(16),
@@ -713,11 +726,11 @@ class _DetalleAfinamientoScreenState extends State<DetalleAfinamientoScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Icon(Icons.medical_services, color: Colors.green[700]),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       _afinamiento!.conducta!,
-                      style: const TextStyle(
+                      style: GoogleFonts.roboto(
                         fontSize: 14,
                         height: 1.5,
                       ),
@@ -739,14 +752,14 @@ class _DetalleAfinamientoScreenState extends State<DetalleAfinamientoScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Información Adicional',
-              style: TextStyle(
+              style: GoogleFonts.roboto(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             
             _buildInfoRow(
               Icons.fingerprint,
@@ -754,7 +767,7 @@ class _DetalleAfinamientoScreenState extends State<DetalleAfinamientoScreen> {
               _afinamiento!.id,
             ),
             
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             
             if (_afinamiento!.createdAt != null)
               _buildInfoRow(
@@ -764,7 +777,7 @@ class _DetalleAfinamientoScreenState extends State<DetalleAfinamientoScreen> {
               ),
             
             if (_afinamiento!.updatedAt != null && _afinamiento!.createdAt != _afinamiento!.updatedAt) ...[
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               _buildInfoRow(
                 Icons.update,
                 'Última Actualización',
@@ -772,7 +785,7 @@ class _DetalleAfinamientoScreenState extends State<DetalleAfinamientoScreen> {
               ),
             ],
             
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             
             _buildInfoRow(
               Icons.summarize,
@@ -792,23 +805,23 @@ class _DetalleAfinamientoScreenState extends State<DetalleAfinamientoScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(icon, size: 20, color: Colors.grey[600]),
-        const SizedBox(width: 12),
+        SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 label,
-                style: TextStyle(
+                style: GoogleFonts.roboto(
                   fontSize: 12,
                   color: Colors.grey[600],
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(height: 2),
+              SizedBox(height: 2),
               Text(
                 value,
-                style: const TextStyle(
+                style: GoogleFonts.roboto(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),

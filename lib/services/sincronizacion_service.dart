@@ -34,15 +34,11 @@ class SincronizacionService {
   // 🆕 MÉTODO PARA SINCRONIZAR MEDICAMENTOS (DENTRO DE LA CLASE)
   static Future<Map<String, dynamic>> sincronizarMedicamentos(String token) async {
     try {
-      debugPrint('💊 Sincronizando medicamentos desde servidor...');
-      
       final success = await MedicamentoService.loadMedicamentosFromServer(token);
       
       if (success) {
         final dbHelper = DatabaseHelper.instance;
         final count = await dbHelper.countMedicamentos();
-        
-        debugPrint('✅ $count medicamentos sincronizados desde servidor');
         
         return {
           'exitosas': count,
@@ -51,7 +47,6 @@ class SincronizacionService {
           'total': count,
         };
       } else {
-        debugPrint('⚠️ No se pudieron cargar medicamentos desde el servidor');
         return {
           'exitosas': 0,
           'fallidas': 1,
@@ -60,7 +55,6 @@ class SincronizacionService {
         };
       }
     } catch (e) {
-      debugPrint('❌ Error sincronizando medicamentos: $e');
       return {
         'exitosas': 0,
         'fallidas': 1,
@@ -71,28 +65,22 @@ class SincronizacionService {
   }
   static Future<Map<String, dynamic>> sincronizarBrigadasPendientes(String token) async {
   try {
-    debugPrint('🏥 Iniciando sincronización de brigadas...');
-    
     final resultado = await BrigadaService.sincronizarBrigadasPendientes(token);
     
     final exitosas = resultado['exitosas'] ?? 0;
     final fallidas = resultado['fallidas'] ?? 0;
     
     if (exitosas > 0) {
-      debugPrint('✅ $exitosas brigadas sincronizadas exitosamente');
     }
     
     if (fallidas > 0) {
-      debugPrint('⚠️ $fallidas brigadas fallaron en la sincronización');
       final errores = resultado['errores'] as List<String>? ?? [];
       for (final error in errores.take(3)) {
-        debugPrint('❌ Error: $error');
       }
     }
     
     return resultado;
   } catch (e) {
-    debugPrint('💥 Error en sincronización de brigadas: $e');
     return {
       'exitosas': 0,
       'fallidas': 1,
@@ -104,28 +92,22 @@ class SincronizacionService {
 // Método para sincronizar encuestas (agregar dentro de la clase)
 static Future<Map<String, dynamic>> sincronizarEncuestasPendientes(String token) async {
   try {
-    debugPrint('📋 Iniciando sincronización de encuestas...');
-    
     final resultado = await EncuestaService.sincronizarEncuestasPendientes(token);
     
     final exitosas = resultado['exitosas'] ?? 0;
     final fallidas = resultado['fallidas'] ?? 0;
     
     if (exitosas > 0) {
-      debugPrint('✅ $exitosas encuestas sincronizadas exitosamente');
     }
     
     if (fallidas > 0) {
-      debugPrint('⚠️ $fallidas encuestas fallaron en la sincronización');
       final errores = resultado['errores'] as List<String>? ?? [];
       for (final error in errores.take(3)) {
-        debugPrint('❌ Error: $error');
       }
     }
     
     return resultado;
   } catch (e) {
-    debugPrint('💥 Error en sincronización de encuestas: $e');
     return {
       'exitosas': 0,
       'fallidas': 1,
@@ -137,8 +119,6 @@ static Future<Map<String, dynamic>> sincronizarEncuestasPendientes(String token)
 // services/sincronizacion_service.dart - MÉTODO CORREGIDO
 static Future<Map<String, dynamic>> sincronizarFindriskTestsPendientes(String token) async {
   try {
-    debugPrint('🔍 Iniciando sincronización de tests FINDRISK...');
-    
     // ✅ VALIDAR QUE EL TOKEN NO ESTÉ VACÍO
     if (token.isEmpty) {
       throw Exception('Token de autenticación requerido para sincronización FINDRISK');
@@ -151,20 +131,16 @@ static Future<Map<String, dynamic>> sincronizarFindriskTestsPendientes(String to
     final fallidas = resultado['fallidas'] ?? 0;
     
     if (exitosas > 0) {
-      debugPrint('✅ $exitosas tests FINDRISK sincronizados exitosamente');
     }
     
     if (fallidas > 0) {
-      debugPrint('⚠️ $fallidas tests FINDRISK fallaron en la sincronización');
       final errores = resultado['errores'] as List<String>? ?? [];
       for (final error in errores.take(3)) {
-        debugPrint('❌ Error: $error');
       }
     }
     
     return resultado;
   } catch (e) {
-    debugPrint('💥 Error en sincronización de tests FINDRISK: $e');
     return {
       'exitosas': 0,
       'fallidas': 1,
@@ -176,28 +152,22 @@ static Future<Map<String, dynamic>> sincronizarFindriskTestsPendientes(String to
 // Método para sincronizar afinamientos (agregar dentro de la clase)
 static Future<Map<String, dynamic>> sincronizarAfinamientosPendientes(String token) async {
   try {
-    debugPrint('🩺 Iniciando sincronización de afinamientos...');
-    
     final resultado = await AfinamientoService.sincronizarAfinamientosPendientes(token);
     
     final exitosas = resultado['exitosas'] ?? 0;
     final fallidas = resultado['fallidas'] ?? 0;
     
     if (exitosas > 0) {
-      debugPrint('✅ $exitosas afinamientos sincronizados exitosamente');
     }
     
     if (fallidas > 0) {
-      debugPrint('⚠️ $fallidas afinamientos fallaron en la sincronización');
       final errores = resultado['errores'] as List<String>? ?? [];
       for (final error in errores.take(3)) {
-        debugPrint('❌ Error: $error');
       }
     }
     
     return resultado;
   } catch (e) {
-    debugPrint('💥 Error en sincronización de afinamientos: $e');
     return {
       'exitosas': 0,
       'fallidas': 1,
@@ -208,28 +178,22 @@ static Future<Map<String, dynamic>> sincronizarAfinamientosPendientes(String tok
 }
 static Future<Map<String, dynamic>> sincronizarTamizajesPendientes(String token) async {
   try {
-    debugPrint('🩺 Iniciando sincronización de tamizajes...');
-    
     final resultado = await TamizajeService.sincronizarTamizajesPendientes(token);
     
     final exitosas = resultado['exitosas'] ?? 0;
     final fallidas = resultado['fallidas'] ?? 0;
     
     if (exitosas > 0) {
-      debugPrint('✅ $exitosas tamizajes sincronizados exitosamente');
     }
     
     if (fallidas > 0) {
-      debugPrint('⚠️ $fallidas tamizajes fallaron en la sincronización');
       final errores = resultado['errores'] as List<String>? ?? [];
       for (final error in errores.take(3)) {
-        debugPrint('❌ Error: $error');
       }
     }
     
     return resultado;
   } catch (e) {
-    debugPrint('💥 Error en sincronización de tamizajes: $e');
     return {
       'exitosas': 0,
       'fallidas': 1,
@@ -242,8 +206,6 @@ static Future<Map<String, dynamic>> sincronizarTamizajesPendientes(String token)
 
 // 🆕 MÉTODO ACTUALIZADO PARA SINCRONIZACIÓN COMPLETA
 static Future<Map<String, dynamic>> sincronizacionCompleta(String token) async {
-  debugPrint('🔄 Iniciando sincronización completa...');
-  
   final Map<String, dynamic> resultado = {
     'medicamentos': {'exitosas': 0, 'fallidas': 0, 'errores': []}, 
     'visitas': {'exitosas': 0, 'fallidas': 0, 'errores': []},
@@ -263,65 +225,50 @@ static Future<Map<String, dynamic>> sincronizacionCompleta(String token) async {
   
   try {
     // 🆕 1. Sincronizar medicamentos primero
-    debugPrint('💊 Sincronizando medicamentos...');
     resultado['medicamentos'] = await sincronizarMedicamentos(token);
     
     final medicamentosExitosos = resultado['medicamentos']['exitosas'] ?? 0;
     if (medicamentosExitosos > 0) {
-      debugPrint('✅ $medicamentosExitosos medicamentos sincronizados exitosamente');
     }
     
     // 2. Sincronizar visitas pendientes
-    debugPrint('1️⃣ Sincronizando visitas pendientes...');
     resultado['visitas'] = await sincronizarVisitasPendientes(token);
     
     final visitasExitosas = resultado['visitas']['exitosas'] ?? 0;
     if (visitasExitosas > 0) {
-      debugPrint('✅ $visitasExitosas visitas sincronizadas exitosamente');
     }
     
     // 3. Sincronizar pacientes pendientes
-    debugPrint('2️⃣ Sincronizando pacientes pendientes...');
     resultado['pacientes'] = await sincronizarPacientesPendientes(token);
     
     final pacientesExitosos = resultado['pacientes']['exitosas'] ?? 0;
     if (pacientesExitosos > 0) {
-      debugPrint('✅ $pacientesExitosos pacientes sincronizados exitosamente');
     }
     
     // 4. 🆕 Sincronizar envíos de muestras pendientes
-    debugPrint('3️⃣ Sincronizando envíos de muestras pendientes...');
     resultado['envios_muestras'] = await sincronizarEnviosMuestrasPendientes(token);
 
     // 5. 🆕 Sincronizar brigadas pendientes
-    debugPrint('4️⃣ Sincronizando brigadas pendientes...');
     resultado['brigadas'] = await sincronizarBrigadasPendientes(token);
 
     // 6. 🆕 Sincronizar encuestas pendientes
-    debugPrint('5️⃣ Sincronizando encuestas pendientes...');
     resultado['encuestas'] = await sincronizarEncuestasPendientes(token);
 
     // 7. 🆕 Sincronizar tests FINDRISK pendientes
-    debugPrint('6️⃣ Sincronizando tests FINDRISK pendientes...');
     resultado['findrisk_tests'] = await sincronizarFindriskTestsPendientes(token);
 
-     debugPrint('8️⃣ Sincronizando afinamientos pendientes...');
      resultado['afinamientos'] = await sincronizarAfinamientosPendientes(token);
 
-       debugPrint('9️⃣ Sincronizando tamizajes pendientes...');
     resultado['tamizajes'] = await sincronizarTamizajesPendientes(token);
 
     // 8. Sincronizar archivos pendientes
-    debugPrint('7️⃣ Sincronizando archivos pendientes...');
     resultado['archivos'] = await sincronizarArchivosPendientes(token);
     
     final archivosExitosos = resultado['archivos']['exitosas'] ?? 0;
     if (archivosExitosos > 0) {
-      debugPrint('✅ $archivosExitosos archivos sincronizados exitosamente');
     }
     
     // 9. Limpiar archivos antiguos
-    debugPrint('8️⃣ Limpiando archivos antiguos...');
     await limpiarArchivosLocales();
     
     stopwatch.stop();
@@ -341,17 +288,13 @@ static Future<Map<String, dynamic>> sincronizacionCompleta(String token) async {
     resultado['exito_general'] = totalExitosas > 0;
     
     if (resultado['exito_general']) {
-      debugPrint('🎉 Sincronización completa finalizada exitosamente en ${stopwatch.elapsedMilliseconds}ms');
-      debugPrint('📊 Resumen: $medicamentosExitosos medicamentos, $visitasExitosas visitas, $pacientesExitosos pacientes, $enviosExitosos envíos, $brigadasExitosas brigadas, $encuestasExitosas encuestas, $findriskExitosos tests FINDRISK, $afinamientosExitosos afinamientos, $tamizajesExitosos tamizajes, $archivosExitosos archivos sincronizados');
     } else {
-      debugPrint('⚠️ Sincronización completa finalizada sin elementos para sincronizar en ${stopwatch.elapsedMilliseconds}ms');
     }
     
   } catch (e) {
     stopwatch.stop();
     resultado['tiempo_total'] = stopwatch.elapsedMilliseconds;
     resultado['error_general'] = e.toString();
-    debugPrint('💥 Error en sincronización completa: $e');
   }
   
   return resultado;
@@ -359,8 +302,6 @@ static Future<Map<String, dynamic>> sincronizacionCompleta(String token) async {
 // services/sincronizacion_service.dart - MÉTODO CORREGIDO
 // services/sincronizacion_service.dart - MÉTODO CORREGIDO
 static Future<Map<String, dynamic>> sincronizarSoloPacientes(String token) async {
-  debugPrint('👥 Iniciando sincronización específica de pacientes...');
-  
   final Map<String, dynamic> resultado = {
     'pacientes': {'exitosas': 0, 'fallidas': 0, 'errores': <String>[]}, // ✅ CORREGIDO: Tipo explícito
     'tiempo_total': 0,
@@ -375,14 +316,10 @@ static Future<Map<String, dynamic>> sincronizarSoloPacientes(String token) async
       throw Exception('No hay conexión a internet disponible');
     }
     
-    debugPrint('✅ Conexión verificada, procediendo con sincronización...');
-    
     // ✅ SINCRONIZAR PACIENTES OFFLINE PENDIENTES
-    debugPrint('📤 Sincronizando pacientes offline pendientes...');
     final pacientesOfflineResult = await sincronizarPacientesOfflinePendientes(token);
     
     // ✅ CARGAR PACIENTES FALTANTES DESDE SERVIDOR
-    debugPrint('📥 Cargando pacientes faltantes desde servidor...');
     final pacientesFaltantesResult = await cargarPacientesFaltantesDesdeServidor(token);
     
     // ✅ CONSOLIDAR RESULTADOS CON TIPOS CORRECTOS
@@ -418,17 +355,13 @@ static Future<Map<String, dynamic>> sincronizarSoloPacientes(String token) async
     resultado['exito_general'] = (pacientesSubidos + pacientesCargados) > 0;
     
     if (pacientesSubidos > 0) {
-      debugPrint('📤 $pacientesSubidos pacientes offline sincronizados al servidor');
     }
     
     if (pacientesCargados > 0) {
-      debugPrint('📥 $pacientesCargados pacientes nuevos descargados del servidor');
     }
     
     if (resultado['exito_general']) {
-      debugPrint('🎉 Sincronización de pacientes finalizada exitosamente en ${stopwatch.elapsedMilliseconds}ms');
     } else {
-      debugPrint('⚠️ Sincronización de pacientes finalizada sin elementos para procesar');
     }
     
   } catch (e) {
@@ -441,7 +374,6 @@ static Future<Map<String, dynamic>> sincronizarSoloPacientes(String token) async
       (resultado['pacientes']['errores'] as List<String>).add('Error general: $e');
     }
     
-    debugPrint('💥 Error en sincronización de pacientes: $e');
   }
   
   return resultado;
@@ -459,12 +391,8 @@ static Future<Map<String, dynamic>> sincronizarPacientesOfflinePendientes(String
   int fallidas = 0;
   List<String> errores = [];
 
-  debugPrint('📤 Sincronizando ${pacientesOffline.length} pacientes offline...');
-
   for (final paciente in pacientesOffline) {
     try {
-      debugPrint('📡 Procesando paciente offline: ${paciente.identificacion}');
-      
       final pacienteData = {
         'identificacion': paciente.identificacion,
         'nombre': paciente.nombre,
@@ -482,7 +410,6 @@ static Future<Map<String, dynamic>> sincronizarPacientesOfflinePendientes(String
       if (paciente.id.startsWith('offline_')) {
         try {
           // ✅ INTENTAR CREAR NUEVO PACIENTE
-          debugPrint('🆕 Creando paciente offline en servidor: ${paciente.identificacion}');
           serverData = await ApiService.createPaciente(token, pacienteData);
           
           if (serverData != null) {
@@ -496,15 +423,15 @@ static Future<Map<String, dynamic>> sincronizarPacientesOfflinePendientes(String
             // ✅ MARCAR COMO SINCRONIZADO
             await dbHelper.markPacientesAsSynced([nuevoPaciente.id]);
             
+            // 🚀 ESTO ES VITAL: CASCADA DEL NUEVO ID A VISITAS, ENCUESTAS, ETC.
+            await dbHelper.actualizarIdPacienteEnCascada(paciente.id, nuevoPaciente.id);
+            
             exitosas++;
             pacienteProcessed = true;
-            debugPrint('✅ Paciente offline creado en servidor: ${paciente.identificacion}');
           }
         } catch (e) {
           if (e.toString().contains('422') && e.toString().contains('already been taken')) {
             // ✅ PACIENTE YA EXISTE - BUSCAR EN SERVIDOR Y SINCRONIZAR
-            debugPrint('⚠️ Paciente ${paciente.identificacion} ya existe en servidor, sincronizando...');
-            
             try {
               // Obtener pacientes del servidor para encontrar el ID correcto
               final pacientesServidor = await ApiService.getPacientes(token);
@@ -525,12 +452,13 @@ static Future<Map<String, dynamic>> sincronizarPacientesOfflinePendientes(String
                 // ✅ MARCAR COMO SINCRONIZADO
                 await dbHelper.markPacientesAsSynced([pacienteSincronizado.id]);
                 
+                // 🚀 CASCADA DEL NUEVO ID, INCLUSO SI ERA DUPLICADO
+                await dbHelper.actualizarIdPacienteEnCascada(paciente.id, pacienteSincronizado.id);
+                
                 exitosas++;
                 pacienteProcessed = true;
-                debugPrint('✅ Paciente offline sincronizado con versión del servidor: ${paciente.identificacion}');
               }
             } catch (syncError) {
-              debugPrint('❌ Error sincronizando paciente duplicado: $syncError');
               errores.add('Error sincronizando duplicado ${paciente.identificacion}: $syncError');
               fallidas++;
             }
@@ -541,14 +469,12 @@ static Future<Map<String, dynamic>> sincronizarPacientesOfflinePendientes(String
         }
       } else {
         // ✅ ACTUALIZAR PACIENTE EXISTENTE
-        debugPrint('🔄 Actualizando paciente existente: ${paciente.identificacion}');
         serverData = await ApiService.actualizarPaciente(token, paciente.id, pacienteData);
         
         if (serverData != null) {
           await dbHelper.markPacientesAsSynced([paciente.id]);
           exitosas++;
           pacienteProcessed = true;
-          debugPrint('✅ Paciente actualizado en servidor: ${paciente.identificacion}');
         }
       }
       
@@ -570,17 +496,14 @@ static Future<Map<String, dynamic>> sincronizarPacientesOfflinePendientes(String
           );
           
           if (coordenadasResult != null) {
-            debugPrint('📍 Coordenadas sincronizadas para ${paciente.identificacion}');
           }
         } catch (coordError) {
-          debugPrint('⚠️ Error sincronizando coordenadas: $coordError');
         }
       }
       
       if (!pacienteProcessed) {
         fallidas++;
         errores.add('No se pudo procesar paciente ${paciente.identificacion}');
-        debugPrint('❌ Falló procesamiento de ${paciente.identificacion}');
       }
       
       await Future.delayed(const Duration(milliseconds: 300));
@@ -588,7 +511,6 @@ static Future<Map<String, dynamic>> sincronizarPacientesOfflinePendientes(String
     } catch (e) {
       fallidas++;
       errores.add('Error en ${paciente.identificacion}: $e');
-      debugPrint('💥 Error procesando ${paciente.identificacion}: $e');
     }
   }
 
@@ -596,17 +518,13 @@ static Future<Map<String, dynamic>> sincronizarPacientesOfflinePendientes(String
   if (exitosas > 0) {
     try {
       await dbHelper.limpiarPacientesDuplicadosDespuesSincronizacion();
-      debugPrint('🧹 Limpieza de duplicados completada');
     } catch (e) {
-      debugPrint('⚠️ Error en limpieza de duplicados: $e');
     }
   }
 
   if (exitosas > 0) {
-    debugPrint('🎉 $exitosas pacientes sincronizados exitosamente');
   }
   if (fallidas > 0) {
-    debugPrint('⚠️ $fallidas pacientes fallaron en la sincronización');
   }
 
   return {
@@ -624,8 +542,6 @@ static Future<Map<String, dynamic>> actualizarVisitaExistente(
   List<Map<String, dynamic>> medicamentosData
 ) async {
   try {
-    debugPrint('🔄 Actualizando visita existente: ${visita.id}');
-    
     // ✅ PREPARAR DATOS IGUAL QUE EN CREATE
     Map<String, String> visitaData = {
       'id': visita.id,
@@ -671,7 +587,6 @@ static Future<Map<String, dynamic>> actualizarVisitaExistente(
     return resultado ?? {'success': false, 'error': 'No response from server'};
     
   } catch (e) {
-    debugPrint('❌ Error actualizando visita existente: $e');
     return {'success': false, 'error': e.toString()};
   }
 }
@@ -684,8 +599,6 @@ static Future<Map<String, dynamic>> cargarPacientesFaltantesDesdeServidor(String
     // ✅ 1. OBTENER IDENTIFICACIONES DE PACIENTES LOCALES
     final pacientesLocales = await dbHelper.readAllPacientes();
     final identificacionesLocales = pacientesLocales.map((p) => p.identificacion).toSet();
-    
-    debugPrint('📋 Pacientes locales: ${identificacionesLocales.length}');
     
     // ✅ 2. OBTENER PACIENTES DEL SERVIDOR
     List<Map<String, dynamic>> pacientesServidor = [];
@@ -701,10 +614,7 @@ static Future<Map<String, dynamic>> cargarPacientesFaltantesDesdeServidor(String
         }
       }).toList();
       
-      debugPrint('📋 Pacientes en servidor: ${pacientesServidor.length}');
-      
     } catch (e) {
-      debugPrint('❌ Error obteniendo pacientes del servidor: $e');
       return {
         'cargados': 0, 
         'errores': ['Error de conexión con servidor: $e']
@@ -712,7 +622,6 @@ static Future<Map<String, dynamic>> cargarPacientesFaltantesDesdeServidor(String
     }
     
     if (pacientesServidor.isEmpty) {
-      debugPrint('⚠️ No se obtuvieron pacientes del servidor');
       return {
         'cargados': 0, 
         'errores': [],
@@ -726,10 +635,7 @@ static Future<Map<String, dynamic>> cargarPacientesFaltantesDesdeServidor(String
       return identificacion.isNotEmpty && !identificacionesLocales.contains(identificacion);
     }).toList();
     
-    debugPrint('📥 Pacientes faltantes encontrados: ${pacientesFaltantes.length}');
-    
     if (pacientesFaltantes.isEmpty) {
-      debugPrint('✅ No hay pacientes faltantes - base local actualizada');
       return {
         'cargados': 0,
         'errores': [],
@@ -763,17 +669,14 @@ static Future<Map<String, dynamic>> cargarPacientesFaltantesDesdeServidor(String
         cargados++;
         
         if (cargados <= 5) {
-          debugPrint('✅ Paciente cargado: ${paciente.nombreCompleto} (${paciente.identificacion})');
         }
         
       } catch (e) {
         errores.add('Error cargando paciente ${pacienteData['identificacion']}: $e');
-        debugPrint('❌ Error cargando paciente: $e');
       }
     }
     
     if (cargados > 5) {
-      debugPrint('✅ ... y ${cargados - 5} pacientes más cargados exitosamente');
     }
     
     return {
@@ -785,7 +688,6 @@ static Future<Map<String, dynamic>> cargarPacientesFaltantesDesdeServidor(String
     };
     
   } catch (e) {
-    debugPrint('❌ Error general cargando pacientes faltantes: $e');
     return {
       'cargados': 0,
       'errores': ['Error general: $e'],
@@ -798,19 +700,14 @@ static Future<Map<String, dynamic>> cargarPacientesFaltantesDesdeServidor(String
 
  // ✅ MÉTODO CORREGIDO PARA connectivity_plus ^6.1.4
 Future<void> scheduleSync() async {
-  debugPrint('🔄 Programando sincronización automática...');
-  
   try {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('pendingSyncTasks', true);
     await prefs.setString('lastSyncRequest', DateTime.now().toIso8601String());
-    debugPrint('✅ Marcado como pendiente de sincronización');
   } catch (e) {
-    debugPrint('⚠️ Error al guardar estado de sincronización: $e');
   }
 
   if (_isListening) {
-    debugPrint('ℹ️ Ya estamos escuchando cambios de conectividad');
     return;
   }
 
@@ -821,29 +718,20 @@ Future<void> scheduleSync() async {
       (List<ConnectivityResult> results) async {
         final result = results.isNotEmpty ? results.first : ConnectivityResult.none;
         
-        debugPrint('📶 Cambio de conectividad detectado: $result');
-        
         if (result == ConnectivityResult.wifi || result == ConnectivityResult.mobile) {
-          debugPrint('🌐 Detectada conexión a internet.');
-          
           // ✅ SOLO VERIFICAR CONEXIÓN, NO SINCRONIZAR AUTOMÁTICAMENTE
           try {
             final hasRealConnection = await _checkRealConnection();
             if (hasRealConnection) {
-              debugPrint('✅ Conexión real confirmada. Esperando sincronización manual...');
-              // ❌ ELIMINADO: await _startSyncProcess();
+              await _startSyncProcess();
             } else {
-              debugPrint('⚠️ Sin conexión real a pesar del cambio detectado');
             }
           } catch (e) {
-            debugPrint('❌ Error al verificar conexión real: $e');
           }
         } else {
-          debugPrint('📵 Sin conexión de red detectada');
         }
       },
       onError: (error) {
-        debugPrint('❌ Error en listener de conectividad: $error');
       },
     ) as StreamSubscription<ConnectivityResult>?;
     
@@ -854,22 +742,18 @@ Future<void> scheduleSync() async {
           ? currentConnectivity.first 
           : ConnectivityResult.none;
       
-      debugPrint('📶 Conectividad inicial: $firstResult');
-      
       if (firstResult == ConnectivityResult.wifi || firstResult == ConnectivityResult.mobile) {
-        debugPrint('🌐 Ya hay conexión disponible. Esperando sincronización manual...');
-        // ❌ ELIMINADO: Sincronización automática
+        final hasRealConnection = await _checkRealConnection();
+        if (hasRealConnection) {
+          await _startSyncProcess();
+        }
       } else {
-        debugPrint('📵 Sin conexión detectada actualmente');
       }
     } catch (connectivityError) {
-      debugPrint('⚠️ Error al verificar conectividad inicial: $connectivityError');
     }
     
-    debugPrint('👂 Escuchando cambios de conectividad correctamente');
   } catch (e) {
     _isListening = false;
-    debugPrint('❌ Error al programar sincronización: $e');
   }
 }
   // Método para verificar conexión real (no solo estado del adaptador)
@@ -884,8 +768,6 @@ Future<void> scheduleSync() async {
 // services/sincronizacion_service.dart - MÉTODO CORREGIDO PARA ENVÍOS
 static Future<Map<String, dynamic>> sincronizarEnviosMuestrasPendientes(String token) async {
   try {
-    debugPrint('🧪 Iniciando sincronización de envíos de muestras...');
-    
     // ✅ USAR EL SERVICIO ESPECÍFICO
     final resultado = await EnvioMuestraService.sincronizarEnviosPendientes(token);
     
@@ -894,20 +776,16 @@ static Future<Map<String, dynamic>> sincronizarEnviosMuestrasPendientes(String t
     final total = resultado['total'] ?? 0;
     
     if (exitosas > 0) {
-      debugPrint('✅ $exitosas envíos de muestras sincronizados exitosamente');
     }
     
     if (fallidas > 0) {
-      debugPrint('⚠️ $fallidas envíos de muestras fallaron en la sincronización');
       final errores = resultado['errores'] as List<String>? ?? [];
       for (final error in errores.take(3)) { // Mostrar solo los primeros 3 errores
-        debugPrint('❌ Error: $error');
       }
     }
     
     return resultado;
   } catch (e) {
-    debugPrint('💥 Error en sincronización de envíos de muestras: $e');
     return {
       'exitosas': 0,
       'fallidas': 1,
@@ -922,7 +800,6 @@ static Future<Map<String, dynamic>> sincronizarEnviosMuestrasPendientes(String t
   Future<void> _startSyncProcess() async {
     // Evitar múltiples sincronizaciones simultáneas
     if (_isSyncInProgress) {
-      debugPrint('⚠️ Ya hay una sincronización en progreso. Ignorando...');
       return;
     }
 
@@ -934,18 +811,14 @@ static Future<Map<String, dynamic>> sincronizarEnviosMuestrasPendientes(String t
       final hasPendingTasks = prefs.getBool('pendingSyncTasks') ?? false;
       
       if (!hasPendingTasks) {
-        debugPrint('ℹ️ No hay tareas pendientes de sincronización');
         _cleanupAfterSync();
         return;
       }
-      
-      debugPrint('🔄 Iniciando proceso de sincronización automática...');
       
       // Obtener token para la sincronización
       final token = await _getAuthToken();
       
       if (token == null) {
-        debugPrint('⚠️ No hay token disponible. No se puede sincronizar.');
         // Programar reintento después
         _scheduleRetry();
         return;
@@ -955,8 +828,6 @@ static Future<Map<String, dynamic>> sincronizarEnviosMuestrasPendientes(String t
       final resultado = await sincronizacionCompleta(token);
       
 if (resultado['exito_general'] == true) {
-  debugPrint('✅ Sincronización automática completada exitosamente');
-  
   // Mostrar resumen de lo sincronizado
   final visitasSync = resultado['visitas']['exitosas'] ?? 0;
   final pacientesSync = resultado['pacientes']['exitosas'] ?? 0;
@@ -964,16 +835,12 @@ if (resultado['exito_general'] == true) {
   final medicamentosSync = resultado['medicamentos']['exitosas'] ?? 0; // 🆕 Nueva línea
   
   if (medicamentosSync > 0) { // 🆕 Nuevo bloque
-    debugPrint('💊 $medicamentosSync medicamentos sincronizados exitosamente');
   }
   if (visitasSync > 0) {
-    debugPrint('📋 $visitasSync visitas sincronizadas exitosamente');
   }
   if (pacientesSync > 0) {
-    debugPrint('👥 $pacientesSync pacientes sincronizados exitosamente');
   }
   if (archivosSync > 0) {
-    debugPrint('📁 $archivosSync archivos sincronizados exitosamente');
   }
   
   // Limpiar estado de sincronización pendiente
@@ -985,20 +852,16 @@ if (resultado['exito_general'] == true) {
   final pendientesRestantes = estadoActual['pendientes'] ?? 0;
   
   if (pendientesRestantes > 0) {
-    debugPrint('⚠️ Aún quedan $pendientesRestantes elementos por sincronizar');
     await prefs.setBool('pendingSyncTasks', true);
   } else {
-    debugPrint('🎉 ¡Toda la información ha sido sincronizada exitosamente!');
     // Todo sincronizado, limpiar listeners
     _cleanupAfterSync();
   }
 } else {
-  debugPrint('⚠️ Sincronización completada con algunos problemas');
   _scheduleRetry();
 }
       
     } catch (e) {
-      debugPrint('❌ Error durante sincronización automática: $e');
       _scheduleRetry();
     } finally {
       _isSyncInProgress = false;
@@ -1019,7 +882,6 @@ if (resultado['exito_general'] == true) {
       // Si no hay token guardado, devolver null
       return null;
     } catch (e) {
-      debugPrint('❌ Error al obtener token: $e');
       return null;
     }
   }
@@ -1028,10 +890,8 @@ if (resultado['exito_general'] == true) {
   void _scheduleRetry() {
     _retryTimer?.cancel();
     _retryTimer = Timer(const Duration(minutes: 15), () {
-      debugPrint('⏰ Reintentando sincronización programada...');
       _startSyncProcess();
     });
-    debugPrint('⏰ Sincronización programada para reintentar en 15 minutos');
   }
 
   // Limpiar recursos después de sincronización
@@ -1042,15 +902,12 @@ if (resultado['exito_general'] == true) {
     }
     _retryTimer?.cancel();
     _isListening = false;
-    debugPrint('🧹 Limpieza de recursos de sincronización completada');
   }
 
   // Método para forzar una sincronización manual
   Future<Map<String, dynamic>> syncNow(String token) async {
     _isSyncInProgress = true;
     try {
-      debugPrint('🔄 Iniciando sincronización manual...');
-      
       final resultado = await sincronizacionCompleta(token);
       
       // Mostrar resumen de la sincronización manual
@@ -1059,23 +916,16 @@ if (resultado['exito_general'] == true) {
       final archivosSync = resultado['archivos']['exitosas'] ?? 0;
       
       if (resultado['exito_general'] == true) {
-        debugPrint('✅ Sincronización manual completada exitosamente');
-        
         if (visitasSync > 0) {
-          debugPrint('📋 $visitasSync visitas sincronizadas manualmente');
         }
         if (pacientesSync > 0) {
-          debugPrint('👥 $pacientesSync pacientes sincronizados manualmente');
         }
         if (archivosSync > 0) {
-          debugPrint('📁 $archivosSync archivos sincronizados manualmente');
         }
         
         if (visitasSync == 0 && pacientesSync == 0 && archivosSync == 0) {
-          debugPrint('ℹ️ No había elementos pendientes por sincronizar');
         }
       } else {
-        debugPrint('⚠️ Sincronización manual completada con problemas');
       }
       
       // Actualizar estado en SharedPreferences
@@ -1085,10 +935,8 @@ if (resultado['exito_general'] == true) {
       
       if (pendientesRestantes > 0) {
         await prefs.setBool('pendingSyncTasks', true);
-        debugPrint('⚠️ Quedan $pendientesRestantes elementos por sincronizar');
       } else {
         await prefs.setBool('pendingSyncTasks', false);
-        debugPrint('🎉 ¡Toda la información está sincronizada!');
       }
       
       await prefs.setString('lastManualSync', DateTime.now().toIso8601String());
@@ -1108,11 +956,8 @@ if (resultado['exito_general'] == true) {
     final savedLocally = await dbHelper.createVisita(visita);
     
     if (!savedLocally) {
-      debugPrint('❌ No se pudo guardar visita localmente');
       return false;
     }
-    
-    debugPrint('✅ Visita guardada localmente');
     
     // 2. Intentar subir al servidor si hay token
     if (token != null) {
@@ -1141,35 +986,27 @@ if (resultado['exito_general'] == true) {
           if (serverData != null) {
             // Marcar como sincronizada
             await dbHelper.marcarVisitaComoSincronizada(visita.id);
-            debugPrint('✅ Visita sincronizada exitosamente con el servidor');
-            
             // Sincronizar pacientes pendientes
             await sincronizarPacientesPendientes(token);
             
             return true;
           }
         } else {
-          debugPrint('📵 Sin conexión a internet - Visita quedará pendiente de sincronización');
         }
       } catch (e) {
-        debugPrint('⚠️ Error al subir al servidor: $e');
         // La visita ya está guardada localmente, no es un error crítico
       }
     } else {
-      debugPrint('🔑 No hay token de autenticación - Visita quedará pendiente de sincronización');
     }
     
     return true; // Éxito si al menos se guardó localmente
   } catch (e) {
-    debugPrint('💥 Error completo al guardar visita: $e');
     return false;
   }
 }
 
 
  static Future<Visita> _subirArchivosDeVisita(Visita visita, String token) async {
-  debugPrint('📁 Iniciando subida de archivos para visita ${visita.id}');
-
   // URLs que se actualizarán
   String? riesgoFotograficoUrl = visita.riesgoFotograficoUrl;
   String? firmaUrl = visita.firmaUrl;
@@ -1189,22 +1026,17 @@ if (resultado['exito_general'] == true) {
       // Verificar que el archivo exista antes de intentar subirlo
       final file = File(visita.riesgoFotografico!);
       if (await file.exists()) {
-        debugPrint('📸 Subiendo foto de riesgo: ${visita.riesgoFotografico}');
         try {
           riesgoFotograficoUrl = await FileService.uploadRiskPhoto(
             visita.riesgoFotografico!,
             token
           );
           if (riesgoFotograficoUrl != null) {
-            debugPrint('✅ Foto de riesgo sincronizada exitosamente: $riesgoFotograficoUrl');
           } else {
-            debugPrint('⚠️ No se pudo subir la foto de riesgo');
           }
         } catch (e) {
-          debugPrint('❌ Error al subir foto de riesgo: $e');
         }
       } else {
-        debugPrint('⚠️ El archivo de foto de riesgo no existe: ${visita.riesgoFotografico}');
       }
     }
 
@@ -1217,22 +1049,17 @@ if (resultado['exito_general'] == true) {
       // Verificar que el archivo exista antes de intentar subirlo
       final file = File(visita.firma!);
       if (await file.exists()) {
-        debugPrint('✍️ Subiendo firma legacy: ${visita.firma}');
         try {
           firmaUrl = await FileService.uploadSignature(
             visita.firma!,
             token
           );
           if (firmaUrl != null) {
-            debugPrint('✅ Firma legacy sincronizada exitosamente: $firmaUrl');
           } else {
-            debugPrint('⚠️ No se pudo subir la firma legacy');
           }
         } catch (e) {
-          debugPrint('❌ Error al subir firma legacy: $e');
         }
       } else {
-        debugPrint('⚠️ El archivo de firma legacy no existe: ${visita.firma}');
       }
     }
 
@@ -1244,22 +1071,17 @@ if (resultado['exito_general'] == true) {
       // Verificar que el archivo exista antes de intentar subirlo
       final file = File(visita.firmaPath!);
       if (await file.exists()) {
-        debugPrint('✍️ Subiendo nueva firma: ${visita.firmaPath}');
         try {
           firmaPathUrl = await FileService.uploadSignature(
             visita.firmaPath!,
             token
           );
           if (firmaPathUrl != null) {
-            debugPrint('✅ Nueva firma sincronizada exitosamente: $firmaPathUrl');
           } else {
-            debugPrint('⚠️ No se pudo subir la nueva firma');
           }
         } catch (e) {
-          debugPrint('❌ Error al subir nueva firma: $e');
         }
       } else {
-        debugPrint('⚠️ El archivo de nueva firma no existe: ${visita.firmaPath}');
       }
     }
 
@@ -1273,22 +1095,17 @@ if (resultado['exito_general'] == true) {
             // Verificar que el archivo exista antes de intentar subirlo
             final file = File(fotoPath);
             if (await file.exists()) {
-              debugPrint('📸 Subiendo foto ${i + 1}: $fotoPath');
               final fotoUrl = await FileService.uploadPhoto(fotoPath, token);
               if (fotoUrl != null) {
                 fotosPathsUrls.add(fotoUrl);
                 fotosSubidas++;
-                debugPrint('✅ Foto ${i + 1} sincronizada exitosamente: $fotoUrl');
               } else {
-                debugPrint('⚠️ No se pudo subir la foto ${i + 1}');
                 fotosPathsUrls.add(fotoPath); // Mantener path local si falla
               }
             } else {
-              debugPrint('⚠️ El archivo de foto ${i + 1} no existe: $fotoPath');
               fotosPathsUrls.add(fotoPath); // Mantener path local si no existe
             }
           } catch (e) {
-            debugPrint('❌ Error sincronizando foto ${i + 1}: $e');
             fotosPathsUrls.add(fotoPath); // Mantener path local si falla
           }
         } else {
@@ -1296,7 +1113,6 @@ if (resultado['exito_general'] == true) {
         }
       }
       if (fotosSubidas > 0) {
-        debugPrint('📸 $fotosSubidas fotos sincronizadas exitosamente');
       }
     } else if (visita.fotosPaths != null) {
       fotosPathsUrls = visita.fotosPaths!;
@@ -1312,23 +1128,18 @@ if (resultado['exito_general'] == true) {
             // Verificar que el archivo exista antes de intentar subirlo
             final file = File(archivoPath);
             if (await file.exists()) {
-              debugPrint('📎 Subiendo archivo adjunto ${i + 1}: $archivoPath');
               final archivoUrl = await FileService.uploadFileByType(archivoPath, token);
               if (archivoUrl != null) {
                 // Asegurar que archivoUrl es un string
                 archivosAdjuntosUrls.add(archivoUrl.toString());
                 archivosSubidos++;
-                debugPrint('✅ Archivo adjunto ${i + 1} sincronizado exitosamente: $archivoUrl');
               } else {
-                debugPrint('⚠️ No se pudo subir el archivo adjunto ${i + 1}');
                 archivosAdjuntosUrls.add(archivoPath); // Mantener path local si falla
               }
             } else {
-              debugPrint('⚠️ El archivo adjunto ${i + 1} no existe: $archivoPath');
               archivosAdjuntosUrls.add(archivoPath); // Mantener path local si no existe
             }
           } catch (e) {
-            debugPrint('❌ Error sincronizando archivo adjunto ${i + 1}: $e');
             archivosAdjuntosUrls.add(archivoPath); // Mantener path local si falla
           }
         } else {
@@ -1336,14 +1147,12 @@ if (resultado['exito_general'] == true) {
         }
       }
       if (archivosSubidos > 0) {
-        debugPrint('📎 $archivosSubidos archivos adjuntos sincronizados exitosamente');
       }
     } else if (visita.archivosAdjuntos != null) {
       archivosAdjuntosUrls = visita.archivosAdjuntos!;
     }
 
   } catch (e) {
-    debugPrint('❌ Error general sincronizando archivos: $e');
   }
 
   // Crear visita actualizada con todas las URLs
@@ -1365,8 +1174,6 @@ static Future<Map<String, dynamic>> sincronizarVisitasPendientes(String token) a
   int fallidas = 0;
   List<String> errores = [];
   
-  debugPrint('📊 Sincronizando ${visitasPendientes.length} visitas pendientes...');
-  
   // ✅ Expresión regular para validar formato UUID v4
   final uuidPattern = RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', caseSensitive: false);
   
@@ -1382,21 +1189,14 @@ static Future<Map<String, dynamic>> sincronizarVisitasPendientes(String token) a
         // ✅ VALIDAR FORMATO UUID ANTES DE SINCRONIZAR
         if (!uuidPattern.hasMatch(visita.id)) {
           errores.add('Visita ${visita.id} tiene formato UUID inválido');
-          debugPrint('❌ Visita ${visita.id} tiene UUID inválido, omitiendo sincronización');
           fallidas++;
           continue; // Saltar esta visita
         }
         
-        debugPrint('🔄 Sincronizando visita ${visita.id}...');
-        
         // ✅ DEBUG: Mostrar coordenadas de la visita
-        debugPrint('📍 Coordenadas de visita ${visita.id}: lat=${visita.latitud}, lng=${visita.longitud}');
-           
         // 1. ✅ PRIMERO: Actualizar coordenadas del paciente si existen
         if (visita.latitud != null && visita.longitud != null) {
           try {
-            debugPrint('📍 Actualizando coordenadas del paciente ${visita.idpaciente}...');
-            
             final coordenadasResult = await ApiService.updatePacienteCoordenadas(
               token,
               visita.idpaciente,
@@ -1405,20 +1205,15 @@ static Future<Map<String, dynamic>> sincronizarVisitasPendientes(String token) a
             );
             
             if (coordenadasResult != null && coordenadasResult['success'] == true) {
-              debugPrint('✅ Coordenadas del paciente actualizadas exitosamente');
             } else {
-              debugPrint('⚠️ No se pudieron actualizar las coordenadas del paciente');
             }
           } catch (coordError) {
-            debugPrint('⚠️ Error actualizando coordenadas del paciente: $coordError');
             // No es crítico, continúa con la visita
           }
         }
         
         // 2. Obtener medicamentos asociados a esta visita
         final medicamentos = await dbHelper.getMedicamentosDeVisita(visita.id);
-        debugPrint('💊 Encontrados ${medicamentos.length} medicamentos para visita ${visita.id}');
-        
         // 3. Preparar medicamentos para envío
         List<Map<String, dynamic>> medicamentosData = [];
         for (var medicamentoConIndicaciones in medicamentos) {
@@ -1435,23 +1230,18 @@ static Future<Map<String, dynamic>> sincronizarVisitasPendientes(String token) a
         Map<String, String> visitaData = _prepararDatosVisita(visita);
         
         // ✅ DEBUG: Confirmar que las coordenadas están en visitaData
-        debugPrint('📍 Coordenadas en visitaData: lat=${visitaData['latitud']}, lng=${visitaData['longitud']}');
-        
        // 5. ✅ DECIDIR SI ES CREATE O UPDATE
 Map<String, dynamic>? resultado;
 
 // ✅ VERIFICAR SI LA VISITA YA EXISTE EN EL SERVIDOR
 try {
-  debugPrint('🔍 Verificando si la visita ${visita.id} existe en el servidor...');
   final visitaExiste = await ApiService.getVisitaById(token, visita.id);
   
   if (visitaExiste != null) {
     // ✅ LA VISITA EXISTE - USAR UPDATE
-    debugPrint('🔄 Visita ${visita.id} ya existe en servidor, actualizando...');
     resultado = await _actualizarVisitaExistente(visita, token, medicamentosData, visitaData);
   } else {
     // ✅ LA VISITA NO EXISTE - USAR CREATE
-    debugPrint('🆕 Visita ${visita.id} no existe en servidor, creando...');
     resultado = await FileService.createVisitaCompleta(
       visitaData: visitaData,
       token: token,
@@ -1462,8 +1252,6 @@ try {
   }
 } catch (verificacionError) {
   // ✅ SI HAY ERROR AL VERIFICAR (404, timeout, etc), USAR CREATE COMO FALLBACK
-  debugPrint('⚠️ Error verificando existencia (${verificacionError.toString().substring(0, 50)}...), usando CREATE como fallback');
-  
   try {
     resultado = await FileService.createVisitaCompleta(
       visitaData: visitaData,
@@ -1477,7 +1265,6 @@ try {
     if (createError.toString().contains('already exists') || 
         createError.toString().contains('duplicate') ||
         createError.toString().contains('Duplicate entry')) {
-      debugPrint('⚠️ Detectado duplicado en CREATE, intentando UPDATE...');
       resultado = await _actualizarVisitaExistente(visita, token, medicamentosData, visitaData);
     } else {
       rethrow; // Lanzar otros errores
@@ -1489,12 +1276,10 @@ try {
         if (resultado != null && resultado['success'] == true) {
           await dbHelper.marcarVisitaComoSincronizada(visita.id);
           exitosas++;
-          debugPrint('✅ Visita ${visita.id} sincronizada exitosamente con archivos y medicamentos');
         } else {
           fallidas++;
           final error = resultado?['error'] ?? 'Servidor respondió con error';
           errores.add('Error en visita ${visita.id}: $error');
-          debugPrint('❌ Falló sincronización de visita ${visita.id}: $error');
         }
         
         // Pequeña pausa entre sincronizaciones para no saturar
@@ -1502,20 +1287,16 @@ try {
       } catch (e) {
         fallidas++;
         errores.add('Error en visita ${visita.id}: $e');
-        debugPrint('💥 Error sincronizando visita ${visita.id}: $e');
       }
     }
     
     if (exitosas > 0) {
-      debugPrint('🎉 $exitosas visitas sincronizadas exitosamente');
     }
     if (fallidas > 0) {
-      debugPrint('⚠️ $fallidas visitas fallaron en la sincronización');
     }
     
   } catch (e) {
     errores.add('Error general de conexión: $e');
-    debugPrint('💥 Error general en sincronización: $e');
   }
   
   return {
@@ -1569,8 +1350,6 @@ static Future<Map<String, dynamic>?> _actualizarVisitaExistente(
   Map<String, String> visitaData
 ) async {
   try {
-    debugPrint('🔄 Actualizando visita existente: ${visita.id}');
-    
     // ✅ USAR updateVisitaCompleta CORREGIDO
     final resultado = await FileService.updateVisitaCompleta(
       visitaId: visita.id,
@@ -1584,7 +1363,6 @@ static Future<Map<String, dynamic>?> _actualizarVisitaExistente(
     return resultado;
     
   } catch (e) {
-    debugPrint('❌ Error actualizando visita existente: $e');
     return {'success': false, 'error': e.toString()};
   }
 }
@@ -1621,8 +1399,6 @@ static Future<Map<String, dynamic>> sincronizarPacientesPendientes(String token)
   int fallidas = 0;
   List<String> errores = [];
 
-  debugPrint('📊 Sincronizando ${pacientesPendientes.length} pacientes pendientes...');
-
   // ✅ VERIFICAR CONECTIVIDAD PRIMERO
   try {
     final hasConnection = await ApiService.verificarConectividad();
@@ -1632,9 +1408,6 @@ static Future<Map<String, dynamic>> sincronizarPacientesPendientes(String token)
 
     for (final paciente in pacientesPendientes) {
       try {
-        debugPrint('📡 Sincronizando geolocalización del paciente ${paciente.identificacion}...');
-        debugPrint('📍 Coordenadas: ${paciente.latitud}, ${paciente.longitud}');
-        
         // ✅ PREPARAR DATOS COMPLETOS DEL PACIENTE
         final pacienteData = {
           'id': paciente.id,
@@ -1661,7 +1434,6 @@ static Future<Map<String, dynamic>> sincronizarPacientesPendientes(String token)
             final nuevoPaciente = Paciente.fromJson(serverData);
             await dbHelper.upsertPaciente(nuevoPaciente.copyWith(syncStatus: 1));
             exitosas++;
-            debugPrint('✅ Paciente offline sincronizado: ${paciente.identificacion}');
           }
         } else {
           // Actualizar paciente existente
@@ -1670,15 +1442,12 @@ static Future<Map<String, dynamic>> sincronizarPacientesPendientes(String token)
           if (serverData != null) {
             await dbHelper.markPacientesAsSynced([paciente.id]);
             exitosas++;
-            debugPrint('✅ Paciente actualizado: ${paciente.identificacion}');
           }
         }
         
         // 🆕 SINCRONIZAR COORDENADAS ESPECÍFICAMENTE
         if (serverData != null && paciente.latitud != null && paciente.longitud != null) {
           try {
-            debugPrint('📍 Sincronizando coordenadas específicamente para paciente ${paciente.identificacion}');
-            
             final coordenadasResult = await ApiService.updatePacienteCoordenadas(
               token,
               paciente.id.startsWith('offline_') ? serverData['id'].toString() : paciente.id,
@@ -1687,13 +1456,10 @@ static Future<Map<String, dynamic>> sincronizarPacientesPendientes(String token)
             );
             
             if (coordenadasResult != null && coordenadasResult['success'] == true) {
-              debugPrint('✅ Coordenadas sincronizadas exitosamente para ${paciente.identificacion}');
             } else {
-              debugPrint('⚠️ No se pudieron sincronizar las coordenadas para ${paciente.identificacion}');
               // No marcamos como error crítico, solo advertencia
             }
           } catch (coordError) {
-            debugPrint('⚠️ Error sincronizando coordenadas para ${paciente.identificacion}: $coordError');
             // No afecta el éxito general del paciente
           }
         }
@@ -1701,7 +1467,6 @@ static Future<Map<String, dynamic>> sincronizarPacientesPendientes(String token)
         if (serverData == null) {
           fallidas++;
           errores.add('Servidor respondió con error para paciente ${paciente.identificacion}');
-          debugPrint('❌ Falló sincronización de paciente ${paciente.identificacion}');
         }
         
         // Pausa entre sincronizaciones
@@ -1710,20 +1475,16 @@ static Future<Map<String, dynamic>> sincronizarPacientesPendientes(String token)
       } catch (e) {
         fallidas++;
         errores.add('Error en paciente ${paciente.identificacion}: $e');
-        debugPrint('💥 Error sincronizando paciente ${paciente.identificacion}: $e');
       }
     }
     
   } catch (e) {
     errores.add('Error general de conexión: $e');
-    debugPrint('💥 Error general en sincronización de pacientes: $e');
   }
 
   if (exitosas > 0) {
-    debugPrint('🎉 $exitosas pacientes sincronizados exitosamente');
   }
   if (fallidas > 0) {
-    debugPrint('⚠️ $fallidas pacientes fallaron en la sincronización');
   }
 
   return {
@@ -1743,8 +1504,6 @@ static Future<Map<String, dynamic>> sincronizarPacientesPendientes(String token)
   int fallidas = 0;
   List<String> errores = [];
   
-  debugPrint('📁 Sincronizando archivos de ${visitasPendientes.length} visitas...');
-  
   try {
     final hasConnection = await ApiService.verificarConectividad();
     if (!hasConnection) {
@@ -1754,8 +1513,6 @@ static Future<Map<String, dynamic>> sincronizarPacientesPendientes(String token)
     for (final visita in visitasPendientes) {
       try {
         bool needsUpdate = false;
-        debugPrint('📁 Iniciando subida de archivos para visita ${visita.id}');
-        
         // Verificar si hay archivos locales que necesitan subirse
         final tieneArchivosLocales = _verificarArchivosLocalesPendientes(visita);
         
@@ -1768,29 +1525,23 @@ static Future<Map<String, dynamic>> sincronizarPacientesPendientes(String token)
             await dbHelper.updateVisita(visitaConUrls);
             needsUpdate = true;
             exitosas++;
-            debugPrint('📁 Archivos sincronizados exitosamente para visita ${visita.id}');
           }
         }
         
         if (!needsUpdate) {
-          debugPrint('ℹ️ No hay archivos pendientes para visita ${visita.id}');
         }
         
       } catch (e, stackTrace) {
         fallidas++;
         errores.add('Error en archivos de visita ${visita.id}: $e');
-        debugPrint('💥 Error sincronizando archivos de visita ${visita.id}: $e');
-        debugPrint('📚 Stack trace: $stackTrace');
       }
     }
     
     if (exitosas > 0) {
-      debugPrint('🎉 Archivos de $exitosas visitas sincronizados exitosamente');
     }
     
   } catch (e) {
     errores.add('Error general de conexión: $e');
-    debugPrint('💥 Error general en sincronización de archivos: $e');
   }
   
   return {
@@ -1876,8 +1627,6 @@ static Future<Map<String, dynamic>> sincronizarPacientesPendientes(String token)
       
       int archivosEliminados = 0;
       
-      debugPrint('🧹 Iniciando limpieza de archivos locales...');
-      
       for (final visita in visitasSincronizadas) {
         if (visita.syncStatus == 1) { // Solo visitas sincronizadas
           final fechaVisita = visita.fecha;
@@ -1891,7 +1640,6 @@ static Future<Map<String, dynamic>> sincronizarPacientesPendientes(String token)
               final eliminado = await FileService.deleteLocalFile(visita.riesgoFotografico!);
               if (eliminado) {
                 archivosEliminados++;
-                debugPrint('🗑️ Archivo local eliminado: ${visita.riesgoFotografico}');
               }
             }
             
@@ -1902,7 +1650,6 @@ static Future<Map<String, dynamic>> sincronizarPacientesPendientes(String token)
               final eliminado = await FileService.deleteLocalFile(visita.firma!);
               if (eliminado) {
                 archivosEliminados++;
-                debugPrint('🗑️ Firma local eliminada: ${visita.firma}');
               }
             }
             
@@ -1912,7 +1659,6 @@ static Future<Map<String, dynamic>> sincronizarPacientesPendientes(String token)
               final eliminado = await FileService.deleteLocalFile(visita.firmaPath!);
               if (eliminado) {
                 archivosEliminados++;
-                debugPrint('🗑️ Nueva firma local eliminada: ${visita.firmaPath}');
               }
             }
             
@@ -1923,7 +1669,6 @@ static Future<Map<String, dynamic>> sincronizarPacientesPendientes(String token)
                   final eliminado = await FileService.deleteLocalFile(fotoPath);
                   if (eliminado) {
                     archivosEliminados++;
-                    debugPrint('🗑️ Foto local eliminada: $fotoPath');
                   }
                 }
               }
@@ -1936,7 +1681,6 @@ static Future<Map<String, dynamic>> sincronizarPacientesPendientes(String token)
                   final eliminado = await FileService.deleteLocalFile(archivoPath);
                   if (eliminado) {
                     archivosEliminados++;
-                    debugPrint('🗑️ Archivo adjunto local eliminado: $archivoPath');
                   }
                 }
               }
@@ -1948,9 +1692,7 @@ static Future<Map<String, dynamic>> sincronizarPacientesPendientes(String token)
       // Limpiar archivos huérfanos
       await FileService.cleanOldFiles(daysOld: diasAntiguos);
       
-      debugPrint('🧹 Limpieza completada exitosamente: $archivosEliminados archivos eliminados');
     } catch (e) {
-      debugPrint('❌ Error en limpieza de archivos: $e');
     }
   }
 
@@ -1959,10 +1701,8 @@ static Future<Map<String, dynamic>> sincronizarPacientesPendientes(String token)
     try {
       final dbHelper = DatabaseHelper.instance;
       final estadisticas = await dbHelper.obtenerEstadisticasArchivos();
-      debugPrint('📊 Estadísticas de archivos obtenidas exitosamente');
       return estadisticas;
     } catch (e) {
-      debugPrint('❌ Error al obtener estadísticas de archivos: $e');
       return {
         'error': true,
         'mensaje': 'Error al obtener estadísticas: ${e.toString()}',
@@ -1996,16 +1736,12 @@ static Future<Map<String, dynamic>> sincronizarPacientesPendientes(String token)
   // 🆕 MÉTODO PARA VERIFICAR ESTADO GENERAL
   static Future<Map<String, dynamic>> obtenerEstadoGeneral() async {
     try {
-      debugPrint('📊 Obteniendo estado general de sincronización...');
-      
       final estadoSincronizacion = await obtenerEstadoSincronizacion();
       final estadisticasArchivos = await obtenerEstadisticasArchivos();
       
       final pendientes = estadoSincronizacion['pendientes'] ?? 0;
       final sincronizadas = estadoSincronizacion['sincronizadas'] ?? 0;
       final total = estadoSincronizacion['total'] ?? 0;
-      
-      debugPrint('📈 Estado: $sincronizadas sincronizadas, $pendientes pendientes de $total total');
       
       return {
         'sincronizacion': estadoSincronizacion,
@@ -2017,7 +1753,6 @@ static Future<Map<String, dynamic>> sincronizarPacientesPendientes(String token)
         }
       };
     } catch (e) {
-      debugPrint('❌ Error obteniendo estado general: $e');
       return {
         'error': true,
         'mensaje': e.toString(),
@@ -2056,16 +1791,13 @@ static Future<Map<String, dynamic>> sincronizarPacientesPendientes(String token)
       final pendientes = estado['pendientes'] ?? 0;
       return pendientes > 0;
     } catch (e) {
-      debugPrint('❌ Error verificando elementos pendientes: $e');
       return false;
     }
   }
 
   // 🆕 MÉTODO PARA CANCELAR SINCRONIZACIÓN AUTOMÁTICA
   void cancelarSincronizacionAutomatica() {
-    debugPrint('🛑 Cancelando sincronización automática...');
     _cleanupAfterSync();
-    debugPrint('✅ Sincronización automática cancelada');
   }
 
   // 🆕 MÉTODO PARA VERIFICAR ESTADO DE SINCRONIZACIÓN AUTOMÁTICA
@@ -2088,7 +1820,6 @@ static Future<Map<String, dynamic>> sincronizarPacientesPendientes(String token)
         'has_retry_timer': _retryTimer != null,
       };
     } catch (e) {
-      debugPrint('❌ Error obteniendo info de debug: $e');
       return {'error': e.toString()};
     }
   }

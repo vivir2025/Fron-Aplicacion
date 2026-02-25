@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:Bornive/api/api_service.dart';
 import 'package:Bornive/models/medicamento_con_indicaciones.dart';
 import 'package:Bornive/services/medicamento_service.dart';
@@ -1234,7 +1235,12 @@ Widget build(BuildContext context) {
       controller: _scrollController,
       padding: const EdgeInsets.all(16),
       child: Card(
-        elevation: 5,
+        margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: const Color(0xFF1B5E20).withOpacity(0.15), width: 1.5),
+        ),
         child: Padding(
           padding: const EdgeInsets.all(18.0),
           child: Form(
@@ -1579,9 +1585,10 @@ Widget build(BuildContext context) {
   Widget _buildSectionHeader(String title) {
     return Text(
       title,
-      style: widget.theme.textTheme.titleMedium?.copyWith(
-        fontWeight: FontWeight.bold,
-        color: widget.theme.primaryColor,
+      style: GoogleFonts.roboto(
+        fontWeight: FontWeight.w700,
+        fontSize: 18,
+        color: const Color(0xFF1B5E20),
       ),
     );
   }
@@ -1598,9 +1605,10 @@ Widget build(BuildContext context) {
       children: [
         Text(
           title,
-          style: const TextStyle(
+          style: GoogleFonts.roboto(
             fontSize: 16,
             fontWeight: FontWeight.w500,
+            color: Colors.black87,
           ),
         ),
         const SizedBox(height: 8),
@@ -1637,9 +1645,10 @@ Widget _buildMultipleSelectionField({
         children: [
           Text(
             title,
-            style: const TextStyle(
+            style: GoogleFonts.roboto(
               fontSize: 16,
               fontWeight: FontWeight.w500,
+              color: Colors.black87,
             ),
           ),
           if (isRequired)
@@ -1919,11 +1928,12 @@ Widget _buildPhotoSection() {
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      const Text(
+      Text(
         'Riesgo Fotográfico',
-        style: TextStyle(
+        style: GoogleFonts.roboto(
           fontSize: 16,
           fontWeight: FontWeight.w500,
+          color: Colors.black87,
         ),
       ),
       const SizedBox(height: 8),
@@ -2014,11 +2024,12 @@ Widget _buildPhotoSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Firma',
-          style: TextStyle(
+          style: GoogleFonts.roboto(
             fontSize: 16,
             fontWeight: FontWeight.w500,
+            color: Colors.black87,
           ),
         ),
         const SizedBox(height: 8),

@@ -6,6 +6,9 @@ import '../services/afinamiento_service.dart';
 import '../database/database_helper.dart';
 import 'crear_afinamiento_screen.dart';
 import 'detalle_afinamiento_screen.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+const Color primaryColor = Color(0xFF1B5E20);
 
 class AfinamientosScreen extends StatefulWidget {
   const AfinamientosScreen({Key? key}) : super(key: key);
@@ -81,11 +84,11 @@ class _AfinamientosScreenState extends State<AfinamientosScreen> {
               children: [
                 const CircularProgressIndicator(),
                 const SizedBox(height: 16),
-                const Text('Sincronizando afinamientos...'),
+                Text('Sincronizando afinamientos...'),
                 const SizedBox(height: 8),
                 Text(
                   'Por favor espere',
-                  style: TextStyle(
+                  style: GoogleFonts.roboto(
                     fontSize: 12,
                     color: Colors.grey[600],
                   ),
@@ -127,9 +130,9 @@ class _AfinamientosScreenState extends State<AfinamientosScreen> {
         } else if (total == 0) {
           // No hay afinamientos pendientes
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               content: Text('ℹ️ No hay afinamientos pendientes de sincronización'),
-              backgroundColor: Colors.blue,
+              backgroundColor: primaryColor.withOpacity(0.05),
             ),
           );
         } else {
@@ -208,8 +211,18 @@ class _AfinamientosScreenState extends State<AfinamientosScreen> {
     
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Afinamientos'),
-        backgroundColor: Colors.blue[700],
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            'Afinamientos',
+            style: GoogleFonts.roboto(
+              fontWeight: FontWeight.w600,
+              fontSize: 18,
+              color: Colors.white,
+            ),
+          ),
+        ),
+        backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         actions: [
           // 🆕 BOTÓN DE SINCRONIZACIÓN REEMPLAZANDO EL DE REFRESCAR
@@ -217,7 +230,7 @@ class _AfinamientosScreenState extends State<AfinamientosScreen> {
             children: [
               IconButton(
                 icon: _isSyncing 
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
@@ -246,7 +259,7 @@ class _AfinamientosScreenState extends State<AfinamientosScreen> {
                     ),
                     child: Text(
                       '$afinamientosPendientes',
-                      style: const TextStyle(
+                      style: GoogleFonts.roboto(
                         color: Colors.white,
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
@@ -306,7 +319,7 @@ class _AfinamientosScreenState extends State<AfinamientosScreen> {
                   Expanded(
                     child: Text(
                       '$afinamientosPendientes afinamiento${afinamientosPendientes > 1 ? 's' : ''} pendiente${afinamientosPendientes > 1 ? 's' : ''} de sincronización',
-                      style: TextStyle(
+                      style: GoogleFonts.roboto(
                         color: Colors.orange[700],
                         fontWeight: FontWeight.w500,
                       ),
@@ -316,7 +329,7 @@ class _AfinamientosScreenState extends State<AfinamientosScreen> {
                     onPressed: _isSyncing ? null : _sincronizarAfinamientosPendientes,
                     child: Text(
                       'Sincronizar',
-                      style: TextStyle(
+                      style: GoogleFonts.roboto(
                         color: Colors.orange[700],
                         fontWeight: FontWeight.bold,
                       ),
@@ -331,9 +344,9 @@ class _AfinamientosScreenState extends State<AfinamientosScreen> {
             margin: const EdgeInsets.symmetric(horizontal: 16),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.blue[50],
+              color: primaryColor.withOpacity(0.05),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.blue[200]!),
+              border: Border.all(color: primaryColor.withOpacity(0.2)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -341,7 +354,7 @@ class _AfinamientosScreenState extends State<AfinamientosScreen> {
                 _buildEstadistica(
                   'Total',
                   _afinamientos.length.toString(),
-                  Colors.blue,
+                  primaryColor,
                 ),
                 _buildEstadistica(
                   'Sincronizados',
@@ -392,7 +405,7 @@ class _AfinamientosScreenState extends State<AfinamientosScreen> {
             _cargarAfinamientos();
           }
         },
-        backgroundColor: Colors.blue[700],
+        backgroundColor: primaryColor,
         child: const Icon(Icons.add, color: Colors.white),
         tooltip: 'Nuevo Afinamiento',
       ),
@@ -404,7 +417,7 @@ class _AfinamientosScreenState extends State<AfinamientosScreen> {
       children: [
         Text(
           value,
-          style: TextStyle(
+          style: GoogleFonts.roboto(
             fontSize: 20,
             fontWeight: FontWeight.bold,
             color: color,
@@ -412,7 +425,7 @@ class _AfinamientosScreenState extends State<AfinamientosScreen> {
         ),
         Text(
           label,
-          style: TextStyle(
+          style: GoogleFonts.roboto(
             fontSize: 12,
             color: Colors.grey[600],
           ),
@@ -437,7 +450,7 @@ class _AfinamientosScreenState extends State<AfinamientosScreen> {
                 ? 'No se encontraron afinamientos\ncon los filtros aplicados'
                 : 'No hay afinamientos registrados',
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: GoogleFonts.roboto(
               fontSize: 16,
               color: Colors.grey[600],
             ),
@@ -481,7 +494,7 @@ class _AfinamientosScreenState extends State<AfinamientosScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: syncStatus == 1 ? Colors.green[200]! : Colors.orange[200]!,
+          color: syncStatus == 1 ? primaryColor.withOpacity(0.2) : Colors.orange[200]!,
           width: 1,
         ),
       ),
@@ -513,7 +526,7 @@ class _AfinamientosScreenState extends State<AfinamientosScreen> {
                   Expanded(
                     child: Text(
                       nombrePaciente,
-                      style: const TextStyle(
+                      style: GoogleFonts.roboto(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -534,10 +547,10 @@ class _AfinamientosScreenState extends State<AfinamientosScreen> {
                           size: 16,
                           color: syncStatus == 1 ? Colors.green[700] : Colors.orange[700],
                         ),
-                        const SizedBox(width: 4),
+                        SizedBox(width: 4),
                         Text(
                           syncStatus == 1 ? 'Sincronizado' : 'Pendiente',
-                          style: TextStyle(
+                          style: GoogleFonts.roboto(
                             fontSize: 12,
                             color: syncStatus == 1 ? Colors.green[700] : Colors.orange[700],
                             fontWeight: FontWeight.w500,
@@ -549,16 +562,16 @@ class _AfinamientosScreenState extends State<AfinamientosScreen> {
                 ],
               ),
 
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
 
               // Información del paciente
               Row(
                 children: [
                   Icon(Icons.badge, size: 16, color: Colors.grey[600]),
-                  const SizedBox(width: 4),
+                  SizedBox(width: 4),
                   Text(
                     'ID: $identificacion',
-                    style: TextStyle(
+                    style: GoogleFonts.roboto(
                       fontSize: 14,
                       color: Colors.grey[600],
                     ),
@@ -566,17 +579,17 @@ class _AfinamientosScreenState extends State<AfinamientosScreen> {
                 ],
               ),
 
-              const SizedBox(height: 4),
+              SizedBox(height: 4),
 
               // Procedencia
               Row(
                 children: [
                   Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
-                  const SizedBox(width: 4),
+                  SizedBox(width: 4),
                   Expanded(
                     child: Text(
                       procedencia,
-                      style: TextStyle(
+                      style: GoogleFonts.roboto(
                         fontSize: 14,
                         color: Colors.grey[600],
                       ),
@@ -586,7 +599,7 @@ class _AfinamientosScreenState extends State<AfinamientosScreen> {
                 ],
               ),
 
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
 
               // Información del afinamiento
               Container(
@@ -605,7 +618,7 @@ class _AfinamientosScreenState extends State<AfinamientosScreen> {
                           children: [
                             Text(
                               'Fecha Tamizaje',
-                              style: TextStyle(
+                              style: GoogleFonts.roboto(
                                 fontSize: 12,
                                 color: Colors.grey[600],
                                 fontWeight: FontWeight.w500,
@@ -613,7 +626,7 @@ class _AfinamientosScreenState extends State<AfinamientosScreen> {
                             ),
                             Text(
                               DateFormat('dd/MM/yyyy').format(fechaTamizaje),
-                              style: const TextStyle(
+                              style: GoogleFonts.roboto(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -625,7 +638,7 @@ class _AfinamientosScreenState extends State<AfinamientosScreen> {
                           children: [
                             Text(
                               'Promedio PA',
-                              style: TextStyle(
+                              style: GoogleFonts.roboto(
                                 fontSize: 12,
                                 color: Colors.grey[600],
                                 fontWeight: FontWeight.w500,
@@ -633,10 +646,10 @@ class _AfinamientosScreenState extends State<AfinamientosScreen> {
                             ),
                             Text(
                               promedioTexto,
-                              style: TextStyle(
+                              style: GoogleFonts.roboto(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
-                                color: sistolicaPromedio != null ? Colors.blue[700] : Colors.grey[500],
+                                color: sistolicaPromedio != null ? primaryColor : Colors.grey[500],
                               ),
                             ),
                           ],
@@ -644,16 +657,16 @@ class _AfinamientosScreenState extends State<AfinamientosScreen> {
                       ],
                     ),
                     
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8),
                     
                     Row(
                       children: [
                         Icon(Icons.person, size: 16, color: Colors.grey[600]),
-                        const SizedBox(width: 4),
+                        SizedBox(width: 4),
                         Expanded(
                           child: Text(
                             'Promotor: $promotorVida',
-                            style: TextStyle(
+                            style: GoogleFonts.roboto(
                               fontSize: 12,
                               color: Colors.grey[600],
                             ),
@@ -666,16 +679,16 @@ class _AfinamientosScreenState extends State<AfinamientosScreen> {
                 ),
               ),
 
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
 
               // Presión arterial del tamizaje
               Row(
                 children: [
                   Icon(Icons.favorite, size: 16, color: Colors.red[400]),
-                  const SizedBox(width: 4),
+                  SizedBox(width: 4),
                   Text(
                     'PA Tamizaje: ${afinamiento['presion_arterial_tamiz']}',
-                    style: const TextStyle(
+                    style: GoogleFonts.roboto(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                     ),

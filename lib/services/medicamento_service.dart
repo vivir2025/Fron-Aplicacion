@@ -11,8 +11,6 @@ class MedicamentoService {
   // Cargar medicamentos desde el servidor
   static Future<bool> loadMedicamentosFromServer(String token) async {
     try {
-      debugPrint('📥 Cargando medicamentos desde servidor...');
-      
       final response = await http.get(
         Uri.parse('$baseUrl/medicamentos'),
         headers: {
@@ -38,19 +36,14 @@ class MedicamentoService {
         if (medicamentos.isNotEmpty) {
           // Guardar en base de datos local
           await DatabaseHelper.instance.syncMedicamentosFromServer(medicamentos);
-          debugPrint('✅ ${medicamentos.length} medicamentos cargados exitosamente');
           return true;
         } else {
-          debugPrint('⚠️ No se encontraron medicamentos en el servidor');
           return false;
         }
       } else {
-        debugPrint('❌ Error del servidor: ${response.statusCode}');
-        debugPrint('❌ Respuesta: ${response.body}');
         return false;
       }
     } catch (e) {
-      debugPrint('❌ Error cargando medicamentos: $e');
       return false;
     }
   }
@@ -62,18 +55,14 @@ class MedicamentoService {
       final hasMedicamentos = await dbHelper.hasMedicamentos();
       
       if (!hasMedicamentos && token != null) {
-        debugPrint('📋 No hay medicamentos locales, intentando cargar desde servidor...');
         return await loadMedicamentosFromServer(token);
       } else if (hasMedicamentos) {
         final count = await dbHelper.countMedicamentos();
-        debugPrint('✅ $count medicamentos disponibles localmente');
         return true;
       } else {
-        debugPrint('⚠️ No hay token disponible para cargar medicamentos');
         return false;
       }
     } catch (e) {
-      debugPrint('❌ Error verificando medicamentos: $e');
       return false;
     }
   }

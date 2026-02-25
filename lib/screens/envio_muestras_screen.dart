@@ -7,6 +7,15 @@ import '../database/database_helper.dart';
 import '../services/envio_muestra_service.dart';
 import '../providers/auth_provider.dart';
 import 'crear_envio_muestra_screen.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+// 🎨 TEMA DE COLORES UNIFICADO
+const Color primaryColor = Color(0xFF1B5E20);
+const Color primaryLightColor = Color(0xFF4CAF50);
+const Color surfaceColor = Color(0xFFF0F4F8);
+const Color textPrimaryColor = Color(0xFF212121);
+const Color textSecondaryColor = Color(0xFF757575);
+const Color dividerColor = Color(0xFFE0E0E0);
 
 class EnvioMuestrasScreen extends StatefulWidget {
   @override
@@ -37,9 +46,7 @@ class _EnvioMuestrasScreenState extends State<EnvioMuestrasScreen> {
         _envios = envios;
         _isLoading = false;
       });
-      debugPrint('📊 ${envios.length} envíos cargados');
     } catch (e) {
-      debugPrint('❌ Error cargando envíos: $e');
       setState(() => _isLoading = false);
       _mostrarMensaje('Error cargando envíos: $e', isError: true);
     }
@@ -49,9 +56,7 @@ class _EnvioMuestrasScreenState extends State<EnvioMuestrasScreen> {
     try {
       final estado = await EnvioMuestraService.obtenerEstadoSincronizacion();
       setState(() => _estadoSincronizacion = estado);
-      debugPrint('📈 Estado cargado: ${estado['pendientes']} pendientes, ${estado['sincronizados']} sincronizados');
     } catch (e) {
-      debugPrint('❌ Error cargando estado: $e');
     }
   }
 
@@ -62,9 +67,7 @@ class _EnvioMuestrasScreenState extends State<EnvioMuestrasScreen> {
       setState(() {
         _pacientes = pacientes;
       });
-      debugPrint('✅ ${pacientes.length} pacientes cargados para detalles');
     } catch (e) {
-      debugPrint('❌ Error cargando pacientes: $e');
     }
   }
 
@@ -99,8 +102,6 @@ class _EnvioMuestrasScreenState extends State<EnvioMuestrasScreen> {
     );
 
     try {
-      debugPrint('🔄 Iniciando sincronización manual...');
-      
       final resultado = await EnvioMuestraService.sincronizarEnviosPendientes(authProvider.token!);
       
       Navigator.of(context).pop(); // Cerrar diálogo
@@ -109,8 +110,6 @@ class _EnvioMuestrasScreenState extends State<EnvioMuestrasScreen> {
       final exitosas = resultado['exitosas'] ?? 0;
       final fallidas = resultado['fallidas'] ?? 0;
       final total = resultado['total'] ?? 0;
-
-      debugPrint('📈 Resultado: $exitosas exitosas, $fallidas fallidas de $total total');
 
       if (exitosas > 0) {
         _mostrarMensaje('✅ $exitosas envíos sincronizados exitosamente');
@@ -131,7 +130,6 @@ class _EnvioMuestrasScreenState extends State<EnvioMuestrasScreen> {
     } catch (e) {
       Navigator.of(context).pop();
       setState(() => _isSyncing = false);
-      debugPrint('💥 Error en sincronización: $e');
       _mostrarMensaje('❌ Error en sincronización: $e', isError: true);
     }
   }
@@ -318,7 +316,6 @@ class _EnvioMuestrasScreenState extends State<EnvioMuestrasScreen> {
         }
       } catch (e) {
         Navigator.of(context).pop(); // Cerrar diálogo de carga
-        debugPrint('❌ Error eliminando envío: $e');
         _mostrarMensaje('❌ Error al eliminar: $e', isError: true);
       }
     }
@@ -346,10 +343,23 @@ class _EnvioMuestrasScreenState extends State<EnvioMuestrasScreen> {
     final total = _estadoSincronizacion['total'] ?? 0;
 
     return Scaffold(
+      backgroundColor: surfaceColor,
       appBar: AppBar(
-        title: Text('Envío de Muestras'),
-        backgroundColor: Colors.blue[800],
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            'Envío de Muestras',
+            style: GoogleFonts.roboto(
+              fontWeight: FontWeight.w600,
+              fontSize: 18,
+              color: Colors.white,
+            ),
+          ),
+        ),
+        backgroundColor: primaryColor,
         foregroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
         actions: [
           if (pendientes > 0 && !_isSyncing)
             IconButton(
@@ -389,27 +399,34 @@ class _EnvioMuestrasScreenState extends State<EnvioMuestrasScreen> {
             width: double.infinity,
             padding: EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.blue[50],
+              color: Colors.white,
               border: Border(
-                bottom: BorderSide(color: Colors.blue[200]!, width: 1),
+                bottom: BorderSide(color: dividerColor, width: 1),
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: Offset(0, 2),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Estado de Sincronización',
-                  style: TextStyle(
+                  style: GoogleFonts.roboto(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Colors.blue[800],
+                    color: primaryColor,
                   ),
                 ),
                 SizedBox(height: 12),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildEstadoCard('Total', total.toString(), Colors.blue),
+                    _buildEstadoCard('Total', total.toString(), primaryColor),
                     _buildEstadoCard('Sincronizados', sincronizados.toString(), Colors.green),
                     _buildEstadoCard('Pendientes', pendientes.toString(), 
                         pendientes > 0 ? Colors.orange : Colors.grey),
@@ -463,16 +480,16 @@ class _EnvioMuestrasScreenState extends State<EnvioMuestrasScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.science, size: 64, color: Colors.grey),
+                            Icon(Icons.science, size: 64, color: primaryColor.withOpacity(0.5)),
                             SizedBox(height: 16),
                             Text(
                               'No hay envíos de muestras',
-                              style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                              style: GoogleFonts.roboto(fontSize: 18, color: textSecondaryColor),
                             ),
                             SizedBox(height: 8),
                             Text(
                               'Presiona + para crear el primer envío',
-                              style: TextStyle(color: Colors.grey[500]),
+                              style: GoogleFonts.roboto(color: textSecondaryColor),
                             ),
                           ],
                         ),
@@ -503,7 +520,6 @@ class _EnvioMuestrasScreenState extends State<EnvioMuestrasScreen> {
           );
           
           if (resultado == true) {
-            debugPrint('🔄 Recargando datos después de crear envío...');
             await Future.wait([
               _cargarEnvios(),
               _cargarEstadoSincronizacion(),
@@ -512,7 +528,7 @@ class _EnvioMuestrasScreenState extends State<EnvioMuestrasScreen> {
           }
         },
         child: Icon(Icons.add),
-        backgroundColor: Colors.blue[800],
+        backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         tooltip: 'Crear nuevo envío',
       ),
@@ -523,15 +539,15 @@ class _EnvioMuestrasScreenState extends State<EnvioMuestrasScreen> {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withOpacity(0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withOpacity(0.2)),
       ),
       child: Column(
         children: [
           Text(
             valor,
-            style: TextStyle(
+            style: GoogleFonts.roboto(
               fontSize: 24,
               fontWeight: FontWeight.bold,
               color: color,
@@ -540,7 +556,7 @@ class _EnvioMuestrasScreenState extends State<EnvioMuestrasScreen> {
           SizedBox(height: 4),
           Text(
             titulo,
-            style: TextStyle(
+            style: GoogleFonts.roboto(
               fontSize: 12,
               color: color,
               fontWeight: FontWeight.w500,
@@ -569,32 +585,33 @@ class _EnvioMuestrasScreenState extends State<EnvioMuestrasScreen> {
         ),
         title: Text(
           'Envío ${envio.codigo}',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: GoogleFonts.roboto(fontWeight: FontWeight.bold, color: textPrimaryColor),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('📅 Fecha: $fechaFormateada'),
-            Text('📍 Lugar: ${envio.lugarTomaMuestras}'),
-            Text('🧪 Muestras: ${envio.detalles.length}'),
+            SizedBox(height: 4),
+            Text('📅 Fecha: $fechaFormateada', style: GoogleFonts.roboto(color: textSecondaryColor)),
+            Text('📍 Lugar: ${envio.lugarTomaMuestras}', style: GoogleFonts.roboto(color: textSecondaryColor)),
+            Text('🧪 Muestras: ${envio.detalles.length}', style: GoogleFonts.roboto(color: textSecondaryColor)),
             if (envio.detalles.isNotEmpty) ...[
               SizedBox(height: 4),
               Text(
                 '👥 Pacientes: ${envio.detalles.map((d) => d.pacienteId).toSet().length}',
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                style: GoogleFonts.roboto(fontSize: 12, color: textSecondaryColor),
               ),
             ],
             if (!isSincronizado) ...[
-              SizedBox(height: 4),
+              SizedBox(height: 8),
               Container(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.orange[100],
+                  color: Colors.orange[50],
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   'Pendiente de sincronización',
-                  style: TextStyle(
+                  style: GoogleFonts.roboto(
                     color: Colors.orange[700],
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
@@ -636,7 +653,7 @@ class _EnvioMuestrasScreenState extends State<EnvioMuestrasScreen> {
                 SizedBox(height: 4),
                 Text(
                   isSincronizado ? 'Sync' : 'Pend',
-                  style: TextStyle(
+                  style: GoogleFonts.roboto(
                     fontSize: 10,
                     color: isSincronizado ? Colors.green : Colors.orange,
                     fontWeight: FontWeight.bold,
@@ -686,7 +703,6 @@ class _EnvioMuestrasScreenState extends State<EnvioMuestrasScreen> {
                 try {
                   pacienteInfo = _pacientes.firstWhere((p) => p.id == detalle.pacienteId);
                 } catch (e) {
-                  debugPrint('⚠️ Paciente no encontrado para ID: ${detalle.pacienteId}');
                 }
                 
                 return Card(

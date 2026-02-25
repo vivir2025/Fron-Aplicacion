@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:iconsax/iconsax.dart';
 import 'package:Bornive/api/api_service.dart';
 import 'package:Bornive/database/database_helper.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../services/database_helper.dart';
+import '../services/sincronizacion_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   final AuthProvider authProvider;
@@ -27,6 +30,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late TextEditingController _contrasenaActualController;
   late TextEditingController _contrasenaNuevaController;
   bool _isLoading = false;
+  bool _isSyncing = false;
   String? _selectedSedeId;
   List<Map<String, dynamic>> _sedes = [];
 
@@ -73,7 +77,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
       }
     } catch (e) {
-      debugPrint('Error al cargar sedes: $e');
     }
   }
 
@@ -116,7 +119,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Text('Perfil actualizado correctamente'),
               ],
             ),
-            backgroundColor: const Color(0xFF2E7D32),
+            backgroundColor: const Color(0xFF1B5E20),
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
@@ -157,6 +160,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required String label,
     required IconData icon,
     bool obscureText = false,
+    bool readOnly = false,
     String? Function(String?)? validator,
   }) {
     return Container(
@@ -165,72 +169,135 @@ class _ProfileScreenState extends State<ProfileScreen> {
         controller: controller,
         obscureText: obscureText,
         validator: validator,
+        readOnly: readOnly,
+        cursorColor: const Color(0xFF1B5E20),
+        style: GoogleFonts.roboto(
+          color: readOnly ? Colors.grey.shade700 : Colors.black87,
+          fontWeight: FontWeight.w500,
+          fontSize: 16,
+        ),
         decoration: InputDecoration(
           labelText: label,
-          prefixIcon: Icon(icon, color: const Color(0xFF2E7D32)),
+          labelStyle: GoogleFonts.roboto(color: Colors.grey.shade600),
+          floatingLabelStyle: GoogleFonts.roboto(color: const Color(0xFF1B5E20), fontWeight: FontWeight.bold),
+          prefixIcon: Icon(icon, color: const Color(0xFF1B5E20), size: 22),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.grey.shade300),
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.grey.shade300),
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFF2E7D32), width: 2),
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(color: Color(0xFF1B5E20), width: 1.5),
           ),
           errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Colors.red),
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(color: Colors.red, width: 1),
           ),
           focusedErrorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
             borderSide: const BorderSide(color: Colors.red, width: 2),
           ),
           filled: true,
-          fillColor: Colors.grey.shade50,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          fillColor: readOnly ? Colors.grey.shade200 : Colors.grey.shade100,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
         ),
       ),
     );
   }
 
-  Widget _buildDropdown() {
+  Widget _buildSedeInfo() {
+    if (_selectedSedeId == null || _sedes.isEmpty) return const SizedBox.shrink();
+    final selectedSede = _sedes.where((s) => s['id'] == _selectedSedeId).toList();
+    final sedeText = selectedSede.isNotEmpty 
+        ? selectedSede.first['nombresede']?.toString() ?? 'Sede sin nombre'
+        : 'Sede desconocida';
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      child: DropdownButtonFormField<String>(
-        value: _selectedSedeId,
-        decoration: InputDecoration(
-          labelText: 'Sede',
-          prefixIcon: const Icon(Icons.business, color: Color(0xFF2E7D32)),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.grey.shade300),
+      margin: const EdgeInsets.only(bottom: 24),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1B5E20).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Iconsax.building, color: Color(0xFF1B5E20)),
           ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.grey.shade300),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Sede Vinculada',
+                  style: GoogleFonts.roboto(
+                    color: Colors.grey.shade600,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  sedeText,
+                  style: GoogleFonts.roboto(
+                    color: Colors.black87,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
           ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFF2E7D32), width: 2),
-          ),
-          filled: true,
-          fillColor: Colors.grey.shade50,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _sincronizar() async {
+    setState(() { _isSyncing = true; });
+    try {
+      final usuario = await DatabaseHelper.instance.getLoggedInUser();
+      if (usuario == null || usuario['token'] == null) {
+        _mostrarSnackbar('No hay usuario autenticado', isError: true);
+        return;
+      }
+      final resultado = await SincronizacionService.sincronizacionCompleta(usuario['token']);
+      if (resultado['exito_general']) {
+        _mostrarSnackbar('Sincronización completada exitosamente');
+      } else {
+        _mostrarSnackbar('Error en la sincronización', isError: true);
+      }
+    } catch (e) {
+      _mostrarSnackbar('Error: $e', isError: true);
+    } finally {
+      if (mounted) setState(() { _isSyncing = false; });
+    }
+  }
+
+  void _mostrarSnackbar(String mensaje, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(isError ? Icons.error : Icons.check_circle, color: Colors.white),
+            const SizedBox(width: 8),
+            Expanded(child: Text(mensaje)),
+          ],
         ),
-        items: _sedes.map((sede) {
-          return DropdownMenuItem<String>(
-            value: sede['id'],
-            child: Text(sede['nombresede']),
-          );
-        }).toList(),
-        onChanged: (value) {
-          setState(() {
-            _selectedSedeId = value;
-          });
-        },
+        backgroundColor: isError ? Colors.red : const Color(0xFF2E7D32),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
@@ -241,16 +308,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: const Color(0xFF2E7D32),
-        title: const Text('Perfil', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+        backgroundColor: const Color(0xFF1B5E20),
+        title: Text('Mi Perfil', style: GoogleFonts.roboto(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 22)),
+        centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
+            icon: _isSyncing
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : const Icon(Iconsax.refresh, color: Colors.white),
+            onPressed: _isSyncing ? null : _sincronizar,
+            tooltip: 'Sincronizar datos',
+          ),
+          IconButton(
+            icon: const Icon(Iconsax.logout, color: Colors.white),
             onPressed: () async {
               await widget.authProvider.logout();
               widget.onLogout();
             },
+            tooltip: 'Cerrar sesión',
           ),
         ],
       ),
@@ -261,51 +344,73 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Container(
               width: double.infinity,
               decoration: const BoxDecoration(
-                color: Color(0xFF2E7D32),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(30),
-                  bottomRight: Radius.circular(30),
+                gradient: LinearGradient(
+                  colors: [Color(0xFF1B5E20), Color(0xFF4CAF50)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(40),
+                  bottomRight: Radius.circular(40),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 10,
+                    offset: Offset(0, 5),
+                  ),
+                ],
               ),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 40),
                 child: Column(
                   children: [
                     Container(
-                      width: 100,
-                      height: 100,
+                      width: 110,
+                      height: 110,
                       decoration: BoxDecoration(
                         color: Colors.white,
                         shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white.withOpacity(0.5), width: 4),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
+                            color: Colors.black.withOpacity(0.15),
+                            blurRadius: 15,
+                            offset: const Offset(0, 5),
                           ),
                         ],
                       ),
-                      child: const Icon(
-                        Icons.person,
-                        size: 50,
-                        color: Color(0xFF2E7D32),
+                      child: const Center(
+                        child: Icon(
+                          Iconsax.user,
+                          size: 50,
+                          color: Color(0xFF1B5E20),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),
                     Text(
                       widget.authProvider.user?['nombre'] ?? 'Usuario',
-                      style: const TextStyle(
+                      style: GoogleFonts.roboto(
                         color: Colors.white,
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      widget.authProvider.user?['correo'] ?? '',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 16,
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        widget.authProvider.user?['correo'] ?? '',
+                        style: GoogleFonts.roboto(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                   ],
@@ -319,12 +424,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
                   ),
                 ],
               ),
@@ -333,20 +438,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Información Personal',
-                      style: TextStyle(
-                        fontSize: 20,
+                      style: GoogleFonts.roboto(
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF2E7D32),
+                        color: const Color(0xFF1B5E20),
                       ),
                     ),
                     const SizedBox(height: 20),
                     
                     _buildTextField(
                       controller: _nombreController,
-                      label: 'Nombre',
-                      icon: Icons.person,
+                      label: 'Nombre completo',
+                      icon: Iconsax.user,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Por favor ingrese su nombre';
@@ -358,7 +463,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _buildTextField(
                       controller: _correoController,
                       label: 'Correo electrónico',
-                      icon: Icons.email,
+                      icon: Iconsax.sms,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Por favor ingrese su correo';
@@ -370,12 +475,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       },
                     ),
                     
-                    const Text(
+                    Text(
                       'Seguridad',
-                      style: TextStyle(
-                        fontSize: 20,
+                      style: GoogleFonts.roboto(
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF2E7D32),
+                        color: const Color(0xFF1B5E20),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -383,14 +488,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _buildTextField(
                       controller: _contrasenaActualController,
                       label: 'Contraseña actual (opcional)',
-                      icon: Icons.lock,
+                      icon: Iconsax.lock,
                       obscureText: true,
                     ),
                     
                     _buildTextField(
                       controller: _contrasenaNuevaController,
                       label: 'Nueva contraseña (opcional)',
-                      icon: Icons.lock_outline,
+                      icon: Iconsax.key,
                       obscureText: true,
                       validator: (value) {
                         if (_contrasenaActualController.text.isNotEmpty && 
@@ -402,16 +507,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     
                     if (_sedes.isNotEmpty) ...[
-                      const Text(
-                        'Ubicación',
-                        style: TextStyle(
-                          fontSize: 20,
+                      Text(
+                        'Centro de Salud / Sede',
+                        style: GoogleFonts.roboto(
+                          fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF2E7D32),
+                          color: const Color(0xFF1B5E20),
                         ),
                       ),
-                      const SizedBox(height: 20),
-                      _buildDropdown(),
+                      const SizedBox(height: 16),
+                      _buildSedeInfo(),
                     ],
                     
                     const SizedBox(height: 20),
@@ -422,33 +527,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: ElevatedButton(
                         onPressed: _isLoading ? null : _updateProfile,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF2E7D32),
+                          backgroundColor: const Color(0xFF1B5E20),
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(16),
                           ),
-                          elevation: 3,
-                          shadowColor: const Color(0xFF2E7D32).withOpacity(0.3),
+                          elevation: 4,
+                          shadowColor: const Color(0xFF1B5E20).withOpacity(0.4),
                         ),
                         child: _isLoading 
                             ? const SizedBox(
-                                height: 20,
-                                width: 20,
+                                height: 24,
+                                width: 24,
                                 child: CircularProgressIndicator(
-                                  strokeWidth: 2,
+                                  strokeWidth: 3,
                                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                                 ),
                               )
-                            : const Row(
+                            : Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.save, size: 20),
-                                  SizedBox(width: 8),
+                                  const Icon(Iconsax.save_2, size: 22),
+                                  const SizedBox(width: 8),
                                   Text(
-                                    'Actualizar Perfil',
-                                    style: TextStyle(
+                                    'Guardar Cambios',
+                                    style: GoogleFonts.roboto(
                                       fontSize: 16,
-                                      fontWeight: FontWeight.w600,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 0.5,
                                     ),
                                   ),
                                 ],

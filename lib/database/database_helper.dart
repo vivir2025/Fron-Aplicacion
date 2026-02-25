@@ -34,7 +34,6 @@ String generarIdUnicoVisita() {
   final uuid = Uuid();
   final idUnico = uuid.v4();
   
-  debugPrint('🆔 UUID generado para visita: $idUnico');
   return idUnico; // ✅ UUID v4 estándar sin prefijo
 }
 
@@ -397,12 +396,9 @@ await db.execute('''
   )
 ''');
 
-debugPrint('Base de datos creada con todas las tablas incluyendo visitas mejorada');
 }
 
 Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
-debugPrint('Actualizando base de datos de versión $oldVersion a $newVersion');
-
 if (oldVersion < 2) {
   await db.execute('''
     CREATE TABLE IF NOT EXISTS usuarios (
@@ -466,15 +462,12 @@ if (oldVersion < 4) {
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   ''');
-  debugPrint('Tabla visitas creada durante upgrade');
 }
 
 if (oldVersion < 5) {
   try {
     await db.execute('ALTER TABLE visitas ADD COLUMN firma TEXT');
-    debugPrint('Columna firma agregada a tabla visitas');
   } catch (e) {
-    debugPrint('Error al agregar columna firma (puede que ya exista): $e');
   }
 }
 
@@ -482,9 +475,7 @@ if (oldVersion < 6) {
   try {
     await db.execute('ALTER TABLE visitas ADD COLUMN latitud REAL');
     await db.execute('ALTER TABLE visitas ADD COLUMN longitud REAL');
-    debugPrint('✅ Columnas latitud y longitud agregadas a tabla visitas');
   } catch (e) {
-    debugPrint('⚠️ Error al agregar columnas de geolocalización (puede que ya existan): $e');
   }
 }
 
@@ -502,9 +493,7 @@ if (oldVersion < 8) {
     await db.execute('ALTER TABLE visitas ADD COLUMN observaciones_adicionales TEXT');
     await db.execute('ALTER TABLE visitas ADD COLUMN tipo_visita TEXT DEFAULT "domiciliaria"');
     
-    debugPrint('✅ Nuevas columnas agregadas a tabla visitas para manejo mejorado');
   } catch (e) {
-    debugPrint('⚠️ Error al agregar nuevas columnas a visitas: $e');
   }
 }
 
@@ -517,14 +506,10 @@ if (oldVersion < 9) {
     
     if (!columnNames.contains('firma')) {
       await db.execute('ALTER TABLE visitas ADD COLUMN firma TEXT');
-      debugPrint('✅ Columna firma agregada en migración v9');
     } else {
-      debugPrint('✅ Columna firma ya existe en migración v9');
     }
     
-    debugPrint('✅ Migración v9 completada - Columna firma verificada');
   } catch (e) {
-    debugPrint('⚠️ Error en migración v9: $e');
   }
 }
   if (oldVersion < 10) { // 🆕 Nueva versión para medicamentos
@@ -573,9 +558,7 @@ if (oldVersion < 9) {
 
     
 
-    debugPrint('✅ Tablas de medicamentos creadas en migración v10');
   } catch (e) {
-    debugPrint('⚠️ Error en migración v10 (medicamentos): $e');
   }
 // Y agregar en _onUpgrade:
 if (oldVersion < 11) {
@@ -667,9 +650,7 @@ if (oldVersion < 11) {
 
     
 
-    debugPrint('✅ Tabla envio_muestras creada en migración v11');
   } catch (e) {
-    debugPrint('⚠️ Error en migración v11 (envio_muestras): $e');
   }
 }
 
@@ -727,9 +708,7 @@ if (oldVersion < 12) {
       )
     ''');
 
-    debugPrint('✅ Tablas de brigadas creadas en migración v12');
   } catch (e) {
-    debugPrint('⚠️ Error en migración v12 (brigadas): $e');
   }
 
   
@@ -756,9 +735,7 @@ if (oldVersion < 13) {
       )
     ''');
 
-    debugPrint('✅ Tabla encuestas creada en migración v13');
   } catch (e) {
-    debugPrint('⚠️ Error en migración v13 (encuestas): $e');
   }
 }
 
@@ -800,9 +777,7 @@ if (oldVersion < 14) { // Ajusta el número de versión
       )
     ''');
 
-    debugPrint('✅ Tabla findrisk_tests creada en migración v14');
   } catch (e) {
-    debugPrint('⚠️ Error en migración v14 (findrisk_tests): $e');
   }
 }
 if (oldVersion < 15) { // Incrementar número de versión
@@ -835,9 +810,7 @@ if (oldVersion < 15) { // Incrementar número de versión
       )
     ''');
 
-    debugPrint('✅ Tabla afinamientos creada en migración v15');
   } catch (e) {
-    debugPrint('⚠️ Error en migración v15 (afinamientos): $e');
   }
 }
 if (oldVersion < 16) { // Incrementar el número de versión
@@ -864,9 +837,7 @@ if (oldVersion < 16) { // Incrementar el número de versión
       )
     ''');
 
-    debugPrint('✅ Tabla tamizajes creada en migración v16');
   } catch (e) {
-    debugPrint('⚠️ Error en migración v16 (tamizajes): $e');
   }
 }
 }
@@ -888,7 +859,6 @@ try {
   final result = await db.rawQuery("PRAGMA table_info($tableName)");
   return result.map((column) => column['name'] as String).toList();
 } catch (e) {
-  debugPrint('Error al obtener columnas de $tableName: $e');
   return [];
 }
 }
@@ -906,10 +876,8 @@ try {
         direccion TEXT
       )
     ''');
-    debugPrint('Tabla sedes creada manualmente');
   }
 } catch (e) {
-  debugPrint('Error al crear tabla sedes: $e');
 }
 }
 
@@ -918,8 +886,6 @@ Future<void> ensureVisitasTableIntegrity() async {
 final db = await database;
 try {
   final columns = await getTableColumns('visitas');
-  debugPrint('Columnas actuales en tabla visitas: $columns');
-  
   final requiredColumns = [
     'firma', 'firma_path', 'firma_base64', 'fotos_paths', 'fotos_base64',
     'opciones_multiples', 'archivos_adjuntos', 'estado', 'observaciones_adicionales', 'tipo_visita'
@@ -933,14 +899,11 @@ try {
         if (column == 'tipo_visita') defaultValue = ' DEFAULT "domiciliaria"';
         
         await db.execute('ALTER TABLE visitas ADD COLUMN $column TEXT$defaultValue');
-        debugPrint('✅ Columna $column agregada a tabla visitas');
       } catch (e) {
-        debugPrint('⚠️ Error al agregar columna $column: $e');
       }
     }
   }
 } catch (e) {
-  debugPrint('Error al verificar integridad de tabla visitas: $e');
 }
 }
 
@@ -991,14 +954,11 @@ Future<List<Paciente>> getUnsyncedPacientes() async {
     
     final pacientes = result.map((json) => Paciente.fromJson(json)).toList();
     
-    debugPrint('📊 Pacientes no sincronizados encontrados: ${pacientes.length}');
     for (final p in pacientes) {
-      debugPrint('   - ${p.identificacion} (ID: ${p.id}, Status: ${p.syncStatus})');
     }
     
     return pacientes;
   } catch (e) {
-    debugPrint('❌ Error obteniendo pacientes no sincronizados: $e');
     return [];
   }
 }
@@ -1020,9 +980,7 @@ Future<void> markPacientesAsSynced(List<String> pacienteIds) async {
         );
         
         if (result > 0) {
-          debugPrint('✅ Paciente $id marcado como sincronizado');
         } else {
-          debugPrint('⚠️ No se pudo marcar paciente $id como sincronizado');
         }
       }
     });
@@ -1034,10 +992,7 @@ Future<void> markPacientesAsSynced(List<String> pacienteIds) async {
       whereArgs: pacienteIds,
     );
     
-    debugPrint('✅ Verificación: ${verificacion.length}/${pacienteIds.length} pacientes marcados correctamente');
-    
   } catch (e) {
-    debugPrint('❌ Error marcando pacientes como sincronizados: $e');
     rethrow;
   }
 }
@@ -1046,8 +1001,6 @@ Future<void> markPacientesAsSynced(List<String> pacienteIds) async {
 Future<void> limpiarPacientesDuplicadosDespuesSincronizacion() async {
   final db = await database;
   try {
-    debugPrint('🧹 Iniciando limpieza de pacientes duplicados...');
-    
     // Obtener todos los pacientes
     final todosPacientes = await db.query('pacientes');
     
@@ -1066,8 +1019,6 @@ Future<void> limpiarPacientesDuplicadosDespuesSincronizacion() async {
       final pacientesGrupo = entrada.value;
       
       if (pacientesGrupo.length > 1) {
-        debugPrint('🔍 Encontrados ${pacientesGrupo.length} pacientes con identificación $identificacion');
-        
         // Encontrar el mejor paciente (prioridad: sincronizado > no offline > más reciente)
         Map<String, dynamic>? mejorPaciente;
         
@@ -1097,16 +1048,12 @@ Future<void> limpiarPacientesDuplicadosDespuesSincronizacion() async {
           if (paciente['id'] != mejorPaciente!['id']) {
             await db.delete('pacientes', where: 'id = ?', whereArgs: [paciente['id']]);
             eliminados++;
-            debugPrint('🗑️ Eliminado paciente duplicado: ${paciente['id']} (${paciente['identificacion']})');
           }
         }
       }
     }
     
-    debugPrint('✅ Limpieza completada: $eliminados pacientes duplicados eliminados');
-    
   } catch (e) {
-    debugPrint('❌ Error en limpieza de duplicados: $e');
   }
 }
 
@@ -1136,7 +1083,6 @@ try {
   }
   return null;
 } catch (e) {
-  debugPrint('Error al buscar paciente por identificación: $e');
   return null;
 }
 }
@@ -1157,7 +1103,6 @@ try {
   }
   return null;
 } catch (e) {
-  debugPrint('Error al buscar paciente por ID: $e');
   return null;
 }
 }
@@ -1177,8 +1122,6 @@ try {
   
   // Limpiar sedes anteriores
   await db.delete('sedes');
-  debugPrint('Sedes anteriores eliminadas');
-
   // Insertar nuevas sedes
   for (final sede in sedes) {
     final sedeData = {
@@ -1188,12 +1131,9 @@ try {
     };
     
     await db.insert('sedes', sedeData);
-    debugPrint('Sede insertada: ${sedeData['nombresede']}');
   }
   
-  debugPrint('Sedes guardadas correctamente: ${sedes.length}');
 } catch (e) {
-  debugPrint('Error al guardar sedes: $e');
   rethrow;
 }
 }
@@ -1205,10 +1145,8 @@ try {
   await ensureSedesTableExists();
   
   final result = await db.query('sedes');
-  debugPrint('Sedes obtenidas desde DB: ${result.length}');
   return result;
 } catch (e) {
-  debugPrint('Error al obtener sedes: $e');
   return [];
 }
 }
@@ -1230,7 +1168,6 @@ try {
   // Verificar si ya hay sedes
   final existingSedes = await getSedes();
   if (existingSedes.isNotEmpty) {
-    debugPrint('Ya existen sedes, no se insertarán por defecto');
     return;
   }
   
@@ -1242,12 +1179,9 @@ try {
   
   for (final sede in defaultSedes) {
     await db.insert('sedes', sede);
-    debugPrint('Sede por defecto insertada: ${sede['nombresede']}');
   }
   
-  debugPrint('Sedes por defecto insertadas: ${defaultSedes.length}');
 } catch (e) {
-  debugPrint('Error al insertar sedes por defecto: $e');
 }
 }
 
@@ -1306,14 +1240,17 @@ try {
   final user = result.first;
   
   // Verificar datos mínimos requeridos
-  if (user['usuario'] == null || user['contrasena'] == null || user['token'] == null) {
-    debugPrint('Usuario encontrado pero faltan datos: usuario=${user['usuario']}, contrasena=${user['contrasena'] != null ? '[EXISTE]' : '[FALTA]'}, token=${user['token'] != null ? '[EXISTE]' : '[FALTA]'}');
+  if (user['usuario'] == null || user['contrasena'] == null) {
     return null;
   }
   
-  // Comparación directa
+  // Comparación directa de credenciales
   if (user['contrasena'] == contrasena) {
-    debugPrint('Credenciales válidas encontradas para usuario: $usuario');
+    if (user['token'] == null) {
+      // ✅ LANZAR EXCEPCIÓN ESPECÍFICA SI EL TOKEN CADUCÓ POR SEGURIDAD
+      throw Exception('REQUIRES_ONLINE_LOGIN');
+    }
+
     return {
       'id': user['id'],
       'usuario': user['usuario'],
@@ -1324,12 +1261,12 @@ try {
       'is_logged_in': user['is_logged_in'],
     };
   } else {
-    debugPrint('Contraseña incorrecta para usuario: $usuario');
+    return null;
   }
-  
-  return null;
 } catch (e) {
-  debugPrint('Error al obtener usuario: $e');
+  if (e.toString().contains('REQUIRES_ONLINE_LOGIN')) {
+    rethrow;
+  }
   return null;
 }
 }
@@ -1353,7 +1290,6 @@ final rowsUpdated = await db.update(
   whereArgs: [userId],
 );
 
-debugPrint('Usuario $userId actualizado (is_logged_in: $isLoggedIn), filas afectadas: $rowsUpdated');
 }
 
 // ✅ MÉTODO CORREGIDO EN database_helper.dart
@@ -1362,11 +1298,6 @@ Future<int> updatePacienteGeolocalizacion(String pacienteId, double latitud, dou
   final db = await database;
   
   try {
-    debugPrint('🔄 Iniciando actualización de geolocalización...');
-    debugPrint('📍 Paciente ID: $pacienteId');
-    debugPrint('📍 Latitud: $latitud');
-    debugPrint('📍 Longitud: $longitud');
-    
     // ✅ VERIFICAR QUE EL PACIENTE EXISTE PRIMERO
     final existingPaciente = await db.query(
       'pacientes',
@@ -1375,17 +1306,12 @@ Future<int> updatePacienteGeolocalizacion(String pacienteId, double latitud, dou
     );
     
     if (existingPaciente.isEmpty) {
-      debugPrint('❌ Paciente no encontrado con ID: $pacienteId');
       return 0;
     }
-    
-    debugPrint('✅ Paciente encontrado, procediendo con actualización...');
     
     // ✅ VERIFICAR QUE COLUMNAS EXISTEN ANTES DE ACTUALIZAR
     final tableInfo = await db.rawQuery("PRAGMA table_info(pacientes)");
     final columnNames = tableInfo.map((col) => col['name'].toString()).toList();
-    
-    debugPrint('📋 Columnas disponibles en tabla pacientes: $columnNames');
     
     // ✅ CONSTRUIR UPDATE DINÁMICAMENTE SOLO CON COLUMNAS EXISTENTES
     Map<String, dynamic> updateData = {
@@ -1396,19 +1322,13 @@ Future<int> updatePacienteGeolocalizacion(String pacienteId, double latitud, dou
     // Solo agregar columnas si existen
     if (columnNames.contains('sync_status')) {
       updateData['sync_status'] = 0;
-      debugPrint('✅ Agregando sync_status al update');
     } else {
-      debugPrint('⚠️ Columna sync_status no existe, omitiendo...');
     }
     
     if (columnNames.contains('updated_at')) {
       updateData['updated_at'] = DateTime.now().toIso8601String();
-      debugPrint('✅ Agregando updated_at al update');
     } else {
-      debugPrint('⚠️ Columna updated_at no existe, omitiendo...');
     }
-    
-    debugPrint('📝 Datos a actualizar: $updateData');
     
     // ✅ ACTUALIZAR CON TRANSACCIÓN EXPLÍCITA
     final result = await db.transaction((txn) async {
@@ -1419,7 +1339,6 @@ Future<int> updatePacienteGeolocalizacion(String pacienteId, double latitud, dou
         whereArgs: [pacienteId],
       );
       
-      debugPrint('🔄 Filas afectadas en actualización: $updateResult');
       return updateResult;
     });
     
@@ -1434,37 +1353,20 @@ Future<int> updatePacienteGeolocalizacion(String pacienteId, double latitud, dou
       
       if (updatedPaciente.isNotEmpty) {
         final paciente = updatedPaciente.first;
-        debugPrint('✅ Verificación post-actualización:');
-        debugPrint('   - ID: ${paciente['id']}');
-        debugPrint('   - Identificación: ${paciente['identificacion']}');
-        debugPrint('   - Latitud guardada: ${paciente['latitud']}');
-        debugPrint('   - Longitud guardada: ${paciente['longitud']}');
-        
         if (columnNames.contains('sync_status')) {
-          debugPrint('   - Sync status: ${paciente['sync_status']}');
         }
         
         // ✅ VERIFICAR QUE LOS VALORES COINCIDEN
         if (paciente['latitud'] == latitud && paciente['longitud'] == longitud) {
-          debugPrint('🎉 Coordenadas guardadas correctamente en la base de datos');
         } else {
-          debugPrint('⚠️ Las coordenadas no coinciden después de guardar');
-          debugPrint('   - Esperado: $latitud, $longitud');
-          debugPrint('   - Guardado: ${paciente['latitud']}, ${paciente['longitud']}');
         }
       }
     } else {
-      debugPrint('❌ No se actualizó ninguna fila. Posibles causas:');
-      debugPrint('   - ID de paciente incorrecto');
-      debugPrint('   - Problema con la consulta SQL');
-      debugPrint('   - Restricciones de la base de datos');
     }
     
     return result;
     
   } catch (e) {
-    debugPrint('💥 Error en updatePacienteGeolocalizacion: $e');
-    debugPrint('💥 Stack trace: ${StackTrace.current}');
     rethrow;
   }
 }
@@ -1472,8 +1374,6 @@ Future<int> updatePacienteGeolocalizacion(String pacienteId, double latitud, dou
 Future<void> debugPacientesSyncStatus() async {
   final db = await database;
   try {
-    debugPrint('📊 === ESTADO DE SINCRONIZACIÓN DE PACIENTES ===');
-    
     final todosPacientes = await db.query('pacientes', orderBy: 'identificacion');
     
     int sincronizados = 0;
@@ -1490,25 +1390,14 @@ Future<void> debugPacientesSyncStatus() async {
       
       if (isOffline) {
         offline++;
-        debugPrint('🔴 OFFLINE: $identificacion (ID: $id, Sync: $syncStatus)');
       } else if (syncStatus == 0) {
         pendientes++;
-        debugPrint('🟡 PENDIENTE: $identificacion (ID: $id, Coords: $latitud,$longitud)');
       } else {
         sincronizados++;
-        debugPrint('🟢 SINCRONIZADO: $identificacion (ID: $id)');
       }
     }
     
-    debugPrint('📊 RESUMEN:');
-    debugPrint('   - Total: ${todosPacientes.length}');
-    debugPrint('   - Sincronizados: $sincronizados');
-    debugPrint('   - Pendientes: $pendientes');
-    debugPrint('   - Offline: $offline');
-    debugPrint('📊 === FIN ESTADO SINCRONIZACIÓN ===');
-    
   } catch (e) {
-    debugPrint('❌ Error en debug de estado: $e');
   }
 }
 
@@ -1517,13 +1406,9 @@ Future<void> verificarYAgregarColumnasGeolocalizacion() async {
   final db = await database;
   
   try {
-    debugPrint('🔍 Verificando estructura de tabla pacientes...');
-    
     // Obtener información de la tabla
     final tableInfo = await db.rawQuery("PRAGMA table_info(pacientes)");
     final columnNames = tableInfo.map((col) => col['name'].toString()).toList();
-    
-    debugPrint('📋 Columnas actuales: $columnNames');
     
     // Verificar y agregar columnas necesarias
     final columnasNecesarias = {
@@ -1540,26 +1425,19 @@ Future<void> verificarYAgregarColumnasGeolocalizacion() async {
       if (!columnNames.contains(nombreColumna)) {
         try {
           await db.execute('ALTER TABLE pacientes ADD COLUMN $nombreColumna $tipoColumna');
-          debugPrint('✅ Columna $nombreColumna agregada exitosamente');
         } catch (e) {
           if (e.toString().contains('duplicate column name')) {
-            debugPrint('ℹ️ Columna $nombreColumna ya existe');
           } else {
-            debugPrint('❌ Error agregando columna $nombreColumna: $e');
           }
         }
       } else {
-        debugPrint('✅ Columna $nombreColumna ya existe');
       }
     }
     
     // Verificar estructura final
     final finalTableInfo = await db.rawQuery("PRAGMA table_info(pacientes)");
     final finalColumnNames = finalTableInfo.map((col) => col['name'].toString()).toList();
-    debugPrint('📋 Estructura final de tabla pacientes: $finalColumnNames');
-    
   } catch (e) {
-    debugPrint('💥 Error verificando/agregando columnas: $e');
   }
 }
 
@@ -1575,14 +1453,11 @@ try {
   );
   
   if (result.isNotEmpty) {
-    debugPrint('Usuario logueado encontrado: ${result.first['usuario']}');
     return result.first;
   }
   
-  debugPrint('No hay usuario logueado');
   return null;
 } catch (e) {
-  debugPrint('Error al obtener usuario logueado: $e');
   return null;
 }
 }
@@ -1594,26 +1469,19 @@ await db.update(
   {'is_logged_in': 0},
   where: 'is_logged_in = 1',
 );
-debugPrint('Sesiones anteriores limpiadas');
 }
 
 Future<void> debugListUsers() async {
 final db = await database;
 final users = await db.query('usuarios');
-debugPrint('=== USUARIOS EN BASE DE DATOS ===');
 for (final user in users) {
-  debugPrint('ID: ${user['id']}, Usuario: ${user['usuario']}, Logged: ${user['is_logged_in']}, Token: ${user['token'] != null ? '[EXISTE]' : '[FALTA]'}');
 }
-debugPrint('=== FIN USUARIOS ===');
 }
 
 Future<void> debugListSedes() async {
 final sedes = await getSedes();
-debugPrint('=== SEDES EN BASE DE DATOS ===');
 for (final sede in sedes) {
-  debugPrint('ID: ${sede['id']}, Nombre: ${sede['nombresede']}, Dirección: ${sede['direccion']}');
 }
-debugPrint('=== FIN SEDES ===');
 }
 
 Future<List<Map<String, dynamic>>> getAllUsers() async {
@@ -1621,7 +1489,6 @@ final db = await database;
 try {
   return await db.query('usuarios');
 } catch (e) {
-  debugPrint('Error al obtener todos los usuarios: $e');
   return [];
 }
 }
@@ -1638,12 +1505,10 @@ Future<bool> createVisita(Visita visita) async {
     if (visita.id == null || visita.id!.isEmpty) {
       final nuevoId = generarIdUnicoVisita();
       visita = visita.copyWith(id: nuevoId);
-      debugPrint('✅ ID único generado para nueva visita: $nuevoId');
     } else {
       // ✅ Validar que el ID tenga formato UUID válido
       final uuidPattern = RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', caseSensitive: false);
       if (!uuidPattern.hasMatch(visita.id)) {
-        debugPrint('⚠️ ID no tiene formato UUID válido, regenerando: ${visita.id}');
         final nuevoId = generarIdUnicoVisita();
         visita = visita.copyWith(id: nuevoId);
       }
@@ -1651,7 +1516,6 @@ Future<bool> createVisita(Visita visita) async {
       // ✅ Verificar si ya existe una visita con este ID
       final visitaExistente = await getVisitaById(visita.id);
       if (visitaExistente != null) {
-        debugPrint('⚠️ Ya existe una visita con ID ${visita.id}, actualizando en su lugar');
         return await updateVisita(visita);
       }
     }
@@ -1665,13 +1529,10 @@ Future<bool> createVisita(Visita visita) async {
       conflictAlgorithm: ConflictAlgorithm.abort, // ✅ Cambiar a abort para detectar duplicados
     );
     
-    debugPrint('✅ Visita guardada localmente con ID: ${visita.id}');
     return result > 0;
   } catch (e) {
-    debugPrint('❌ Error al guardar visita localmente: $e');
     // ✅ Si falla por duplicado, intentar actualizar
     if (e.toString().contains('UNIQUE constraint failed')) {
-      debugPrint('⚠️ Detectado duplicado, intentando actualizar...');
       return await updateVisita(visita);
     }
     return false;
@@ -1698,10 +1559,8 @@ try {
     whereArgs: [visita.id],
   );
   
-  debugPrint('✅ Visita actualizada: ${visita.id}');
   return result > 0;
 } catch (e) {
-  debugPrint('❌ Error al actualizar visita: $e');
   return false;
 }
 }
@@ -1745,11 +1604,8 @@ Future<void> migrarUUIDsAntiguos() async {
     );
     
     if (visitasConPrefijo.isEmpty) {
-      debugPrint('✅ No hay UUIDs con prefijo para migrar');
       return;
     }
-    
-    debugPrint('🔄 Migrando ${visitasConPrefijo.length} visitas con UUID antiguo...');
     
     for (var visitaData in visitasConPrefijo) {
       final idAntiguo = visitaData['id'] as String;
@@ -1775,19 +1631,14 @@ Future<void> migrarUUIDsAntiguos() async {
             where: 'id = ?',
             whereArgs: [idAntiguo],
           );
-          debugPrint('✅ Migrado: $idAntiguo -> $idNuevo');
         } else {
-          debugPrint('⚠️ Ya existe visita con ID $idNuevo, eliminando duplicado $idAntiguo');
           await db.delete('visitas', where: 'id = ?', whereArgs: [idAntiguo]);
         }
       } else {
-        debugPrint('⚠️ ID inválido después de remover prefijo: $idAntiguo');
       }
     }
     
-    debugPrint('✅ Migración de UUIDs completada');
   } catch (e) {
-    debugPrint('❌ Error migrando UUIDs: $e');
   }
 }
 
@@ -1803,7 +1654,6 @@ try {
   
   return result.map((json) => _processVisitaFromDB(json)).toList();
 } catch (e) {
-  debugPrint('Error al obtener visitas por usuario: $e');
   return [];
 }
 }
@@ -1823,7 +1673,6 @@ try {
   }
   return null;
 } catch (e) {
-  debugPrint('Error al obtener visita por ID: $e');
   return null;
 }
 }
@@ -1838,7 +1687,6 @@ try {
   
   return result.map((json) => _processVisitaFromDB(json)).toList();
 } catch (e) {
-  debugPrint('Error al obtener todas las visitas: $e');
   return [];
 }
 }
@@ -1854,7 +1702,6 @@ try {
   );
   return result.map((json) => _processVisitaFromDB(json)).toList();
 } catch (e) {
-  debugPrint('Error al obtener visitas por paciente: $e');
   return [];
 }
 }
@@ -1870,7 +1717,6 @@ try {
   );
   return result.map((json) => _processVisitaFromDB(json)).toList();
 } catch (e) {
-  debugPrint('Error al obtener visitas no sincronizadas: $e');
   return [];
 }
 }
@@ -1885,7 +1731,6 @@ try {
   );
   return result > 0;
 } catch (e) {
-  debugPrint('Error al eliminar visita: $e');
   return false;
 }
 }
@@ -1899,7 +1744,6 @@ try {
   );
   return Sqflite.firstIntValue(result) ?? 0;
 } catch (e) {
-  debugPrint('Error al contar visitas: $e');
   return 0;
 }
 }
@@ -1916,7 +1760,6 @@ try {
   );
   return result.map((json) => _processVisitaFromDB(json)).toList();
 } catch (e) {
-  debugPrint('Error al obtener últimas visitas: $e');
   return [];
 }
 }
@@ -1937,7 +1780,6 @@ try {
   );
   return result > 0;
 } catch (e) {
-  debugPrint('Error al marcar visitas como sincronizadas: $e');
   return false;
 }
 }
@@ -1955,10 +1797,8 @@ try {
     whereArgs: [id],
   );
   
-  debugPrint('✅ Visita $id marcada como sincronizada');
   return result > 0;
 } catch (e) {
-  debugPrint('❌ Error al marcar visita como sincronizada: $e');
   return false;
 }
 }
@@ -1970,7 +1810,6 @@ if (list == null || list.isEmpty) return '[]';
 try {
   return jsonEncode(list);
 } catch (e) {
-  debugPrint('Error al convertir lista a JSON: $e');
   return '[]';
 }
 }
@@ -1980,7 +1819,6 @@ if (map == null || map.isEmpty) return '{}';
 try {
   return jsonEncode(map);
 } catch (e) {
-  debugPrint('Error al convertir mapa a JSON: $e');
   return '{}';
 }
 }
@@ -1991,7 +1829,6 @@ try {
   final decoded = jsonDecode(jsonString);
   return decoded is List ? decoded : [];
 } catch (e) {
-  debugPrint('Error al convertir JSON a lista: $e');
   return [];
 }
 }
@@ -2002,7 +1839,6 @@ try {
   final decoded = jsonDecode(jsonString);
   return decoded is Map<String, dynamic> ? decoded : {};
 } catch (e) {
-  debugPrint('Error al convertir JSON a mapa: $e');
   return {};
 }
 }
@@ -2058,7 +1894,6 @@ try {
   
   return await updateVisita(visitaActualizada);
 } catch (e) {
-  debugPrint('Error al agregar foto a visita: $e');
   return false;
 }
 }
@@ -2090,7 +1925,6 @@ try {
   
   return await updateVisita(visitaActualizada);
 } catch (e) {
-  debugPrint('Error al eliminar foto de visita: $e');
   return false;
 }
 }
@@ -2110,7 +1944,6 @@ try {
   
   return await updateVisita(visitaActualizada);
 } catch (e) {
-  debugPrint('Error al actualizar firma de visita: $e');
   return false;
 }
 }
@@ -2132,7 +1965,6 @@ try {
   
   return await updateVisita(visitaActualizada);
 } catch (e) {
-  debugPrint('Error al actualizar opciones múltiples: $e');
   return false;
 }
 }
@@ -2243,7 +2075,6 @@ try {
   };
   
 } catch (e) {
-  debugPrint('❌ Error al obtener estadísticas de archivos: $e');
   return {
     'error': true,
     'mensaje': 'Error al obtener estadísticas: ${e.toString()}',
@@ -2337,7 +2168,6 @@ try {
   };
   
 } catch (e) {
-  debugPrint('❌ Error al limpiar archivos huérfanos: $e');
   return {
     'exito': false,
     'error': e.toString(),
@@ -2357,10 +2187,8 @@ try {
   // Reindexar para mejorar el rendimiento
   await db.execute('REINDEX');
   
-  debugPrint('✅ Base de datos optimizada exitosamente');
   return true;
 } catch (e) {
-  debugPrint('❌ Error al optimizar base de datos: $e');
   return false;
 }
 }
@@ -2394,7 +2222,6 @@ try {
   };
   
 } catch (e) {
-  debugPrint('❌ Error al obtener información de la base de datos: $e');
   return {
     'error': true,
     'mensaje': e.toString(),
@@ -2429,9 +2256,7 @@ Future<void> syncMedicamentosFromServer(List<Map<String, dynamic>> medicamentosS
       );
     }
     
-    debugPrint('✅ ${medicamentosServer.length} medicamentos sincronizados desde servidor');
   } catch (e) {
-    debugPrint('❌ Error sincronizando medicamentos: $e');
   }
 }
 
@@ -2442,7 +2267,6 @@ Future<List<Medicamento>> getAllMedicamentos() async {
     final result = await db.query('medicamentos', orderBy: 'nombmedicamento ASC');
     return result.map((json) => Medicamento.fromJson(json)).toList();
   } catch (e) {
-    debugPrint('❌ Error obteniendo medicamentos: $e');
     return [];
   }
 }
@@ -2468,9 +2292,7 @@ Future<void> saveMedicamentosVisita(String visitaId, List<MedicamentoConIndicaci
       }
     }
     
-    debugPrint('✅ Medicamentos guardados para visita $visitaId');
   } catch (e) {
-    debugPrint('❌ Error guardando medicamentos de visita: $e');
   }
 }
 
@@ -2496,7 +2318,6 @@ Future<List<MedicamentoConIndicaciones>> getMedicamentosDeVisita(String visitaId
       );
     }).toList();
   } catch (e) {
-    debugPrint('❌ Error obteniendo medicamentos de visita: $e');
     return [];
   }
 }
@@ -2508,7 +2329,6 @@ Future<bool> hasMedicamentos() async {
     final result = await db.query('medicamentos', limit: 1);
     return result.isNotEmpty;
   } catch (e) {
-    debugPrint('❌ Error verificando medicamentos: $e');
     return false;
   }
 }
@@ -2520,7 +2340,6 @@ Future<int> countMedicamentos() async {
     final result = await db.rawQuery('SELECT COUNT(*) as count FROM medicamentos');
     return Sqflite.firstIntValue(result) ?? 0;
   } catch (e) {
-    debugPrint('❌ Error contando medicamentos: $e');
     return 0;
   }
 }
@@ -2546,9 +2365,7 @@ Future<void> insertMedicamentoVisita({
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
     
-    debugPrint('✅ Medicamento $medicamentoId asociado a visita $visitaId');
   } catch (e) {
-    debugPrint('❌ Error insertando medicamento-visita: $e');
     rethrow;
   }
 }
@@ -2631,11 +2448,9 @@ Future<bool> createEnvioMuestra(EnvioMuestra envio) async {
         );
       }
       
-      debugPrint('✅ Envío de muestra guardado localmente: ${envio.id} con ${envio.detalles.length} detalles');
       return true;
     });
   } catch (e) {
-    debugPrint('❌ Error guardando envío de muestra: $e');
     return false;
   }
 }
@@ -2677,7 +2492,6 @@ Future<List<EnvioMuestra>> getAllEnviosMuestras() async {
     
     return envios;
   } catch (e) {
-    debugPrint('❌ Error obteniendo envíos de muestras: $e');
     return [];
   }
 }
@@ -2717,7 +2531,6 @@ Future<List<EnvioMuestra>> getEnviosMuestrasNoSincronizados() async {
     
     return envios;
   } catch (e) {
-    debugPrint('❌ Error obteniendo envíos no sincronizados: $e');
     return [];
   }
 }
@@ -2735,10 +2548,8 @@ Future<bool> marcarEnvioMuestraComoSincronizado(String id) async {
       whereArgs: [id],
     );
     
-    debugPrint('✅ Envío de muestra $id marcado como sincronizado');
     return result > 0;
   } catch (e) {
-    debugPrint('❌ Error marcando envío como sincronizado: $e');
     return false;
   }
 }
@@ -2757,10 +2568,8 @@ Future<bool> actualizarPacienteIdEnDetalle(String detalleId, String nuevoPacient
       whereArgs: [detalleId],
     );
     
-    debugPrint('✅ Detalle $detalleId actualizado con nuevo paciente_id: $nuevoPacienteId');
     return result > 0;
   } catch (e) {
-    debugPrint('❌ Error actualizando paciente_id en detalle: $e');
     return false;
   }
 }
@@ -2783,7 +2592,6 @@ Future<bool> createBrigada(Brigada brigada) async {
     if (brigada.id.isEmpty) {
       final nuevoId = generarIdUnicoBrigada();
       brigada = brigada.copyWith(id: nuevoId);
-      debugPrint('✅ ID único generado para nueva brigada: $nuevoId');
     }
     
     final result = await db.insert(
@@ -2792,10 +2600,8 @@ Future<bool> createBrigada(Brigada brigada) async {
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
     
-    debugPrint('✅ Brigada guardada localmente con ID: ${brigada.id}');
     return result > 0;
   } catch (e) {
-    debugPrint('❌ Error al guardar brigada localmente: $e');
     return false;
   }
 }
@@ -2815,10 +2621,8 @@ Future<bool> updateBrigada(Brigada brigada) async {
       whereArgs: [brigada.id],
     );
     
-    debugPrint('✅ Brigada actualizada: ${brigada.id}');
     return result > 0;
   } catch (e) {
-    debugPrint('❌ Error al actualizar brigada: $e');
     return false;
   }
 }
@@ -2834,7 +2638,6 @@ Future<List<Brigada>> getAllBrigadas() async {
     
     return result.map((json) => Brigada.fromJson(json)).toList();
   } catch (e) {
-    debugPrint('Error al obtener todas las brigadas: $e');
     return [];
   }
 }
@@ -2855,7 +2658,6 @@ Future<Brigada?> getBrigadaById(String id) async {
     }
     return null;
   } catch (e) {
-    debugPrint('Error al obtener brigada por ID: $e');
     return null;
   }
 }
@@ -2872,7 +2674,6 @@ Future<List<Brigada>> getBrigadasNoSincronizadas() async {
     );
     return result.map((json) => Brigada.fromJson(json)).toList();
   } catch (e) {
-    debugPrint('Error al obtener brigadas no sincronizadas: $e');
     return [];
   }
 }
@@ -2894,7 +2695,6 @@ Future<bool> deleteBrigada(String id) async {
     );
     return result > 0;
   } catch (e) {
-    debugPrint('Error al eliminar brigada: $e');
     return false;
   }
 }
@@ -2913,10 +2713,8 @@ Future<bool> marcarBrigadaComoSincronizada(String id) async {
       whereArgs: [id],
     );
     
-    debugPrint('✅ Brigada $id marcada como sincronizada');
     return result > 0;
   } catch (e) {
-    debugPrint('❌ Error al marcar brigada como sincronizada: $e');
     return false;
   }
 }
@@ -2956,10 +2754,8 @@ Future<bool> asignarPacientesABrigada(String brigadaId, List<String> pacientesId
       );
     });
     
-    debugPrint('✅ ${pacientesIds.length} pacientes asignados a brigada $brigadaId');
     return true;
   } catch (e) {
-    debugPrint('❌ Error al asignar pacientes a brigada: $e');
     return false;
   }
 }
@@ -2977,7 +2773,6 @@ Future<List<Paciente>> getPacientesDeBrigada(String brigadaId) async {
     
     return result.map((json) => Paciente.fromJson(json)).toList();
   } catch (e) {
-    debugPrint('Error al obtener pacientes de brigada: $e');
     return [];
   }
 }
@@ -3028,10 +2823,8 @@ Future<bool> asignarMedicamentosAPacienteEnBrigada({
       );
     });
     
-    debugPrint('✅ ${medicamentos.length} medicamentos asignados a paciente $pacienteId en brigada $brigadaId');
     return true;
   } catch (e) {
-    debugPrint('❌ Error al asignar medicamentos: $e');
     return false;
   }
 }
@@ -3055,7 +2848,6 @@ Future<List<Map<String, dynamic>>> getMedicamentosDePacienteEnBrigada(String bri
     
     return result;
   } catch (e) {
-    debugPrint('Error al obtener medicamentos de paciente en brigada: $e');
     return [];
   }
 }
@@ -3088,7 +2880,6 @@ Future<Map<String, dynamic>> getResumenCompletoBrigada(String brigadaId) async {
           .fold(0, (a, b) => a + b),
     };
   } catch (e) {
-    debugPrint('Error al obtener resumen completo de brigada: $e');
     return {};
   }
 }
@@ -3115,7 +2906,6 @@ Future<bool> createEncuesta(Encuesta encuesta) async {
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
-      debugPrint('✅ ID único generado para nueva encuesta: $nuevoId');
     }
     
     final result = await db.insert(
@@ -3124,10 +2914,8 @@ Future<bool> createEncuesta(Encuesta encuesta) async {
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
     
-    debugPrint('✅ Encuesta guardada localmente con ID: ${encuesta.id}');
     return result > 0;
   } catch (e) {
-    debugPrint('❌ Error al guardar encuesta localmente: $e');
     return false;
   }
 }
@@ -3147,10 +2935,8 @@ Future<bool> updateEncuesta(Encuesta encuesta) async {
       whereArgs: [encuesta.id],
     );
     
-    debugPrint('✅ Encuesta actualizada: ${encuesta.id}');
     return result > 0;
   } catch (e) {
-    debugPrint('❌ Error al actualizar encuesta: $e');
     return false;
   }
 }
@@ -3166,7 +2952,6 @@ Future<List<Encuesta>> getAllEncuestas() async {
     
     return result.map((json) => Encuesta.fromJson(json)).toList();
   } catch (e) {
-    debugPrint('Error al obtener todas las encuestas: $e');
     return [];
   }
 }
@@ -3187,7 +2972,6 @@ Future<Encuesta?> getEncuestaById(String id) async {
     }
     return null;
   } catch (e) {
-    debugPrint('Error al obtener encuesta por ID: $e');
     return null;
   }
 }
@@ -3205,7 +2989,6 @@ Future<List<Encuesta>> getEncuestasByPaciente(String pacienteId) async {
     
     return result.map((json) => Encuesta.fromJson(json)).toList();
   } catch (e) {
-    debugPrint('Error al obtener encuestas por paciente: $e');
     return [];
   }
 }
@@ -3223,7 +3006,6 @@ Future<List<Encuesta>> getEncuestasBySede(String sedeId) async {
     
     return result.map((json) => Encuesta.fromJson(json)).toList();
   } catch (e) {
-    debugPrint('Error al obtener encuestas por sede: $e');
     return [];
   }
 }
@@ -3240,7 +3022,6 @@ Future<List<Encuesta>> getEncuestasNoSincronizadas() async {
     );
     return result.map((json) => Encuesta.fromJson(json)).toList();
   } catch (e) {
-    debugPrint('Error al obtener encuestas no sincronizadas: $e');
     return [];
   }
 }
@@ -3256,7 +3037,6 @@ Future<bool> deleteEncuesta(String id) async {
     );
     return result > 0;
   } catch (e) {
-    debugPrint('Error al eliminar encuesta: $e');
     return false;
   }
 }
@@ -3275,10 +3055,8 @@ Future<bool> marcarEncuestaComoSincronizada(String id) async {
       whereArgs: [id],
     );
     
-    debugPrint('✅ Encuesta $id marcada como sincronizada');
     return result > 0;
   } catch (e) {
-    debugPrint('❌ Error al marcar encuesta como sincronizada: $e');
     return false;
   }
 }
@@ -3302,7 +3080,6 @@ Future<bool> createFindriskTest(FindriskTest test) async {
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
-      debugPrint('✅ ID único generado para nuevo test FINDRISK: $nuevoId');
     }
     
     final result = await db.insert(
@@ -3311,10 +3088,8 @@ Future<bool> createFindriskTest(FindriskTest test) async {
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
     
-    debugPrint('✅ Test FINDRISK guardado localmente con ID: ${test.id}');
     return result > 0;
   } catch (e) {
-    debugPrint('❌ Error al guardar test FINDRISK localmente: $e');
     return false;
   }
 }
@@ -3334,10 +3109,8 @@ Future<bool> updateFindriskTest(FindriskTest test) async {
       whereArgs: [test.id],
     );
     
-    debugPrint('✅ Test FINDRISK actualizado: ${test.id}');
     return result > 0;
   } catch (e) {
-    debugPrint('❌ Error al actualizar test FINDRISK: $e');
     return false;
   }
 }
@@ -3353,7 +3126,6 @@ Future<List<FindriskTest>> getAllFindriskTests() async {
     
     return result.map((json) => FindriskTest.fromJson(json)).toList();
   } catch (e) {
-    debugPrint('Error al obtener todos los tests FINDRISK: $e');
     return [];
   }
 }
@@ -3374,7 +3146,6 @@ Future<FindriskTest?> getFindriskTestById(String id) async {
     }
     return null;
   } catch (e) {
-    debugPrint('Error al obtener test FINDRISK por ID: $e');
     return null;
   }
 }
@@ -3392,7 +3163,6 @@ Future<List<FindriskTest>> getFindriskTestsByPaciente(String pacienteId) async {
     
     return result.map((json) => FindriskTest.fromJson(json)).toList();
   } catch (e) {
-    debugPrint('Error al obtener tests FINDRISK por paciente: $e');
     return [];
   }
 }
@@ -3409,7 +3179,6 @@ Future<List<FindriskTest>> getFindriskTestsBySede(String sedeId) async {
     
     return result.map((json) => FindriskTest.fromJson(json)).toList();
   } catch (e) {
-    debugPrint('Error al obtener tests FINDRISK por sede: $e');
     return [];
   }
 }
@@ -3426,7 +3195,6 @@ Future<List<FindriskTest>> getFindriskTestsNoSincronizados() async {
     );
     return result.map((json) => FindriskTest.fromJson(json)).toList();
   } catch (e) {
-    debugPrint('Error al obtener tests FINDRISK no sincronizados: $e');
     return [];
   }
 }
@@ -3442,7 +3210,6 @@ Future<bool> deleteFindriskTest(String id) async {
     );
     return result > 0;
   } catch (e) {
-    debugPrint('Error al eliminar test FINDRISK: $e');
     return false;
   }
 }
@@ -3461,10 +3228,8 @@ Future<bool> marcarFindriskTestComoSincronizado(String id) async {
       whereArgs: [id],
     );
     
-    debugPrint('✅ Test FINDRISK $id marcado como sincronizado');
     return result > 0;
   } catch (e) {
-    debugPrint('❌ Error al marcar test FINDRISK como sincronizado: $e');
     return false;
   }
 }
@@ -3501,7 +3266,6 @@ Future<Map<String, dynamic>> getFindriskEstadisticasLocales() async {
       'riesgo_muy_alto': riesgoMuyAlto,
     };
   } catch (e) {
-    debugPrint('Error al obtener estadísticas FINDRISK locales: $e');
     return {};
   }
 }
@@ -3528,7 +3292,6 @@ Future<bool> createAfinamiento(Afinamiento afinamiento) async {
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
-      debugPrint('✅ ID único generado para nuevo afinamiento: $nuevoId');
     }
     
     // Calcular promedios automáticamente
@@ -3545,10 +3308,8 @@ Future<bool> createAfinamiento(Afinamiento afinamiento) async {
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
     
-    debugPrint('✅ Afinamiento guardado localmente con ID: ${afinamientoConPromedios.id}');
     return result > 0;
   } catch (e) {
-    debugPrint('❌ Error al guardar afinamiento localmente: $e');
     return false;
   }
 }
@@ -3575,10 +3336,8 @@ Future<bool> updateAfinamiento(Afinamiento afinamiento) async {
       whereArgs: [afinamiento.id],
     );
     
-    debugPrint('✅ Afinamiento actualizado: ${afinamiento.id}');
     return result > 0;
   } catch (e) {
-    debugPrint('❌ Error al actualizar afinamiento: $e');
     return false;
   }
 }
@@ -3594,7 +3353,6 @@ Future<List<Afinamiento>> getAllAfinamientos() async {
     
     return result.map((json) => Afinamiento.fromJson(json)).toList();
   } catch (e) {
-    debugPrint('Error al obtener todos los afinamientos: $e');
     return [];
   }
 }
@@ -3615,7 +3373,6 @@ Future<Afinamiento?> getAfinamientoById(String id) async {
     }
     return null;
   } catch (e) {
-    debugPrint('Error al obtener afinamiento por ID: $e');
     return null;
   }
 }
@@ -3633,7 +3390,6 @@ Future<List<Afinamiento>> getAfinamientosByPaciente(String pacienteId) async {
     
     return result.map((json) => Afinamiento.fromJson(json)).toList();
   } catch (e) {
-    debugPrint('Error al obtener afinamientos por paciente: $e');
     return [];
   }
 }
@@ -3651,7 +3407,6 @@ Future<List<Afinamiento>> getAfinamientosByUsuario(String usuarioId) async {
     
     return result.map((json) => Afinamiento.fromJson(json)).toList();
   } catch (e) {
-    debugPrint('Error al obtener afinamientos por usuario: $e');
     return [];
   }
 }
@@ -3668,7 +3423,6 @@ Future<List<Afinamiento>> getAfinamientosNoSincronizados() async {
     );
     return result.map((json) => Afinamiento.fromJson(json)).toList();
   } catch (e) {
-    debugPrint('Error al obtener afinamientos no sincronizados: $e');
     return [];
   }
 }
@@ -3684,7 +3438,6 @@ Future<bool> deleteAfinamiento(String id) async {
     );
     return result > 0;
   } catch (e) {
-    debugPrint('Error al eliminar afinamiento: $e');
     return false;
   }
 }
@@ -3703,10 +3456,8 @@ Future<bool> marcarAfinamientoComoSincronizado(String id) async {
       whereArgs: [id],
     );
     
-    debugPrint('✅ Afinamiento $id marcado como sincronizado');
     return result > 0;
   } catch (e) {
-    debugPrint('❌ Error al marcar afinamiento como sincronizado: $e');
     return false;
   }
 }
@@ -3741,7 +3492,6 @@ Future<List<Map<String, dynamic>>> getAfinamientosConPaciente() async {
       return afinamientoData;
     }).toList();
   } catch (e) {
-    debugPrint('Error al obtener afinamientos con paciente: $e');
     return [];
   }
 }
@@ -3756,7 +3506,6 @@ Future<int> countAfinamientosByUsuario(String usuarioId) async {
     );
     return Sqflite.firstIntValue(result) ?? 0;
   } catch (e) {
-    debugPrint('Error al contar afinamientos: $e');
     return 0;
   }
 }
@@ -3781,7 +3530,6 @@ Future<Map<String, dynamic>> getAfinamientosEstadisticas() async {
       'pendientes': pendientes,
     };
   } catch (e) {
-    debugPrint('Error al obtener estadísticas de afinamientos: $e');
     return {
       'total': 0,
       'sincronizados': 0,
@@ -3812,7 +3560,6 @@ Future<bool> createTamizaje(Tamizaje tamizaje) async {
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
-      debugPrint('✅ ID único generado para nuevo tamizaje: $nuevoId');
     }
     
     final result = await db.insert(
@@ -3821,10 +3568,8 @@ Future<bool> createTamizaje(Tamizaje tamizaje) async {
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
     
-    debugPrint('✅ Tamizaje guardado localmente con ID: ${tamizaje.id}');
     return result > 0;
   } catch (e) {
-    debugPrint('❌ Error al guardar tamizaje localmente: $e');
     return false;
   }
 }
@@ -3844,10 +3589,8 @@ Future<bool> updateTamizaje(Tamizaje tamizaje) async {
       whereArgs: [tamizaje.id],
     );
     
-    debugPrint('✅ Tamizaje actualizado: ${tamizaje.id}');
     return result > 0;
   } catch (e) {
-    debugPrint('❌ Error al actualizar tamizaje: $e');
     return false;
   }
 }
@@ -3863,7 +3606,6 @@ Future<List<Tamizaje>> getAllTamizajes() async {
     
     return result.map((json) => Tamizaje.fromJson(json)).toList();
   } catch (e) {
-    debugPrint('Error al obtener todos los tamizajes: $e');
     return [];
   }
 }
@@ -3884,7 +3626,6 @@ Future<Tamizaje?> getTamizajeById(String id) async {
     }
     return null;
   } catch (e) {
-    debugPrint('Error al obtener tamizaje por ID: $e');
     return null;
   }
 }
@@ -3902,7 +3643,6 @@ Future<List<Tamizaje>> getTamizajesByPaciente(String pacienteId) async {
     
     return result.map((json) => Tamizaje.fromJson(json)).toList();
   } catch (e) {
-    debugPrint('Error al obtener tamizajes por paciente: $e');
     return [];
   }
 }
@@ -3920,7 +3660,6 @@ Future<List<Tamizaje>> getTamizajesByUsuario(String usuarioId) async {
     
     return result.map((json) => Tamizaje.fromJson(json)).toList();
   } catch (e) {
-    debugPrint('Error al obtener tamizajes por usuario: $e');
     return [];
   }
 }
@@ -3937,7 +3676,6 @@ Future<List<Tamizaje>> getTamizajesNoSincronizados() async {
     );
     return result.map((json) => Tamizaje.fromJson(json)).toList();
   } catch (e) {
-    debugPrint('Error al obtener tamizajes no sincronizados: $e');
     return [];
   }
 }
@@ -3976,7 +3714,6 @@ Future<List<Map<String, dynamic>>> getTamizajesConPaciente() async {
       return tamizajeData;
     }).toList();
   } catch (e) {
-    debugPrint('Error al obtener tamizajes con paciente: $e');
     return [];
   }
 }
@@ -3992,7 +3729,6 @@ Future<bool> deleteTamizaje(String id) async {
     );
     return result > 0;
   } catch (e) {
-    debugPrint('Error al eliminar tamizaje: $e');
     return false;
   }
 }
@@ -4011,10 +3747,8 @@ Future<bool> marcarTamizajeComoSincronizado(String id) async {
       whereArgs: [id],
     );
     
-    debugPrint('✅ Tamizaje $id marcado como sincronizado');
     return result > 0;
   } catch (e) {
-    debugPrint('❌ Error al marcar tamizaje como sincronizado: $e');
     return false;
   }
 }
@@ -4029,7 +3763,6 @@ Future<int> countTamizajesByUsuario(String usuarioId) async {
     );
     return Sqflite.firstIntValue(result) ?? 0;
   } catch (e) {
-    debugPrint('Error al contar tamizajes: $e');
     return 0;
   }
 }
@@ -4073,7 +3806,6 @@ Future<Map<String, dynamic>> getTamizajesEstadisticas() async {
       }
     };
   } catch (e) {
-    debugPrint('Error al obtener estadísticas de tamizajes: $e');
     return {
       'total': 0,
       'sincronizados': 0,
@@ -4096,7 +3828,6 @@ Future<int> countTamizajes() async {
     final result = await db.rawQuery('SELECT COUNT(*) FROM tamizajes');
     return Sqflite.firstIntValue(result) ?? 0;
   } catch (e) {
-    debugPrint('Error al contar tamizajes: $e');
     return 0;
   }
 }
@@ -4108,7 +3839,6 @@ Future<int> countMedicamentosPendientes() async {
     final result = await db.rawQuery('SELECT COUNT(*) FROM medicamentos WHERE sync_status = 0');
     return Sqflite.firstIntValue(result) ?? 0;
   } catch (e) {
-    debugPrint('Error al contar medicamentos pendientes: $e');
     return 0;
   }
 }
@@ -4132,7 +3862,6 @@ Future<int> countVisitas() async {
     );
     return Sqflite.firstIntValue(result) ?? 0;
   } catch (e) {
-    debugPrint('Error al contar visitas del mes actual: $e');
     return 0;
   }
 }
@@ -4145,7 +3874,6 @@ Future<int> countPacientes() async {
     final result = await db.rawQuery('SELECT COUNT(*) FROM pacientes');
     return Sqflite.firstIntValue(result) ?? 0;
   } catch (e) {
-    debugPrint('Error al contar pacientes: $e');
     return 0;
   }
 }
@@ -4163,9 +3891,7 @@ Future<void> limpiarDatosUsuarioObsoletos(String usuario) async {
       where: 'usuario = ?',
       whereArgs: [usuario],
     );
-    debugPrint('✅ Datos de sesión obsoletos limpiados para usuario: $usuario');
   } catch (e) {
-    debugPrint('❌ Error limpiando datos obsoletos: $e');
   }
 }
 
@@ -4195,12 +3921,10 @@ Future<bool> isTokenExpired(String usuario) async {
     final isExpired = hoursSinceLogin > 168;
     
     if (isExpired) {
-      debugPrint('⚠️ Token expirado para $usuario (${hoursSinceLogin ~/ 24} días desde último login)');
     }
     
     return isExpired;
   } catch (e) {
-    debugPrint('Error verificando expiración de token: $e');
     return true; // Asumir expirado en caso de error
   }
 }
@@ -4215,9 +3939,7 @@ Future<void> updateTokenTimestamp(String usuario) async {
       where: 'usuario = ?',
       whereArgs: [usuario],
     );
-    debugPrint('✅ Token timestamp actualizado para $usuario');
   } catch (e) {
-    debugPrint('❌ Error actualizando token timestamp: $e');
   }
 }
 
@@ -4237,9 +3959,7 @@ Future<void> limpiarTokensExpirados() async {
       whereArgs: [thirtyDaysAgo.toIso8601String()],
     );
     
-    debugPrint('✅ Tokens expirados limpiados');
   } catch (e) {
-    debugPrint('❌ Error limpiando tokens expirados: $e');
   }
 }
 // database/database_helper.dart
@@ -4391,6 +4111,57 @@ Future<int> countEncuestasPorUsuario(
 }
 
 
+// 🆕 MÉTODO PARA CASCADA DE IDs DE PACIENTE OFFLINE A ONLINE
+  Future<void> actualizarIdPacienteEnCascada(String oldOfflineId, String newServerId) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      try {
+        // 1. Visitas
+        await txn.update('visitas', {'idpaciente': newServerId},
+            where: 'idpaciente = ?', whereArgs: [oldOfflineId]);
+      } catch (e) {}
 
+      try {
+        // 2. Encuestas
+        await txn.update('encuestas', {'idpaciente': newServerId},
+            where: 'idpaciente = ?', whereArgs: [oldOfflineId]);
+      } catch (e) {}
 
+      try {
+        // 3. Findrisk Tests
+        await txn.update('findrisk_tests', {'idpaciente': newServerId},
+            where: 'idpaciente = ?', whereArgs: [oldOfflineId]);
+      } catch (e) {}
+
+      try {
+        // 4. Afinamientos
+        await txn.update('afinamientos', {'idpaciente': newServerId},
+            where: 'idpaciente = ?', whereArgs: [oldOfflineId]);
+      } catch (e) {}
+
+      try {
+        // 5. Tamizajes
+        await txn.update('tamizajes', {'idpaciente': newServerId},
+            where: 'idpaciente = ?', whereArgs: [oldOfflineId]);
+      } catch (e) {}
+
+      try {
+        // 6. Brigadas Paciente
+        await txn.update('brigada_paciente', {'paciente_id': newServerId},
+            where: 'paciente_id = ?', whereArgs: [oldOfflineId]);
+      } catch (e) {}
+
+      try {
+        // 7. Brigadas Medicamentos
+        await txn.update('brigada_paciente_medicamento', {'paciente_id': newServerId},
+            where: 'paciente_id = ?', whereArgs: [oldOfflineId]);
+      } catch (e) {}
+
+      try {
+        // 8. Envíos de Muestras (Detalle Laboratorio)
+        await txn.update('detalle_envio_muestras', {'paciente_id': newServerId},
+            where: 'paciente_id = ?', whereArgs: [oldOfflineId]);
+      } catch (e) {}
+    });
+  }
 } 

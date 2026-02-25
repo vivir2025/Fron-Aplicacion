@@ -1,357 +1,261 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
-import 'dart:async';
-import 'login_screen.dart'; // Importa tu pantalla de login
+import 'package:google_fonts/google_fonts.dart';
 
 class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
+
   @override
-  _SplashScreenState createState() => _SplashScreenState();
+  State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen>
-    with TickerProviderStateMixin {
-  
+class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMixin {
   late AnimationController _logoController;
-  late AnimationController _linesController;
-  late AnimationController _waveController;
-  late AnimationController _organicController; // NUEVO: Para movimiento orgánico tipo lombriz
+  late AnimationController _sweepController;
   
-  late Animation<double> _logoAnimation;
-  late Animation<double> _linesAnimation;
-  late Animation<double> _waveAnimation;
-  late Animation<double> _organicAnimation; // NUEVO: Animación orgánica
-
-  // Colores más vibrantes y modernos
-  final List<Color> lineColors = [
-    Color(0xFF00A651), // Verde Bancolombia
-    Color(0xFF0066CC), // Azul Bancolombia
-    Color(0xFF4A90E2), // Azul claro
-    Color(0xFF00A651), // Verde
-    Color(0xFF0066CC), // Azul
-    Color(0xFF7B68EE), // Púrpura moderno
-    Color(0xFF00A651), // Verde
-    Color.fromARGB(255, 46, 168, 97), // Verde moderno
-  ];
+  late Animation<double> _logoScaleAnimation;
+  late Animation<double> _logoOpacityAnimation;
+  late Animation<double> _sweepAnimation;
 
   @override
   void initState() {
     super.initState();
     
-    // Controlador para el logo
+    // Controlador para la entrada del logo
     _logoController = AnimationController(
-      duration: Duration(milliseconds: 1200),
-      vsync: this,
-    );
-    
-    // Controlador para las líneas (más rápido)
-    _linesController = AnimationController(
-      duration: Duration(milliseconds: 2500), // Más lento para efecto orgánico
+      duration: const Duration(milliseconds: 1200),
       vsync: this,
     );
 
-    // Controlador para el efecto ondulante
-    _waveController = AnimationController(
-      duration: Duration(milliseconds: 3000),
+    // Controlador para el efecto de barrido continuo (estilo Bancolombia / premium)
+    _sweepController = AnimationController(
+      duration: const Duration(milliseconds: 2500),
       vsync: this,
     );
 
-    // NUEVO: Controlador para movimiento orgánico tipo lombriz
-    _organicController = AnimationController(
-      duration: Duration(milliseconds: 4000), // Movimiento lento y orgánico
-      vsync: this,
+    // Animación de escala (crece un poco al entrar y se asienta)
+    _logoScaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _logoController,
+        curve: Curves.easeOutBack,
+      ),
     );
 
-    // Animación del logo (aparece con fade y escala)
-    _logoAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _logoController,
-      curve: Curves.elasticOut,
-    ));
+    // Animación de opacidad (fade in)
+    _logoOpacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _logoController,
+        curve: const Interval(0.0, 0.6, curve: Curves.easeIn),
+      ),
+    );
 
-    // Animación de las líneas
-    _linesAnimation = Tween<double>(
-      begin: -1.5,
-      end: 1.5,
-    ).animate(CurvedAnimation(
-      parent: _linesController,
-      curve: Curves.easeInOutSine, // Curva más suave para movimiento orgánico
-    ));
-
-    // Animación de onda
-    _waveAnimation = Tween<double>(
-      begin: 0.0,
-      end: 4 * pi,
-    ).animate(CurvedAnimation(
-      parent: _waveController,
-      curve: Curves.linear,
-    ));
-
-    // NUEVO: Animación orgánica tipo lombriz
-    _organicAnimation = Tween<double>(
-      begin: 0.0,
-      end: 6 * pi, // Más ciclos para efecto serpenteante
-    ).animate(CurvedAnimation(
-      parent: _organicController,
-      curve: Curves.easeInOutSine,
-    ));
+    // Animación de barrido (de -1 a 2 para cruzar toda la pantalla de forma diagonal)
+    _sweepAnimation = Tween<double>(begin: -1.0, end: 2.0).animate(
+      CurvedAnimation(
+        parent: _sweepController,
+        curve: Curves.easeInOutSine,
+      ),
+    );
 
     _startAnimations();
   }
 
-  void _startAnimations() async {
-    // Primero aparece el logo
-    await Future.delayed(Duration(milliseconds: 300));
+  void _startAnimations() {
     _logoController.forward();
     
-    // Luego empiezan las líneas y las animaciones orgánicas
-    await Future.delayed(Duration(milliseconds: 400));
-    _linesController.repeat();
-    _waveController.repeat();
-    _organicController.repeat();
+    // Iniciar el barrido repetitivo
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (mounted) {
+        _sweepController.repeat();
+      }
+    });
   }
 
   @override
   void dispose() {
     _logoController.dispose();
-    _linesController.dispose();
-    _waveController.dispose();
-    _organicController.dispose(); // NUEVO: Dispose del controlador orgánico
+    _sweepController.dispose();
     super.dispose();
-  }
-
-  // MÉTODO ACTUALIZADO: Líneas con movimiento orgánico tipo lombriz
-  Widget _buildOrganicLine(Color color, double delay, double baseHeight, int lineIndex) {
-    return AnimatedBuilder(
-      animation: Listenable.merge([_linesAnimation, _waveAnimation, _organicAnimation]),
-      builder: (context, child) {
-        final screenWidth = MediaQuery.of(context).size.width;
-        final screenHeight = MediaQuery.of(context).size.height;
-        
-        // Posición horizontal base
-        double horizontalPosition = (screenWidth + 400) * _linesAnimation.value - 200;
-        
-        // NUEVO: Movimiento vertical orgánico tipo serpiente/lombriz
-        double organicWave1 = sin(_organicAnimation.value + delay * 3) * 25;
-        double organicWave2 = sin(_organicAnimation.value * 0.7 + delay * 2) * 15;
-        double organicWave3 = cos(_organicAnimation.value * 1.3 + delay * 4) * 10;
-        
-        // Combinar ondas para movimiento más complejo y orgánico
-        double verticalOffset = organicWave1 + organicWave2 + organicWave3;
-        
-        // Movimiento horizontal adicional para simular serpenteado
-        double horizontalWave = cos(_organicAnimation.value * 0.5 + delay * 2.5) * 30;
-        horizontalPosition += horizontalWave;
-        
-        // Altura dinámica que cambia como respiración
-        double dynamicHeight = baseHeight + sin(_waveAnimation.value * 0.8 + delay * 1.5) * 4;
-        
-        // Rotación sutil para seguir el movimiento
-        double rotation = sin(_organicAnimation.value * 0.3 + delay) * 0.1;
-        
-        return Transform.translate(
-          offset: Offset(horizontalPosition, verticalOffset),
-          child: Transform.rotate(
-            angle: rotation,
-            child: Container(
-              width: 250, // Líneas más largas para efecto serpenteante
-              height: dynamicHeight,
-              decoration: BoxDecoration(
-                // Gradiente más suave para efecto orgánico
-                gradient: LinearGradient(
-                  colors: [
-                    color.withOpacity(0.1),
-                    color.withOpacity(0.8),
-                    color.withOpacity(0.4),
-                    color.withOpacity(0.1),
-                  ],
-                  stops: [0.0, 0.3, 0.7, 1.0],
-                ),
-                borderRadius: BorderRadius.circular(dynamicHeight),
-                // Sombra que sigue el movimiento
-                boxShadow: [
-                  BoxShadow(
-                    color: color.withOpacity(0.2),
-                    blurRadius: 12,
-                    offset: Offset(sin(_organicAnimation.value + delay) * 3, 
-                                 cos(_organicAnimation.value + delay) * 2),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Gradiente de fondo más suave
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.white,
-              Color(0xFFF8F9FA),
-              Color(0xFFF0F2F5),
-              Colors.white,
-            ],
+      backgroundColor: Colors.white,
+      body: Stack(
+        children: [
+          // Fondo animado de barrido (Sweeping gradient)
+          AnimatedBuilder(
+            animation: _sweepAnimation,
+            builder: (context, child) {
+              return Positioned.fill(
+                child: CustomPaint(
+                  painter: _SweepPainter(
+                    progress: _sweepAnimation.value,
+                    primaryColor: const Color(0xFF1B5E20), // Verde principal
+                    secondaryColor: const Color(0xFF4CAF50), // Verde brillante
+                  ),
+                ),
+              );
+            },
           ),
-        ),
-        child: Stack(
-          children: [
-            // Líneas animadas con movimiento orgánico
-            Positioned.fill(
-              child: Stack(
-                children: [
-                  // Líneas superiores con movimiento orgánico
-                  Positioned(
-                    top: MediaQuery.of(context).size.height * 0.15,
-                    left: -200,
-                    child: _buildOrganicLine(lineColors[0], 0.0, 6, 0),
-                  ),
-                  Positioned(
-                    top: MediaQuery.of(context).size.height * 0.20,
-                    left: -200,
-                    child: _buildOrganicLine(lineColors[1], 0.8, 10, 1),
-                  ),
-                  Positioned(
-                    top: MediaQuery.of(context).size.height * 0.25,
-                    left: -200,
-                    child: _buildOrganicLine(lineColors[2], 1.5, 4, 2),
-                  ),
-                  Positioned(
-                    top: MediaQuery.of(context).size.height * 0.30,
-                    left: -200,
-                    child: _buildOrganicLine(lineColors[3], 2.2, 8, 3),
-                  ),
-                  Positioned(
-                    top: MediaQuery.of(context).size.height * 0.35,
-                    left: -200,
-                    child: _buildOrganicLine(lineColors[4], 0.5, 12, 4),
-                  ),
-                  
-                  // Líneas inferiores con movimiento orgánico
-                  Positioned(
-                    top: MediaQuery.of(context).size.height * 0.65,
-                    left: -200,
-                    child: _buildOrganicLine(lineColors[5], 1.8, 7, 5),
-                  ),
-                  Positioned(
-                    top: MediaQuery.of(context).size.height * 0.70,
-                    left: -200,
-                    child: _buildOrganicLine(lineColors[6], 2.5, 9, 6),
-                  ),
-                  Positioned(
-                    top: MediaQuery.of(context).size.height * 0.75,
-                    left: -200,
-                    child: _buildOrganicLine(lineColors[7], 0.3, 5, 7),
-                  ),
-                  Positioned(
-                    top: MediaQuery.of(context).size.height * 0.80,
-                    left: -200,
-                    child: _buildOrganicLine(lineColors[0], 1.2, 11, 8),
-                  ),
-                  Positioned(
-                    top: MediaQuery.of(context).size.height * 0.85,
-                    left: -200,
-                    child: _buildOrganicLine(lineColors[1], 2.8, 6, 9),
-                  ),
-                ],
-              ),
-            ),
-            
-            // Logo en el centro con efecto mejorado
-            Center(
-              child: AnimatedBuilder(
-                animation: _logoAnimation,
-                builder: (context, child) {
-                  return FadeTransition(
-                    opacity: _logoAnimation,
-                    child: ScaleTransition(
-                      scale: _logoAnimation,
+          
+          // Centro: Logo de la app animado
+          Center(
+            child: AnimatedBuilder(
+              animation: _logoController,
+              builder: (context, child) {
+                return Opacity(
+                  opacity: _logoOpacityAnimation.value,
+                  child: Transform.scale(
+                    scale: _logoScaleAnimation.value,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withAlpha(15),
+                            blurRadius: 30,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
                       child: Image.asset(
                         'assets/icon/Bornive.png',
-                        width: 220,
-                        height: 220,
+                        width: 200,
+                        height: 200,
                         fit: BoxFit.contain,
                         errorBuilder: (context, error, stackTrace) {
-                          // Fallback en caso de error de carga
-                          return Icon(
+                          return const Icon(
                             Icons.business,
                             size: 100,
-                            color: Color(0xFF00A651),
+                            color: Color(0xFF1B5E20),
                           );
                         },
                       ),
                     ),
-                  );
-                },
-              ),
+                  ),
+                );
+              },
             ),
-            
-            // 🆕 SAI y logo de la fundación en la parte inferior
-            Positioned(
-              bottom: 40,
-              left: 0,
-              right: 0,
-              child: AnimatedBuilder(
-                animation: _logoAnimation,
-                builder: (context, child) {
-                  return FadeTransition(
-                    opacity: _logoAnimation,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Texto "from"
-                        Text(
-                          'from',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.grey[600],
-                            letterSpacing: 1,
-                          ),
+          ),
+          
+          // Inferior: Textos de pie de página "from [Fundación]"
+          Positioned(
+            bottom: 40,
+            left: 0,
+            right: 0,
+            child: AnimatedBuilder(
+              animation: _logoController,
+              builder: (context, child) {
+                return Opacity(
+                  opacity: _logoOpacityAnimation.value,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'from',
+                        style: GoogleFonts.roboto(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey.shade600,
+                          letterSpacing: 1.5,
                         ),
-                        SizedBox(height: 4),
-                        // Logo de la fundación
-                        Container(
-                          width: 100,
-                          height: 100,
-                          padding: EdgeInsets.all(4),
-                          child: Image.asset(
-                            'assets/icon/fundacionico.png',
-                            fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[200],
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Icon(
-                                  Icons.business,
-                                  size: 40,
-                                  color: Colors.grey[400],
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
+                      ),
+                      const SizedBox(height: 8),
+                      Image.asset(
+                        'assets/icon/fundacionico.png',
+                        width: 100,
+                        height: 50,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade200,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                            child: Text(
+                              'FUNDACIÓN',
+                              style: GoogleFonts.roboto(
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF1B5E20),
+                                letterSpacing: 1,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
+  }
+}
+
+/// CustomPainter para dibujar un efecto de "barrido" oblicuo cruzando la pantalla
+/// similar a los efectos de apps bancarias (limpio y corporativo).
+class _SweepPainter extends CustomPainter {
+  final double progress;
+  final Color primaryColor;
+  final Color secondaryColor;
+
+  _SweepPainter({
+    required this.progress,
+    required this.primaryColor,
+    required this.secondaryColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Solo dibujamos si el progreso está en rango visible
+    if (progress <= -0.5 || progress >= 1.5) return;
+
+    final paint = Paint()
+      ..style = PaintingStyle.fill;
+
+    // Calculamos el centro actual del barrido en el eje diagonal
+    // progress va de -1 a 2. La diagonal efectiva es más o menos el ancho + alto
+    final travelX = size.width * progress;
+    final travelY = size.height * progress;
+
+    // Crear un gradiente lineal que da el efecto de iluminación / cinta gruesa
+    paint.shader = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        Colors.white.withAlpha(0),
+        primaryColor.withAlpha(5),
+        secondaryColor.withAlpha(20),
+        primaryColor.withAlpha(40),
+        primaryColor.withAlpha(5),
+        Colors.white.withAlpha(0),
+      ],
+      stops: const [0.0, 0.2, 0.4, 0.5, 0.7, 1.0],
+    ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+
+    // Dibujamos un polígono cruzando transversalmente la pantalla
+    final path = Path();
+    
+    // Configurar grosor de la banda de barrido
+    final bandWidth = size.width * 1.5;
+
+    // Puntos del paralelogramo (banda diagonal cruzando de arriba-izquierda a abajo-derecha)
+    path.moveTo(travelX - bandWidth, travelY - size.height * 0.5);
+    path.lineTo(travelX + size.width * 0.5, travelY - bandWidth);
+    path.lineTo(travelX + bandWidth * 1.5, travelY + size.height * 0.5);
+    path.lineTo(travelX - size.width * 0.5, travelY + bandWidth * 1.5);
+    path.close();
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _SweepPainter oldDelegate) {
+    return oldDelegate.progress != progress;
   }
 }

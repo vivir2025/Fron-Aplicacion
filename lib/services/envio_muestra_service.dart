@@ -15,26 +15,19 @@ class EnvioMuestraService {
   // ✅ MÉTODO CORREGIDO PARA GUARDAR Y SINCRONIZAR
   static Future<bool> guardarEnvioMuestra(EnvioMuestra envio, String? token) async {
     try {
-      debugPrint('💾 Iniciando guardado de envío de muestra...');
-      
       // ✅ PASO 1: VERIFICAR SI HAY PACIENTES OFFLINE Y SINCRONIZARLOS PRIMERO
       if (token != null) {
         final tienePacientesOffline = envio.detalles.any((d) => d.pacienteId.startsWith('offline_'));
         
         if (tienePacientesOffline) {
-          debugPrint('⚠️ Detectados pacientes offline en el envío. Intentando sincronizar primero...');
-          
           try {
             final hasConnection = await ApiService.verificarConectividad();
             if (hasConnection) {
               // Sincronizar solo los pacientes offline de este envío
               await _sincronizarPacientesDelEnvio(envio, token);
-              debugPrint('✅ Pacientes offline sincronizados antes de guardar envío');
             } else {
-              debugPrint('📵 Sin conexión - Los pacientes offline se sincronizarán después');
             }
           } catch (e) {
-            debugPrint('⚠️ Error sincronizando pacientes offline: $e');
             // Continuar de todas formas, se sincronizará después
           }
         }
@@ -44,11 +37,8 @@ class EnvioMuestraService {
       final savedLocally = await _dbHelper.createEnvioMuestra(envio);
       
       if (!savedLocally) {
-        debugPrint('❌ No se pudo guardar envío localmente');
         return false;
       }
-      
-      debugPrint('✅ Envío guardado localmente con ${envio.detalles.length} muestras');
       
       // ✅ PASO 3: Intentar subir al servidor si hay token y conexión
       if (token != null) {
@@ -56,8 +46,6 @@ class EnvioMuestraService {
           final hasConnection = await ApiService.verificarConectividad();
           
           if (hasConnection) {
-            debugPrint('🌐 Intentando sincronizar con servidor...');
-            
             // Actualizar referencias offline antes de enviar
             final envioActualizado = await _actualizarReferenciasOffline(envio, token);
             final envioDataForServer = _prepararDatosParaServidor(envioActualizado);
@@ -67,24 +55,18 @@ class EnvioMuestraService {
             if (serverData != null) {
               // Marcar como sincronizado
               await _dbHelper.marcarEnvioMuestraComoSincronizado(envio.id);
-              debugPrint('✅ Envío sincronizado exitosamente con el servidor');
               return true;
             } else {
-              debugPrint('⚠️ Error del servidor - Envío quedará pendiente de sincronización');
             }
           } else {
-            debugPrint('📵 Sin conexión - Envío quedará pendiente de sincronización');
           }
         } catch (e) {
-          debugPrint('⚠️ Error al subir al servidor: $e');
         }
       } else {
-        debugPrint('🔑 Sin token - Envío quedará pendiente de sincronización');
       }
       
       return true; // Éxito si al menos se guardó localmente
     } catch (e) {
-      debugPrint('💥 Error completo al guardar envío: $e');
       return false;
     }
   }
@@ -101,13 +83,10 @@ class EnvioMuestraService {
   // ✅ NUEVO MÉTODO: Sincronizar un paciente offline específico
   static Future<Paciente?> _sincronizarPacienteOffline(String pacienteIdOffline, String token) async {
     try {
-      debugPrint('🔄 Sincronizando paciente offline: $pacienteIdOffline');
-      
       // Buscar el paciente en la BD local
       final paciente = await _dbHelper.getPacienteById(pacienteIdOffline);
       
       if (paciente == null) {
-        debugPrint('❌ Paciente no encontrado en BD local: $pacienteIdOffline');
         return null;
       }
       
@@ -131,21 +110,17 @@ class EnvioMuestraService {
         await _dbHelper.deletePaciente(pacienteIdOffline); // Eliminar versión offline
         await _dbHelper.upsertPaciente(pacienteServidor); // Insertar versión del servidor
         
-        debugPrint('✅ Paciente ${paciente.identificacion} sincronizado: $pacienteIdOffline → ${pacienteServidor.id}');
         return pacienteServidor;
       }
       
       return null;
     } catch (e) {
-      debugPrint('❌ Error sincronizando paciente $pacienteIdOffline: $e');
       return null;
     }
   }
 
   // ✅ MÉTODO PARA ACTUALIZAR REFERENCIAS DE PACIENTES OFFLINE A IDs DEL SERVIDOR
   static Future<EnvioMuestra> _actualizarReferenciasOffline(EnvioMuestra envio, String token) async {
-    debugPrint('🔍 Verificando referencias de pacientes offline en envío ${envio.id}...');
-    
     List<DetalleEnvioMuestra> detallesActualizados = [];
     
     for (final detalle in envio.detalles) {
@@ -153,8 +128,6 @@ class EnvioMuestraService {
       
       // ✅ SI EL PACIENTE TIENE ID OFFLINE, SINCRONIZARLO PRIMERO
       if (detalle.pacienteId.startsWith('offline_')) {
-        debugPrint('⚠️ Encontrado paciente offline: ${detalle.pacienteId}');
-        
         // Extraer la identificación del paciente del ID offline
         // Formato: offline_timestamp_identificacion_randomSuffix
         final parts = detalle.pacienteId.split('_');
@@ -162,17 +135,13 @@ class EnvioMuestraService {
           final identificacion = parts[2];
           
           // ✅ INTENTAR SINCRONIZAR EL PACIENTE PRIMERO
-          debugPrint('🔄 Sincronizando paciente offline: $identificacion');
           final pacienteServidor = await _sincronizarPacienteOffline(detalle.pacienteId, token);
           
           if (pacienteServidor != null) {
             pacienteIdActualizado = pacienteServidor.id;
-            debugPrint('✅ Paciente sincronizado: ${detalle.pacienteId} → $pacienteIdActualizado');
-            
             // Actualizar también en la BD local
             await _dbHelper.actualizarPacienteIdEnDetalle(detalle.id, pacienteIdActualizado);
           } else {
-            debugPrint('❌ No se pudo sincronizar paciente offline: $identificacion');
             throw Exception('No se pudo sincronizar el paciente $identificacion');
           }
         }
@@ -328,9 +297,6 @@ class EnvioMuestraService {
 
     envioData['detalles'] = detallesData;
     
-    debugPrint('📤 Datos preparados para servidor: ${envioData.keys}');
-    debugPrint('📊 Detalles incluidos: ${detallesData.length}');
-    
     return envioData;
   }
 
@@ -342,8 +308,6 @@ class EnvioMuestraService {
     int fallidas = 0;
     List<String> errores = [];
     
-    debugPrint('📊 Sincronizando ${enviosPendientes.length} envíos pendientes...');
-    
     try {
       final hasConnection = await ApiService.verificarConectividad();
       if (!hasConnection) {
@@ -352,8 +316,6 @@ class EnvioMuestraService {
       
       for (final envio in enviosPendientes) {
         try {
-          debugPrint('🔄 Sincronizando envío ${envio.id}...');
-          
           // ✅ PASO 1: VERIFICAR Y ACTUALIZAR IDs DE PACIENTES OFFLINE
           final envioActualizado = await _actualizarReferenciasOffline(envio, token);
           
@@ -365,11 +327,9 @@ class EnvioMuestraService {
           if (serverData != null) {
             await _dbHelper.marcarEnvioMuestraComoSincronizado(envio.id);
             exitosas++;
-            debugPrint('✅ Envío ${envio.id} sincronizado exitosamente');
           } else {
             fallidas++;
             errores.add('Servidor respondió con error para envío ${envio.id}');
-            debugPrint('❌ Error del servidor para envío ${envio.id}');
           }
           
           // Pausa entre sincronizaciones
@@ -377,15 +337,11 @@ class EnvioMuestraService {
         } catch (e) {
           fallidas++;
           errores.add('Error en envío ${envio.id}: $e');
-          debugPrint('💥 Error sincronizando envío ${envio.id}: $e');
         }
       }
     } catch (e) {
       errores.add('Error general de conexión: $e');
-      debugPrint('💥 Error general en sincronización: $e');
     }
-    
-    debugPrint('📈 Resultado sincronización: $exitosas exitosas, $fallidas fallidas');
     
     return {
       'exitosas': exitosas,
@@ -397,8 +353,6 @@ class EnvioMuestraService {
  // 🆕 MÉTODO PARA ELIMINAR ENVÍO
   static Future<bool> eliminarEnvio(String envioId) async {
     try {
-      debugPrint('🗑️ Iniciando eliminación de envío: $envioId');
-      
       final db = DatabaseHelper.instance;
       
       // 1. Verificar que el envío existe
@@ -406,14 +360,11 @@ class EnvioMuestraService {
       final envioExiste = envios.any((e) => e.id == envioId);
       
       if (!envioExiste) {
-        debugPrint('❌ Envío no encontrado: $envioId');
         return false;
       }
       
       // 2. Obtener información del envío antes de eliminar
       final envio = envios.firstWhere((e) => e.id == envioId);
-      debugPrint('📋 Eliminando envío: ${envio.codigo} con ${envio.detalles.length} muestras');
-      
       // 3. Eliminar de la base de datos local
       final database = await db.database;
       
@@ -425,8 +376,6 @@ class EnvioMuestraService {
           whereArgs: [envioId],
         );
         
-        debugPrint('🗑️ Detalles eliminados: $detallesEliminados');
-        
         // Eliminar envío principal
         final envioEliminado = await txn.delete(
           'envio_muestras',
@@ -434,26 +383,17 @@ class EnvioMuestraService {
           whereArgs: [envioId],
         );
         
-        debugPrint('🗑️ Envío eliminado: $envioEliminado');
-        
         if (envioEliminado == 0) {
           throw Exception('No se pudo eliminar el envío de la base de datos');
         }
       });
       
-      debugPrint('✅ Envío $envioId eliminado exitosamente de la base de datos local');
-      
       // 4. Si el envío estaba sincronizado, intentar eliminarlo del servidor
       if (envio.syncStatus == 1) {
-        debugPrint('🌐 Envío estaba sincronizado, intentando eliminar del servidor...');
-        
         try {
           // Aquí podrías agregar la llamada al API para eliminar del servidor
           // Por ahora solo registramos que estaba sincronizado
-          debugPrint('ℹ️ Nota: El envío estaba sincronizado con el servidor');
-          debugPrint('ℹ️ Considera implementar eliminación en servidor si es necesario');
         } catch (e) {
-          debugPrint('⚠️ Error al comunicarse con servidor para eliminación: $e');
           // No fallar la operación local por error del servidor
         }
       }
@@ -461,8 +401,6 @@ class EnvioMuestraService {
       return true;
       
     } catch (e) {
-      debugPrint('💥 Error al eliminar envío $envioId: $e');
-      debugPrint('💥 Stack trace: ${StackTrace.current}');
       return false;
     }
   }
@@ -496,8 +434,6 @@ class EnvioMuestraService {
         pendientes++;
       }
     }
-    
-    debugPrint('📊 Estado envíos: $sincronizados sincronizados, $pendientes pendientes');
     
     return {
       'sincronizados': sincronizados,

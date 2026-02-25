@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+
 import 'package:provider/provider.dart';
 import '../database/database_helper.dart';
 import '../models/paciente_model.dart';
@@ -6,6 +8,8 @@ import '../models/medicamento.dart';
 import '../services/brigada_service.dart';
 import '../services/medicamento_service.dart';
 import '../providers/auth_provider.dart';
+
+const Color primaryColor = Color(0xFF1B5E20);
 
 class AsignarMedicamentosBrigadaScreen extends StatefulWidget {
   final String brigadaId;
@@ -82,7 +86,6 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
         _hasError = true;
         _errorMessage = 'Error al cargar datos: $e';
       });
-      debugPrint('❌ Error cargando datos: $e');
     }
   }
 
@@ -90,7 +93,6 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     await MedicamentoService.ensureMedicamentosLoaded(authProvider.token);
     _allMedicamentos = await _dbHelper.getAllMedicamentos();
-    debugPrint('✅ ${_allMedicamentos.length} medicamentos cargados');
   }
 
   Future<void> _cargarMedicamentosAsignados() async {
@@ -117,7 +119,6 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
     // ✅ INICIALIZAR LISTA FILTRADA
     _filteredMedicamentosAsignados = _allMedicamentosAsignados;
 
-    debugPrint('✅ Medicamentos asignados cargados: ${_allMedicamentosAsignados.where((m) => m.isSelected).length}');
   }
 
   // ✅ VALIDACIÓN MEJORADA - Verificar que medicamentos seleccionados tengan dosis y cantidad
@@ -156,12 +157,12 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
       SnackBar(
         content: Row(
           children: [
-            const Icon(Icons.error_rounded, color: Colors.white),
-            const SizedBox(width: 12),
+            Icon(Icons.error_rounded, color: Colors.white),
+            SizedBox(width: 12),
             Expanded(
               child: Text(
                 mensaje,
-                style: const TextStyle(fontWeight: FontWeight.w600),
+                style: GoogleFonts.roboto(fontWeight: FontWeight.w600),
               ),
             ),
           ],
@@ -215,17 +216,17 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
                       color: Colors.white.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.check_circle_rounded,
                       color: Colors.white,
                       size: 20,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       '${medicamentosSeleccionados.length} medicamentos asignados exitosamente',
-                      style: const TextStyle(
+                      style: GoogleFonts.roboto(
                         fontWeight: FontWeight.w600,
                         fontSize: 15,
                       ),
@@ -233,9 +234,11 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
                   ),
                 ],
               ),
-              backgroundColor: Colors.green,
+              backgroundColor: primaryColor,
               behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               margin: const EdgeInsets.all(16),
               duration: const Duration(seconds: 2),
             ),
@@ -248,7 +251,6 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
         }
       }
     } catch (e) {
-      debugPrint('❌ Error al guardar medicamentos: $e');
       if (mounted) {
         _mostrarError('Error: $e');
       }
@@ -275,20 +277,20 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
+                color: primaryColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.medication_liquid_rounded,
-                color: Colors.green,
+                color: primaryColor,
                 size: 20,
               ),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
             Expanded(
               child: Text(
                 medicamento.medicamento.nombmedicamento,
-                style: const TextStyle(
+                style: GoogleFonts.roboto(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
@@ -318,19 +320,19 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
                     controller: dosisController,
                     decoration: InputDecoration(
                       labelText: 'Dosis *',
-                      labelStyle: TextStyle(
+                      labelStyle: GoogleFonts.roboto(
                         color: Colors.grey[600],
                         fontWeight: FontWeight.w500,
                       ),
                       hintText: 'Ej: 500mg, 1 tableta, 5ml',
-                      hintStyle: TextStyle(color: Colors.grey[400]),
+                      hintStyle: GoogleFonts.roboto(color: Colors.grey[400]),
                       prefixIcon: Container(
                         margin: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
                           color: Colors.blue.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.medication_liquid,
                           color: Colors.blue,
                           size: 20,
@@ -364,7 +366,7 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
                     },
                   ),
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 
                 // ✅ CAMPO CANTIDAD OBLIGATORIO
                 Container(
@@ -382,19 +384,19 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
                     controller: cantidadController,
                     decoration: InputDecoration(
                       labelText: 'Cantidad *',
-                      labelStyle: TextStyle(
+                      labelStyle: GoogleFonts.roboto(
                         color: Colors.grey[600],
                         fontWeight: FontWeight.w500,
                       ),
                       hintText: 'Ej: 30, 60, 100',
-                      hintStyle: TextStyle(color: Colors.grey[400]),
+                      hintStyle: GoogleFonts.roboto(color: Colors.grey[400]),
                       prefixIcon: Container(
                         margin: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
                           color: Colors.orange.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.numbers,
                           color: Colors.orange,
                           size: 20,
@@ -435,9 +437,60 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
                 ),
                 const SizedBox(height: 16),
                 
-               
-                
-             
+                // ✅ CAMPO INDICACIONES (OPCIONAL)
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: TextFormField(
+                    controller: indicacionesController,
+                    decoration: InputDecoration(
+                      labelText: 'Indicaciones',
+                      labelStyle: GoogleFonts.roboto(
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                      hintText: 'Opcional',
+                      hintStyle: GoogleFonts.roboto(color: Colors.grey[400]),
+                      prefixIcon: Container(
+                        margin: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: primaryColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.note_alt,
+                          color: primaryColor,
+                          size: 20,
+                        ),
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey[300]!, width: 1),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: primaryColor, width: 2),
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                    maxLines: 2,
+                  ),
+                ),
+                const SizedBox(height: 16),
                 
                 // ✅ MENSAJE DE CAMPOS OBLIGATORIOS
                 Container(
@@ -460,17 +513,17 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
                           color: Colors.orange,
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.info_outline,
                           color: Colors.white,
                           size: 14,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      SizedBox(width: 12),
                       Expanded(
                         child: Text(
                           'Los campos marcados con * son obligatorios',
-                          style: TextStyle(
+                          style: GoogleFonts.roboto(
                             fontSize: 12,
                             color: Colors.orange.shade700,
                             fontWeight: FontWeight.w500,
@@ -487,8 +540,8 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
         actions: [
           TextButton.icon(
             onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.close_rounded, size: 18),
-            label: const Text('Cancelar'),
+            icon: Icon(Icons.close_rounded, size: 18),
+            label: Text('Cancelar'),
             style: TextButton.styleFrom(
               foregroundColor: Colors.grey[600],
             ),
@@ -496,7 +549,7 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
           Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [Colors.green, Colors.green.shade600],
+                colors: [primaryColor, primaryColor],
               ),
               borderRadius: BorderRadius.circular(8),
             ),
@@ -520,8 +573,8 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
                   Navigator.of(context).pop();
                 }
               },
-              icon: const Icon(Icons.check_rounded, size: 18),
-              label: const Text('Guardar'),
+              icon: Icon(Icons.check_rounded, size: 18),
+              label: Text('Guardar'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.transparent,
                 foregroundColor: Colors.white,
@@ -542,32 +595,32 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
       appBar: AppBar(
         title: Text(
           'Medicamentos - ${widget.paciente.nombre}',
-          style: const TextStyle(
+          style: GoogleFonts.roboto(
             fontWeight: FontWeight.w700,
             letterSpacing: 0.5,
           ),
         ),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.green,
+        backgroundColor: primaryColor,
+        foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded),
+          icon: Icon(Icons.arrow_back_ios_rounded),
           onPressed: () => Navigator.of(context).pop(),
         ),
         actions: [
           IconButton(
             onPressed: _cargarDatos,
             icon: _isLoading
-                ? const SizedBox(
+                ? SizedBox(
                     width: 20,
                     height: 20,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: Colors.green,
+                      color: primaryColor,
                     ),
                   )
-                : const Icon(Icons.refresh_rounded),
+                : Icon(Icons.refresh_rounded),
             tooltip: 'Actualizar',
           ),
         ],
@@ -594,15 +647,15 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(color: Colors.green),
+            CircularProgressIndicator(color: primaryColor),
             SizedBox(height: 16),
             Text(
               'Cargando medicamentos...',
-              style: TextStyle(
+              style: GoogleFonts.roboto(
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
                 color: Colors.grey,
@@ -630,17 +683,17 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
                 color: Colors.red.shade400,
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             Text(
               _errorMessage,
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: GoogleFonts.roboto(
                 color: Colors.red.shade600,
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -650,8 +703,8 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
               ),
               child: ElevatedButton.icon(
                 onPressed: _cargarDatos,
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Reintentar'),
+                icon: Icon(Icons.refresh_rounded),
+                label: Text('Reintentar'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.transparent,
                   foregroundColor: Colors.white,
@@ -682,10 +735,10 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
                 color: Colors.grey.shade400,
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             Text(
               'No hay medicamentos disponibles',
-              style: TextStyle(
+              style: GoogleFonts.roboto(
                 fontSize: 18,
                 color: Colors.grey.shade600,
                 fontWeight: FontWeight.w500,
@@ -724,27 +777,27 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
                 ),
                 child: Text(
                   widget.paciente.nombre[0].toUpperCase(),
-                  style: const TextStyle(
+                  style: GoogleFonts.roboto(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 18,
                   ),
                 ),
               ),
-              const SizedBox(width: 16),
+              SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       widget.paciente.nombreCompleto,
-                      style: const TextStyle(
+                      style: GoogleFonts.roboto(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: Colors.black87,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: 4),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
@@ -753,7 +806,7 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
                       ),
                       child: Text(
                         'ID: ${widget.paciente.identificacion}',
-                        style: TextStyle(
+                        style: GoogleFonts.roboto(
                           fontSize: 12,
                           color: Colors.blue.shade700,
                           fontWeight: FontWeight.w600,
@@ -767,22 +820,22 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [Colors.green, Colors.green.shade600],
+                    colors: [primaryColor, primaryColor],
                   ),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.check_circle_rounded,
                       color: Colors.white,
                       size: 16,
                     ),
-                    const SizedBox(width: 6),
+                    SizedBox(width: 6),
                     Text(
                       '${_allMedicamentosAsignados.where((m) => m.isSelected).length} seleccionados',
-                      style: const TextStyle(
+                      style: GoogleFonts.roboto(
                         fontSize: 12,
                         color: Colors.white,
                         fontWeight: FontWeight.w600,
@@ -814,27 +867,27 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
               controller: _searchController,
               decoration: InputDecoration(
                 labelText: 'Buscar medicamentos',
-                labelStyle: TextStyle(
+                labelStyle: GoogleFonts.roboto(
                   color: Colors.grey[600],
                   fontWeight: FontWeight.w500,
                 ),
                 hintText: 'Ingrese el nombre del medicamento...',
-                hintStyle: TextStyle(color: Colors.grey[400]),
+                hintStyle: GoogleFonts.roboto(color: Colors.grey[400]),
                 prefixIcon: Container(
                   margin: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
+                    color: primaryColor.withOpacity(0.1),
   borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.search_rounded,
-                    color: Colors.green,
+                    color: primaryColor,
                     size: 20,
                   ),
                 ),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
-                        icon: const Icon(Icons.clear_rounded, size: 20),
+                        icon: Icon(Icons.clear_rounded, size: 20),
                         onPressed: () {
                           _searchController.clear();
                           _filtrarMedicamentos();
@@ -851,13 +904,13 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(color: Colors.green, width: 2),
+                  borderSide: const BorderSide(color: primaryColor, width: 2),
                 ),
                 filled: true,
                 fillColor: Colors.white,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               ),
-              style: const TextStyle(
+              style: GoogleFonts.roboto(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
               ),
@@ -871,12 +924,12 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                Colors.green.shade50,
-                Colors.green.shade50,
+                primaryColor.withOpacity(0.05),
+                primaryColor.withOpacity(0.05),
               ],
             ),
             border: Border(
-              bottom: BorderSide(color: Colors.green.shade100),
+              bottom: BorderSide(color: primaryColor.withOpacity(0.1)),
             ),
           ),
           child: Row(
@@ -884,24 +937,24 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: Colors.green,
+                  color: primaryColor,
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.info_outline,
                   color: Colors.white,
                   size: 16,
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Mostrando ${_filteredMedicamentosAsignados.length} de ${_allMedicamentosAsignados.length} medicamentos',
-                      style: TextStyle(
-                        color: Colors.green.shade700,
+                      style: GoogleFonts.roboto(
+                        color: primaryColor,
                         fontWeight: FontWeight.w600,
                         fontSize: 13,
                       ),
@@ -909,8 +962,8 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
                     if (_searchController.text.isNotEmpty)
                       Text(
                         'Búsqueda: "${_searchController.text}"',
-                        style: TextStyle(
-                          color: Colors.green.shade600,
+                        style: GoogleFonts.roboto(
+                          color: primaryColor,
                           fontSize: 12,
                           fontStyle: FontStyle.italic,
                         ),
@@ -921,14 +974,14 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.2),
+                  color: primaryColor.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   '${_allMedicamentosAsignados.where((m) => m.isSelected).length} seleccionados',
-                  style: TextStyle(
+                  style: GoogleFonts.roboto(
                     fontSize: 11,
-                    color: Colors.green.shade700,
+                    color: primaryColor,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -959,17 +1012,17 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
                   color: Colors.orange,
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.info_outline,
                   color: Colors.white,
                   size: 16,
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(
                 child: Text(
                   'Importante: Todos los medicamentos seleccionados deben tener dosis y cantidad especificadas',
-                  style: TextStyle(
+                  style: GoogleFonts.roboto(
                     color: Colors.orange.shade700,
                     fontWeight: FontWeight.w500,
                     fontSize: 13,
@@ -1000,24 +1053,24 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
                           color: Colors.grey[400],
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      SizedBox(height: 16),
                       Text(
                         'No se encontraron medicamentos',
-                        style: TextStyle(
+                        style: GoogleFonts.roboto(
                           color: Colors.grey[600],
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      SizedBox(height: 8),
                       Text(
                         'Intenta con otro término de búsqueda',
-                        style: TextStyle(
+                        style: GoogleFonts.roboto(
                           color: Colors.grey[500],
                           fontSize: 14,
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      SizedBox(height: 16),
                       Container(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
@@ -1030,8 +1083,8 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
                             _searchController.clear();
                             _filtrarMedicamentos();
                           },
-                          icon: const Icon(Icons.clear_all_rounded, size: 18),
-                          label: const Text('Limpiar búsqueda'),
+                          icon: Icon(Icons.clear_all_rounded, size: 18),
+                          label: Text('Limpiar búsqueda'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.transparent,
                             foregroundColor: Colors.white,
@@ -1087,7 +1140,7 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
         color: necesitaDetalles 
             ? Colors.red.shade50 
             : medicamento.isSelected 
-                ? Colors.green.shade50 
+                ? primaryColor.withOpacity(0.05) 
                 : Colors.white,
         child: Container(
           decoration: BoxDecoration(
@@ -1096,7 +1149,7 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
               color: necesitaDetalles 
                   ? Colors.red.withOpacity(0.3)
                   : medicamento.isSelected 
-                      ? Colors.green.withOpacity(0.3)
+                      ? primaryColor.withOpacity(0.3)
                       : Colors.grey.withOpacity(0.2),
               width: medicamento.isSelected ? 2 : 1,
             ),
@@ -1106,7 +1159,7 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
             leading: Container(
               decoration: BoxDecoration(
                 color: medicamento.isSelected 
-                    ? (necesitaDetalles ? Colors.red : Colors.green)
+                    ? (necesitaDetalles ? Colors.red : primaryColor)
                     : Colors.grey.shade400,
                 borderRadius: BorderRadius.circular(6),
               ),
@@ -1134,12 +1187,12 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
             ),
             title: Text(
               medicamento.medicamento.nombmedicamento,
-              style: TextStyle(
+              style: GoogleFonts.roboto(
                 fontWeight: medicamento.isSelected ? FontWeight.bold : FontWeight.w500,
                 color: necesitaDetalles 
                     ? Colors.red.shade700 
                     : medicamento.isSelected 
-                        ? Colors.green.shade700 
+                        ? primaryColor 
                         : Colors.black87,
                 fontSize: 15,
               ),
@@ -1147,7 +1200,7 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
             subtitle: medicamento.isSelected ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 if (medicamento.dosis.isNotEmpty)
                   Container(
                     margin: const EdgeInsets.only(bottom: 4),
@@ -1158,7 +1211,7 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
                     ),
                     child: Text(
                       'Dosis: ${medicamento.dosis}',
-                      style: TextStyle(
+                      style: GoogleFonts.roboto(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                         color: Colors.blue.shade700,
@@ -1175,7 +1228,7 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
                     ),
                     child: Text(
                       'Cantidad: ${medicamento.cantidad}',
-                      style: TextStyle(
+                      style: GoogleFonts.roboto(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                         color: Colors.orange.shade700,
@@ -1206,11 +1259,11 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
                           color: Colors.red.shade600,
                           size: 16,
                         ),
-                        const SizedBox(width: 8),
+                        SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             'Faltan dosis y/o cantidad - Toque el ícono para completar',
-                            style: TextStyle(
+                            style: GoogleFonts.roboto(
                               fontSize: 11,
                               color: Colors.red.shade700,
                               fontWeight: FontWeight.w600,
@@ -1244,7 +1297,7 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
                           decoration: BoxDecoration(
                             color: necesitaDetalles 
                                 ? Colors.red.withOpacity(0.1)
-                                : Colors.green.withOpacity(0.1),
+                                : primaryColor.withOpacity(0.1),
                             borderRadius: const BorderRadius.only(
                               topLeft: Radius.circular(8),
                               bottomLeft: Radius.circular(8),
@@ -1252,7 +1305,7 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
                           ),
                           child: Icon(
                             necesitaDetalles ? Icons.warning_rounded : Icons.check_circle_rounded,
-                            color: necesitaDetalles ? Colors.red.shade600 : Colors.green.shade600,
+                            color: necesitaDetalles ? Colors.red.shade600 : primaryColor,
                             size: 18,
                           ),
                         ),
@@ -1346,17 +1399,17 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
                           color: Colors.red,
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.warning_rounded,
                           color: Colors.white,
                           size: 16,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      SizedBox(width: 12),
                       Expanded(
                         child: Text(
                           '$incompleteCount medicamentos necesitan dosis y cantidad',
-                          style: TextStyle(
+                          style: GoogleFonts.roboto(
                             color: Colors.red.shade700,
                             fontWeight: FontWeight.w600,
                             fontSize: 13,
@@ -1375,7 +1428,7 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
                       children: [
                         Text(
                           '$selectedCount medicamentos seleccionados',
-                          style: const TextStyle(
+                          style: GoogleFonts.roboto(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                             color: Colors.black87,
@@ -1384,7 +1437,7 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
                         if (_searchController.text.isNotEmpty)
                           Text(
                             'Mostrando ${_filteredMedicamentosAsignados.length} resultados',
-                            style: TextStyle(
+                            style: GoogleFonts.roboto(
                               fontSize: 12,
                               color: Colors.grey.shade600,
                             ),
@@ -1392,17 +1445,17 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
                       ],
                     ),
                   ),
-                  const SizedBox(width: 16),
+                  SizedBox(width: 16),
                   Container(
                     height: 50,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [Colors.green, Colors.green.shade600],
+                        colors: [primaryColor, primaryColor],
                       ),
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.green.withOpacity(0.3),
+                          color: primaryColor.withOpacity(0.3),
                           blurRadius: 8,
                           offset: const Offset(0, 4),
                         ),
@@ -1421,7 +1474,7 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
                         ),
                       ),
                       child: _isSaving
-                          ? const Row(
+                          ? Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 SizedBox(
@@ -1435,7 +1488,7 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
                                 SizedBox(width: 8),
                                 Text(
                                   'Guardando...',
-                                  style: TextStyle(
+                                  style: GoogleFonts.roboto(
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -1450,15 +1503,15 @@ class _AsignarMedicamentosBrigadaScreenState extends State<AsignarMedicamentosBr
                                     color: Colors.white.withOpacity(0.2),
                                     borderRadius: BorderRadius.circular(4),
                                   ),
-                                  child: const Icon(
+                                  child: Icon(
                                     Icons.save_rounded,
                                     size: 18,
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                const Text(
+                                SizedBox(width: 8),
+                                Text(
                                   'Guardar',
-                                  style: TextStyle(
+                                  style: GoogleFonts.roboto(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w700,
                                   ),

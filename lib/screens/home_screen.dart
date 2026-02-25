@@ -4,13 +4,16 @@ import 'package:Bornive/screens/brigadas_screen.dart';
 import 'package:Bornive/screens/encuestas_list_view.dart';
 import 'package:Bornive/screens/envio_muestras_screen.dart';
 import 'package:Bornive/screens/findrisk_list_screen.dart';
+import 'package:Bornive/screens/notifications_screen.dart';
 import 'package:Bornive/screens/tamizaje_screen.dart';
 import 'package:Bornive/screens/tamizajes_lista_screen.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/notification_provider.dart';
 import '../services/sincronizacion_service.dart';
 import '../services/estadisticas_service.dart'; // 🆕 Servicio de estadísticas
 import '../database/database_helper.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'pacientes_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -152,30 +155,67 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               },
             ),
             const SizedBox(width: 8),
-            const Text(
+            Text(
               'Bornive',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: GoogleFonts.roboto(
+                fontWeight: FontWeight.w800,
+                fontSize: 20,
+              ),
             ),
           ],
         ),
-        backgroundColor: const Color(0xFF2E7D32),
+        backgroundColor: const Color(0xFF1B5E20), // Color más oscuro premium (igual al login)
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          // Botón de sincronización
-          IconButton(
-            icon: _isSyncing
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
+          // 🔔 Campanita de notificaciones con badge
+          Consumer<NotificationProvider>(
+            builder: (context, notifProvider, _) {
+              return Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_outlined),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const NotificationsScreen(),
+                        ),
+                      );
+                    },
+                    tooltip: 'Notificaciones',
+                  ),
+                  if (notifProvider.hasUnread)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.white, width: 1.5),
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 18,
+                          minHeight: 18,
+                        ),
+                        child: Text(
+                          notifProvider.unreadCount > 9
+                              ? '9+'
+                              : notifProvider.unreadCount.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
                     ),
-                  )
-                : const Icon(Icons.sync),
-            onPressed: _isSyncing ? null : _sincronizar,
-            tooltip: 'Sincronizar datos',
+                ],
+              );
+            },
           ),
           IconButton(
             icon: const Icon(Icons.person),
@@ -184,23 +224,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             },
             tooltip: 'Perfil',
           ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: widget.onLogout,
-            tooltip: 'Cerrar sesión',
-          ),
         ],
       ),
       body: Container(
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              const Color(0xFF2E7D32).withOpacity(0.1),
-              Colors.white,
-            ],
-          ),
+          color: const Color(0xFFF0F4F8), // Fondo azul-gris claro (igual al de login)
         ),
         child: Consumer<AuthProvider>(
           builder: (context, auth, child) {
@@ -235,10 +263,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           const SizedBox(width: 8),
                           Text(
                             'Módulos del Sistema',
-                            style: TextStyle(
+                            style: GoogleFonts.roboto(
                               fontSize: _getResponsiveFontSize(context, 22),
                               fontWeight: FontWeight.bold,
                               color: Colors.grey.shade800,
+                              letterSpacing: 0.5,
                             ),
                           ),
                         ],
@@ -268,14 +297,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            const Color(0xFF2E7D32),
-            const Color(0xFF388E3C),
+            const Color(0xFF1B5E20), // primaryGreen premium
+            const Color(0xFF4CAF50), // lightGreen 
           ],
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20), // Bordes más suaves
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF2E7D32).withOpacity(0.3),
+            color: const Color(0xFF1B5E20).withOpacity(0.3),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -305,17 +334,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   children: [
                     Text(
                       '¡Bienvenido de vuelta!',
-                      style: TextStyle(
+                      style: GoogleFonts.roboto(
                         fontSize: _getResponsiveFontSize(context, 24),
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w800,
                         color: Colors.white,
+                        letterSpacing: 0.5,
                       ),
                     ),
                     Text(
                       auth.user?['nombre'] ?? '',
-                      style: TextStyle(
+                      style: GoogleFonts.roboto(
                         fontSize: _getResponsiveFontSize(context, 18),
                         color: Colors.white.withOpacity(0.9),
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
@@ -331,8 +362,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              'Organizacion comunitaria llegando a tu vida',
-              style: TextStyle(
+              'Organización comunitaria llegando a tu vida',
+              style: GoogleFonts.roboto(
                 fontSize: _getResponsiveFontSize(context, 12),
                 color: Colors.white.withOpacity(0.9),
                 fontStyle: FontStyle.italic,
@@ -370,12 +401,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           leading: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFF2E7D32).withOpacity(0.1),
+              color: const Color(0xFF1B5E20).withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(
               Icons.analytics,
-              color: Color(0xFF2E7D32),
+              color: Color(0xFF1B5E20),
               size: 24,
             ),
           ),
@@ -383,7 +414,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             children: [
               Text(
                 'Estadísticas',
-                style: TextStyle(
+                style: GoogleFonts.roboto(
                   fontSize: _getResponsiveFontSize(context, 18),
                   fontWeight: FontWeight.bold,
                   color: Colors.grey.shade800,
@@ -431,7 +462,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 )
               : Text(
                   'Toca para ver estadísticas detalladas',
-                  style: TextStyle(
+                  style: GoogleFonts.roboto(
                     fontSize: 12,
                     color: Colors.grey.shade600,
                   ),
@@ -442,14 +473,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   height: 20,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2E7D32)),
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1B5E20)),
                   ),
                 )
               : Icon(
                   _estadisticasExpandidas 
                       ? Icons.keyboard_arrow_up 
                       : Icons.keyboard_arrow_down,
-                  color: const Color(0xFF2E7D32),
+                  color: const Color(0xFF1B5E20),
                 ),
           children: [
             Padding(
@@ -464,10 +495,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         child: OutlinedButton.icon(
                           onPressed: _seleccionarRangoFechas,
                           icon: const Icon(Icons.date_range, size: 18),
-                          label: const Text('Filtrar por fecha'),
+                          label: Text('Filtrar por fecha', style: GoogleFonts.roboto()),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF2E7D32),
-                            side: const BorderSide(color: Color(0xFF2E7D32)),
+                            foregroundColor: const Color(0xFF1B5E20),
+                            side: const BorderSide(color: Color(0xFF1B5E20)),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
@@ -553,7 +584,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         crossAxisCount: _getCrossAxisCount(MediaQuery.of(context).size.width),
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
-        childAspectRatio: 1.3,
+        childAspectRatio: 1.1,
       ),
       itemCount: stats.length,
       itemBuilder: (context, index) {
@@ -589,9 +620,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
               color: color.withOpacity(0.2),
               borderRadius: BorderRadius.circular(8),
@@ -599,29 +631,35 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             child: Icon(
               icon,
               color: color,
-              size: 24,
+              size: 22,
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: color,
+          const SizedBox(height: 6),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.shade700,
-              fontWeight: FontWeight.w500,
+          const SizedBox(height: 2),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade700,
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -784,67 +822,77 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final isLargeScreen = width > 900;
     
     return Card(
-      elevation: 6,
+      elevation: 0,
+      color: Colors.transparent,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(24),
       ),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(24),
         child: Container(
-          padding: EdgeInsets.all(isLargeScreen ? 20 : 16),
+          padding: EdgeInsets.all(isLargeScreen ? 20 : 12), // Padding optimizado para móviles
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                color.withOpacity(0.1),
-                color.withOpacity(0.05),
-              ],
-            ),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: color.withOpacity(0.15), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.08),
+                blurRadius: 15,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: Icon(
                   icon,
-                  size: _getResponsiveIconSize(context) * 0.8,
+                  size: _getResponsiveIconSize(context) * 0.7,
                   color: color,
                 ),
               ),
               
               SizedBox(height: _getResponsiveSpacing(context, 12)),
               
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: _getResponsiveFontSize(context, 16),
-                  fontWeight: FontWeight.bold,
-                  color: color.shade800 ?? color,
+              Flexible(
+                child: Text(
+                  title,
+                  style: GoogleFonts.roboto(
+                    fontSize: _getResponsiveFontSize(context, 13), // Ligeramente más pequeño base
+                    fontWeight: FontWeight.w700,
+                    color: Colors.grey.shade800,
+                    height: 1.1, // Para que las líneas estén más compactas
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 3, // Permitir hasta 3 líneas para evitar recortes
+                  overflow: TextOverflow.ellipsis,
                 ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
               ),
               
-              SizedBox(height: _getResponsiveSpacing(context, 4)),
+              SizedBox(height: _getResponsiveSpacing(context, 2)), // Ajustado de 4 a 2
               
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: _getResponsiveFontSize(context, 12),
-                  color: Colors.grey.shade600,
+              Flexible(
+                child: Text(
+                  subtitle,
+                  style: GoogleFonts.roboto(
+                    fontSize: _getResponsiveFontSize(context, 11),
+                    color: Colors.grey.shade500,
+                    fontWeight: FontWeight.w400,
+                    height: 1.1,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),

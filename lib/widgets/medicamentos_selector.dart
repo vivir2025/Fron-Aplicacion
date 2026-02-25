@@ -35,7 +35,6 @@ class _MedicamentosSelectorState extends State<MedicamentosSelector> {
     super.initState();
     _selectedMedicamentos = List.from(widget.selectedMedicamentos);
     _loadMedicamentos();
-    debugPrint('🔍 Medicamentos iniciales en MedicamentosSelector: ${_selectedMedicamentos.length}');
   }
 
   @override
@@ -46,10 +45,7 @@ class _MedicamentosSelectorState extends State<MedicamentosSelector> {
       setState(() {
         _selectedMedicamentos = List.from(widget.selectedMedicamentos);
       });
-      debugPrint('🔄 Medicamentos actualizados desde el padre: ${_selectedMedicamentos.length}');
-      
       for (var med in _selectedMedicamentos) {
-        debugPrint('💊 Medicamento desde padre: ${med.medicamento.nombmedicamento} - Selected: ${med.isSelected}');
       }
     }
   }
@@ -78,8 +74,6 @@ class _MedicamentosSelectorState extends State<MedicamentosSelector> {
         setState(() {
           _isLoading = false;
         });
-        debugPrint('📋 ${_allMedicamentos.length} medicamentos cargados desde cache local');
-
         if (widget.token != null) {
           _updateMedicamentosFromServer();
         }
@@ -99,14 +93,12 @@ class _MedicamentosSelectorState extends State<MedicamentosSelector> {
           });
         }
 
-        debugPrint('📋 ${_allMedicamentos.length} medicamentos cargados desde servidor');
       }
     } catch (e) {
       setState(() {
         _hasError = true;
         _errorMessage = 'Error al cargar medicamentos: $e';
       });
-      debugPrint('❌ Error cargando medicamentos: $e');
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -116,7 +108,6 @@ class _MedicamentosSelectorState extends State<MedicamentosSelector> {
 
   Future<void> _updateMedicamentosFromServer() async {
     try {
-      debugPrint('🔄 Actualizando medicamentos desde servidor en segundo plano...');
       await MedicamentoService.ensureMedicamentosLoaded(widget.token);
       
       final dbHelper = DatabaseHelper.instance;
@@ -127,10 +118,8 @@ class _MedicamentosSelectorState extends State<MedicamentosSelector> {
           _allMedicamentos = updatedMedicamentos;
           _filteredMedicamentos = _filterMedicamentos(_searchController.text);
         });
-        debugPrint('✅ Medicamentos actualizados: ${updatedMedicamentos.length}');
       }
     } catch (e) {
-      debugPrint('⚠️ Error actualizando medicamentos en segundo plano: $e');
     }
   }
 
