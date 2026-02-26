@@ -56,20 +56,17 @@ Future<void> _checkPendingPacientesQuietly() async {
   final dbHelper = DatabaseHelper.instance;
   
   try {
-    // ✅ CAMBIO AQUÍ: Usar query directa sin filtro de 'offline_%'
+    // ✅ Solo pacientes con ID temporal offline (creados sin conexión)
     final db = await dbHelper.database;
     final pacientesOffline = await db.query(
       'pacientes',
-      where: 'sync_status = 0', // ✅ SIN filtro de 'offline_%'
+      where: "id LIKE 'offline_%'",
     );
-    
-    // ✅ DEBUG OPCIONAL
-    await dbHelper.debugPacientesSyncStatus();
     
     if (pacientesOffline.isNotEmpty && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('ℹ️ Tienes ${pacientesOffline.length} pacientes offline'),
+          content: Text('ℹ️ Tienes ${pacientesOffline.length} pacientes sin sincronizar'),
           backgroundColor: Colors.blue,
           action: SnackBarAction(
             label: 'Sincronizar',
@@ -79,7 +76,6 @@ Future<void> _checkPendingPacientesQuietly() async {
           duration: const Duration(seconds: 3),
         ),
       );
-    } else {
     }
   } catch (e) {
   }

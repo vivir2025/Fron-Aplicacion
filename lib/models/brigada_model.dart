@@ -75,9 +75,10 @@ class Brigada {
     };
   }
 
-  // ✅ MÉTODO CORREGIDO PARA SERVIDOR CON MEDICAMENTOS
+  // ✅ MÉTODO CORREGIDO PARA SERVIDOR CON MEDICAMENTOS Y DATOS PACIENTES OFFLINE
   Map<String, dynamic> toServerJson({
     Map<String, List<Map<String, dynamic>>>? medicamentosPorPaciente,
+    List<Map<String, dynamic>>? pacientesData, // 🆕 datos completos de pacientes offline
   }) {
     final json = {
       'lugar_evento': lugarEvento,
@@ -88,12 +89,17 @@ class Brigada {
       'usuarios_hta_rcu': usuariosHtaRcu,
       'usuarios_dm_rcu': usuariosDmRcu,
       'tema': tema,
-      'pacientes': pacientesIds ?? [], // ✅ ENVIAR COMO ARRAY
+      'pacientes': pacientesIds ?? [], // IDs (pueden ser offline o reales)
     };
 
     // Agregar observaciones solo si no es null y no está vacío
     if (observaciones != null && observaciones!.isNotEmpty) {
       json['observaciones'] = observaciones!;
+    }
+
+    // 🆕 Incluir datos completos de pacientes offline para que el backend los resuelva
+    if (pacientesData != null && pacientesData.isNotEmpty) {
+      json['pacientes_data'] = pacientesData;
     }
 
     // ✅ INCLUIR MEDICAMENTOS EN EL FORMATO CORRECTO

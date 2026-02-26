@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../api/api_service.dart';
@@ -35,7 +36,28 @@ class BrigadaService {
           final hasConnection = await ApiService.verificarConectividad();
           
           if (hasConnection) {
-            // ✅ OBTENER MEDICAMENTOS DE CADA PACIENTE
+            // 🆕 PASO A: Identificar pacientes offline y cargar sus datos completos
+            List<Map<String, dynamic>> pacientesData = [];
+            for (String pacienteId in pacientesIds) {
+              if (pacienteId.startsWith('offline_')) {
+                final paciente = await dbHelper.getPacienteById(pacienteId);
+                if (paciente != null) {
+                  pacientesData.add({
+                    'id': paciente.id,
+                    'identificacion': paciente.identificacion,
+                    'nombre': paciente.nombre,
+                    'apellido': paciente.apellido,
+                    'fecnacimiento': paciente.fecnacimiento.toIso8601String().split('T')[0],
+                    'genero': paciente.genero,
+                    'idsede': paciente.idsede,
+                    'latitud': paciente.latitud,
+                    'longitud': paciente.longitud,
+                  });
+                }
+              }
+            }
+
+            // PASO B: Obtener medicamentos de cada paciente
             Map<String, List<Map<String, dynamic>>> medicamentosPorPaciente = {};
             
             for (String pacienteId in pacientesIds) {
@@ -51,16 +73,17 @@ class BrigadaService {
                   'cantidad': (m['cantidad'] is String) 
                       ? int.tryParse(m['cantidad']) ?? 0 
                       : m['cantidad'] ?? 0,
-                  'indicaciones': m['indicaciones']?.toString() ?? '', // ✅ INCLUIR INDICACIONES
+                  'indicaciones': m['indicaciones']?.toString() ?? '',
                 }).toList();
                 
                 medicamentosPorPaciente[pacienteId] = medicamentosLimpios;
               }
             }
             
-            // ✅ USAR EL MÉTODO CORREGIDO
+            // PASO C: Construir payload con pacientes_data para resolver IDs offline
             final brigadaData = brigada.toServerJson(
               medicamentosPorPaciente: medicamentosPorPaciente,
+              pacientesData: pacientesData, // 🆕
             );
             
             final response = await http.post(
@@ -74,9 +97,25 @@ class BrigadaService {
             ).timeout(const Duration(seconds: 30));
             
             if (response.statusCode == 200 || response.statusCode == 201) {
+              final responseBody = jsonDecode(response.body);
+              
+              // ✅ Marcar sincronizada PRIMERO (el servidor ya la creó)
               await dbHelper.marcarBrigadaComoSincronizada(brigada.id);
+              
+              // ✅ FIX: verificación de tipo segura (PHP [] vacío ≠ Map en Dart)
+              final rawMapa = responseBody['mapa_pacientes'];
+              if (rawMapa is Map) {
+                final mapaPacientes = Map<String, dynamic>.from(rawMapa);
+                for (final entry in mapaPacientes.entries) {
+                  final oldId = entry.key;
+                  final newId = entry.value?.toString() ?? '';
+                  if (newId.isNotEmpty) {
+                    await dbHelper.actualizarIdPacienteEnCascada(oldId, newId);
+                  }
+                }
+              }
+              
               return true;
-            } else {
             }
           }
         } catch (e) {
@@ -264,46 +303,68 @@ static Future<Map<String, dynamic>> sincronizarBrigadasPendientes(String token) 
     int fallidas = 0;
     List<String> errores = [];
     
-    // Verificar conectividad
-    final hasConnection = await ApiService.verificarConectividad();
-    if (!hasConnection) {
+    // 🚀 Verificación rápida de red (sin timeout de 25s)
+    final connectivityResult = await Connectivity().checkConnectivity();
+    if (connectivityResult.contains(ConnectivityResult.none)) {
       throw Exception('No hay conexión a internet');
     }
     
     for (final brigada in brigadasPendientes) {
       try {
-        // 🆕 OBTENER MEDICAMENTOS DE CADA PACIENTE
-        Map<String, List<Map<String, dynamic>>> medicamentosPorPaciente = {};
-        
-        if (brigada.pacientesIds != null && brigada.pacientesIds!.isNotEmpty) {
-          for (String pacienteId in brigada.pacientesIds!) {
-            final medicamentos = await dbHelper.getMedicamentosDePacienteEnBrigada(
-              brigada.id, 
-              pacienteId
-            );
-            
-            if (medicamentos.isNotEmpty) {
-              // 🔧 LIMPIAR DATOS - Solo campos que existen en BD
-              List<Map<String, dynamic>> medicamentosLimpios = medicamentos.map((m) => {
-                'medicamento_id': m['medicamento_id']?.toString() ?? '',
-                'dosis': m['dosis']?.toString() ?? '',
-                'cantidad': (m['cantidad'] is String) 
-                    ? int.tryParse(m['cantidad']) ?? 0 
-                    : m['cantidad'] ?? 0,
-                // 🚫 NO incluir 'indicaciones' si no existe en la BD
-              }).toList();
-              
-              medicamentosPorPaciente[pacienteId] = medicamentosLimpios;
-            }
+        // 🆕 PASO 1: Recargar lista de pacientes desde brigada_paciente (ya actualizada por cascada)
+        final pacientesActualizados = await dbHelper.getPacientesDeBrigada(brigada.id);
+        final idsActualizados = pacientesActualizados.map((p) => p.id).toList();
+
+        // 🆕 PASO 2: Identificar pacientes offline y cargar sus datos completos
+        List<Map<String, dynamic>> pacientesData = [];
+        for (final paciente in pacientesActualizados) {
+          if (paciente.id.startsWith('offline_')) {
+            pacientesData.add({
+              'id': paciente.id,
+              'identificacion': paciente.identificacion,
+              'nombre': paciente.nombre,
+              'apellido': paciente.apellido,
+              'fecnacimiento': paciente.fecnacimiento.toIso8601String().split('T')[0],
+              'genero': paciente.genero,
+              'idsede': paciente.idsede,
+              'latitud': paciente.latitud,
+              'longitud': paciente.longitud,
+            });
           }
         }
+
+        // 🆕 PASO 3: Obtener medicamentos de cada paciente
+        Map<String, List<Map<String, dynamic>>> medicamentosPorPaciente = {};
+        for (String pacienteId in idsActualizados) {
+          final medicamentos = await dbHelper.getMedicamentosDePacienteEnBrigada(
+            brigada.id, 
+            pacienteId
+          );
+          
+          if (medicamentos.isNotEmpty) {
+            List<Map<String, dynamic>> medicamentosLimpios = medicamentos.map((m) => {
+              'medicamento_id': m['medicamento_id']?.toString() ?? '',
+              'dosis': m['dosis']?.toString() ?? '',
+              'cantidad': (m['cantidad'] is String) 
+                  ? int.tryParse(m['cantidad']) ?? 0 
+                  : m['cantidad'] ?? 0,
+              'indicaciones': m['indicaciones']?.toString() ?? '',
+            }).toList();
+            
+            medicamentosPorPaciente[pacienteId] = medicamentosLimpios;
+          }
+        }
+
+        // 🆕 PASO 4: Construir brigada con IDs actualizados y datos offline
+        // Usamos la brigada con los IDs ya actualizados (no los del campo JSON que puede estar desactualizado)
+        final brigadaConIds = brigada.copyWith(pacientesIds: idsActualizados);
         
-        // ✅ USAR EL MÉTODO CORRECTO DEL MODELO
-        final brigadaData = brigada.toServerJson(
+        final brigadaData = brigadaConIds.toServerJson(
           medicamentosPorPaciente: medicamentosPorPaciente,
+          pacientesData: pacientesData, // 🆕 datos completos para que el backend resuelva offline IDs
         );
         
-        // 2. Subir brigada completa al servidor
+        // PASO 5: Subir brigada completa al servidor
         final response = await http.post(
           Uri.parse('$baseUrl/brigadas'),
           headers: {
@@ -314,31 +375,43 @@ static Future<Map<String, dynamic>> sincronizarBrigadasPendientes(String token) 
           body: jsonEncode(brigadaData),
         ).timeout(const Duration(seconds: 30));
         
-        // 🔧 VERIFICAR CORRECTAMENTE LA RESPUESTA
         if (response.statusCode == 200 || response.statusCode == 201) {
-          // ✅ Solo marcar como sincronizada si el servidor respondió OK
+          final responseBody = jsonDecode(response.body);
+          
+          // ✅ PRIMERO marcar como sincronizada — el servidor ya la creó
+          // Esto debe ocurrir ANTES de procesar el mapa para evitar duplicados
+          // aunque falle algo más adelante
           await dbHelper.marcarBrigadaComoSincronizada(brigada.id);
           exitosas++;
+          
+          // PASO 6: Usar mapa_pacientes para actualizar IDs locales
+          // ✅ FIX: usar 'is Map' en lugar de cast duro (PHP devuelve [] cuando está vacío)
+          final rawMapa = responseBody['mapa_pacientes'];
+          if (rawMapa is Map) {
+            final mapaPacientes = Map<String, dynamic>.from(rawMapa);
+            if (mapaPacientes.isNotEmpty) {
+              for (final entry in mapaPacientes.entries) {
+                final oldId = entry.key;
+                final newId = entry.value?.toString() ?? '';
+                if (newId.isNotEmpty) {
+                  await dbHelper.actualizarIdPacienteEnCascada(oldId, newId);
+                }
+              }
+            }
+          }
+          // Si rawMapa es List (PHP array vacío serializado como []) → no hay nada que mapear
+          
         } else {
-          // ❌ Error del servidor - NO marcar como sincronizada
           fallidas++;
           String errorMsg = 'Servidor respondió con error ${response.statusCode}: ${response.body}';
           errores.add(errorMsg);
         }
-        
-        // Pausa entre sincronizaciones
-        await Future.delayed(const Duration(milliseconds: 500));
         
       } catch (e) {
         fallidas++;
         String errorMsg = 'Error en brigada ${brigada.id}: $e';
         errores.add(errorMsg);
       }
-    }
-    
-    if (exitosas > 0) {
-    }
-    if (fallidas > 0) {
     }
     
     return {
@@ -357,6 +430,7 @@ static Future<Map<String, dynamic>> sincronizarBrigadasPendientes(String token) 
     };
   }
 }
+
 
 
   // Obtener brigadas desde servidor

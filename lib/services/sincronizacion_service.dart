@@ -299,11 +299,10 @@ static Future<Map<String, dynamic>> sincronizacionCompleta(String token) async {
   
   return resultado;
 }
-// services/sincronizacion_service.dart - MÉTODO CORREGIDO
-// services/sincronizacion_service.dart - MÉTODO CORREGIDO
+// services/sincronizacion_service.dart - OPTIMIZADO
 static Future<Map<String, dynamic>> sincronizarSoloPacientes(String token) async {
   final Map<String, dynamic> resultado = {
-    'pacientes': {'exitosas': 0, 'fallidas': 0, 'errores': <String>[]}, // ✅ CORREGIDO: Tipo explícito
+    'pacientes': {'exitosas': 0, 'fallidas': 0, 'errores': <String>[]},
     'tiempo_total': 0,
     'exito_general': false,
   };
@@ -311,40 +310,29 @@ static Future<Map<String, dynamic>> sincronizarSoloPacientes(String token) async
   final stopwatch = Stopwatch()..start();
   
   try {
-    final hasConnection = await ApiService.verificarConectividad();
-    if (!hasConnection) {
+    // 🚀 FIX: Verificación rápida de red (sin triple capa de 25s de timeout)
+    final connectivityResult = await Connectivity().checkConnectivity();
+    if (connectivityResult.contains(ConnectivityResult.none)) {
       throw Exception('No hay conexión a internet disponible');
     }
     
-    // ✅ SINCRONIZAR PACIENTES OFFLINE PENDIENTES
+    // Sincronizar pacientes offline (sube al servidor los creados offline)
     final pacientesOfflineResult = await sincronizarPacientesOfflinePendientes(token);
     
-    // ✅ CARGAR PACIENTES FALTANTES DESDE SERVIDOR
+    // Cargar pacientes faltantes desde servidor (descarga los que no tenemos)
     final pacientesFaltantesResult = await cargarPacientesFaltantesDesdeServidor(token);
     
-    // ✅ CONSOLIDAR RESULTADOS CON TIPOS CORRECTOS
     final pacientesSubidos = pacientesOfflineResult['exitosas'] ?? 0;
     final pacientesCargados = pacientesFaltantesResult['cargados'] ?? 0;
     
-    // ✅ MANEJO SEGURO DE ERRORES
-    List<String> erroresSubida = [];
-    List<String> erroresCarga = [];
-    
-    if (pacientesOfflineResult['errores'] != null) {
-      erroresSubida = (pacientesOfflineResult['errores'] as List)
-          .map((e) => e.toString())
-          .toList();
-    }
-    
-    if (pacientesFaltantesResult['errores'] != null) {
-      erroresCarga = (pacientesFaltantesResult['errores'] as List)
-          .map((e) => e.toString())
-          .toList();
-    }
+    final erroresSubida = ((pacientesOfflineResult['errores'] as List?) ?? [])
+        .map((e) => e.toString()).toList();
+    final erroresCarga = ((pacientesFaltantesResult['errores'] as List?) ?? [])
+        .map((e) => e.toString()).toList();
     
     resultado['pacientes'] = {
       'exitosas': pacientesSubidos + pacientesCargados,
-      'fallidas': (pacientesOfflineResult['fallidas'] ?? 0),
+      'fallidas': pacientesOfflineResult['fallidas'] ?? 0,
       'errores': [...erroresSubida, ...erroresCarga],
       'subidos': pacientesSubidos,
       'descargados': pacientesCargados,
@@ -352,44 +340,42 @@ static Future<Map<String, dynamic>> sincronizarSoloPacientes(String token) async
     
     stopwatch.stop();
     resultado['tiempo_total'] = stopwatch.elapsedMilliseconds;
-    resultado['exito_general'] = (pacientesSubidos + pacientesCargados) > 0;
-    
-    if (pacientesSubidos > 0) {
-    }
-    
-    if (pacientesCargados > 0) {
-    }
-    
-    if (resultado['exito_general']) {
-    } else {
-    }
+    resultado['exito_general'] = true; // Siempre éxito si no hubo excepción
     
   } catch (e) {
     stopwatch.stop();
     resultado['tiempo_total'] = stopwatch.elapsedMilliseconds;
     resultado['error_general'] = e.toString();
-    
-    // ✅ MANEJO SEGURO DE ERRORES.
-    if (resultado['pacientes']['errores'] is List) {
-      (resultado['pacientes']['errores'] as List<String>).add('Error general: $e');
-    }
-    
+    (resultado['pacientes']['errores'] as List<String>).add('Error: $e');
   }
   
   return resultado;
 }
-// services/sincronizacion_service.dart - MÉTODO MEJORADO PARA MANEJAR DUPLICADOS
+// services/sincronizacion_service.dart - OPTIMIZADO
 static Future<Map<String, dynamic>> sincronizarPacientesOfflinePendientes(String token) async {
   final dbHelper = DatabaseHelper.instance;
   
+  // ✅ Solo pacientes realmente offline (ID temporal), no los que solo tienen coords pendientes
   final pacientesLocales = await dbHelper.readAllPacientes();
   final pacientesOffline = pacientesLocales.where((p) => 
-    p.id.startsWith('offline_') || p.syncStatus == 0
+    p.id.startsWith('offline_')
   ).toList();
 
   int exitosas = 0;
   int fallidas = 0;
   List<String> errores = [];
+
+  // 🚀 FIX: Pre-cargar lista del servidor UNA sola vez antes del loop
+  // Esto evita la doble descarga cuando hay duplicados (error 422)
+  List<dynamic> pacientesServidor = [];
+  if (pacientesOffline.isNotEmpty) {
+    try {
+      pacientesServidor = await ApiService.getPacientes(token);
+    } catch (e) {
+      // Si falla la descarga, continuar igual (intentaremos crear sin verificar duplicados)
+      errores.add('Advertencia: no se pudo precargar lista del servidor: $e');
+    }
+  }
 
   for (final paciente in pacientesOffline) {
     try {
@@ -407,97 +393,66 @@ static Future<Map<String, dynamic>> sincronizarPacientesOfflinePendientes(String
       Map<String, dynamic>? serverData;
       bool pacienteProcessed = false;
       
-      if (paciente.id.startsWith('offline_')) {
-        try {
-          // ✅ INTENTAR CREAR NUEVO PACIENTE
-          serverData = await ApiService.createPaciente(token, pacienteData);
-          
-          if (serverData != null) {
-            await dbHelper.deletePaciente(paciente.id);
-            final nuevoPaciente = Paciente.fromJson({
-              ...serverData,
-              'sync_status': 1,
-            });
-            await dbHelper.upsertPaciente(nuevoPaciente);
-            
-            // ✅ MARCAR COMO SINCRONIZADO
-            await dbHelper.markPacientesAsSynced([nuevoPaciente.id]);
-            
-            // 🚀 ESTO ES VITAL: CASCADA DEL NUEVO ID A VISITAS, ENCUESTAS, ETC.
-            await dbHelper.actualizarIdPacienteEnCascada(paciente.id, nuevoPaciente.id);
-            
-            exitosas++;
-            pacienteProcessed = true;
-          }
-        } catch (e) {
-          if (e.toString().contains('422') && e.toString().contains('already been taken')) {
-            // ✅ PACIENTE YA EXISTE - BUSCAR EN SERVIDOR Y SINCRONIZAR
-            try {
-              // Obtener pacientes del servidor para encontrar el ID correcto
-              final pacientesServidor = await ApiService.getPacientes(token);
-              final pacienteExistente = pacientesServidor.firstWhere(
-                (p) => p['identificacion'].toString() == paciente.identificacion,
-                orElse: () => null,
-              );
-              
-              if (pacienteExistente != null) {
-                // Eliminar versión offline y crear versión del servidor
-                await dbHelper.deletePaciente(paciente.id);
-                final pacienteSincronizado = Paciente.fromJson({
-                  ...pacienteExistente,
-                  'sync_status': 1,
-                });
-                await dbHelper.upsertPaciente(pacienteSincronizado);
-                
-                // ✅ MARCAR COMO SINCRONIZADO
-                await dbHelper.markPacientesAsSynced([pacienteSincronizado.id]);
-                
-                // 🚀 CASCADA DEL NUEVO ID, INCLUSO SI ERA DUPLICADO
-                await dbHelper.actualizarIdPacienteEnCascada(paciente.id, pacienteSincronizado.id);
-                
-                exitosas++;
-                pacienteProcessed = true;
-              }
-            } catch (syncError) {
-              errores.add('Error sincronizando duplicado ${paciente.identificacion}: $syncError');
-              fallidas++;
-            }
-          } else {
-            // Otro tipo de error
-            throw e;
-          }
-        }
-      } else {
-        // ✅ ACTUALIZAR PACIENTE EXISTENTE
-        serverData = await ApiService.actualizarPaciente(token, paciente.id, pacienteData);
+      try {
+        // Intentar crear nuevo paciente en el servidor
+        serverData = await ApiService.createPaciente(token, pacienteData);
         
         if (serverData != null) {
-          await dbHelper.markPacientesAsSynced([paciente.id]);
+          await dbHelper.deletePaciente(paciente.id);
+          final nuevoPaciente = Paciente.fromJson({
+            ...serverData,
+            'sync_status': 1,
+          });
+          await dbHelper.upsertPaciente(nuevoPaciente);
+          await dbHelper.markPacientesAsSynced([nuevoPaciente.id]);
+          await dbHelper.actualizarIdPacienteEnCascada(paciente.id, nuevoPaciente.id);
           exitosas++;
           pacienteProcessed = true;
         }
+      } catch (e) {
+        if (e.toString().contains('422') && e.toString().contains('already been taken')) {
+          // 🚀 FIX: Usar la lista ya cargada en lugar de hacer otra llamada HTTP
+          try {
+            final pacienteExistente = pacientesServidor.firstWhere(
+              (p) => p['identificacion'].toString() == paciente.identificacion,
+              orElse: () => null,
+            );
+            
+            if (pacienteExistente != null) {
+              await dbHelper.deletePaciente(paciente.id);
+              final pacienteSincronizado = Paciente.fromJson({
+                ...pacienteExistente,
+                'sync_status': 1,
+              });
+              await dbHelper.upsertPaciente(pacienteSincronizado);
+              await dbHelper.markPacientesAsSynced([pacienteSincronizado.id]);
+              await dbHelper.actualizarIdPacienteEnCascada(paciente.id, pacienteSincronizado.id);
+              exitosas++;
+              pacienteProcessed = true;
+            } else {
+              errores.add('Paciente duplicado ${paciente.identificacion} no encontrado en lista del servidor');
+              fallidas++;
+            }
+          } catch (syncError) {
+            errores.add('Error sincronizando duplicado ${paciente.identificacion}: $syncError');
+            fallidas++;
+          }
+        } else {
+          throw e;
+        }
       }
       
-      // ✅ SINCRONIZAR COORDENADAS SI EL PACIENTE FUE PROCESADO
+      // Sincronizar coordenadas si el paciente fue procesado
       if (pacienteProcessed && paciente.latitud != null && paciente.longitud != null) {
         try {
-          String pacienteId;
-          if (paciente.id.startsWith('offline_') && serverData != null) {
-            pacienteId = serverData['id'].toString();
-          } else {
-            pacienteId = paciente.id;
-          }
-          
-          final coordenadasResult = await ApiService.updatePacienteCoordenadas(
-            token,
-            pacienteId,
-            paciente.latitud!,
-            paciente.longitud!,
+          final String pacienteId = serverData != null 
+              ? serverData['id'].toString() 
+              : paciente.id;
+          await ApiService.updatePacienteCoordenadas(
+            token, pacienteId, paciente.latitud!, paciente.longitud!,
           );
-          
-          if (coordenadasResult != null) {
-          }
         } catch (coordError) {
+          // Error en coordenadas no es crítico, no detener el proceso
         }
       }
       
@@ -506,15 +461,15 @@ static Future<Map<String, dynamic>> sincronizarPacientesOfflinePendientes(String
         errores.add('No se pudo procesar paciente ${paciente.identificacion}');
       }
       
-      await Future.delayed(const Duration(milliseconds: 300));
-      
+      // 🚀 FIX: Eliminado el delay de 300ms (innecesario y causaba lentitud)
+
     } catch (e) {
       fallidas++;
       errores.add('Error en ${paciente.identificacion}: $e');
     }
   }
 
-  // ✅ LIMPIAR DUPLICADOS AL FINAL SI HUBO SINCRONIZACIONES EXITOSAS
+  // Limpiar duplicados al final si hubo sincronizaciones exitosas
   if (exitosas > 0) {
     try {
       await dbHelper.limpiarPacientesDuplicadosDespuesSincronizacion();
@@ -522,16 +477,11 @@ static Future<Map<String, dynamic>> sincronizarPacientesOfflinePendientes(String
     }
   }
 
-  if (exitosas > 0) {
-  }
-  if (fallidas > 0) {
-  }
-
   return {
     'exitosas': exitosas,
     'fallidas': fallidas,
     'errores': errores,
-    'total': pacientesOffline.length, // ✅ CORREGIDO: era pacientesPendientes.length
+    'total': pacientesOffline.length,
   };
 }
 

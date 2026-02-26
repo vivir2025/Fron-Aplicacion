@@ -22,6 +22,7 @@ class BrigadasScreen extends StatefulWidget {
 class _BrigadasScreenState extends State<BrigadasScreen> {
   List<Brigada> _brigadas = [];
   bool _isLoading = false;
+  bool _isSyncing = false; // 🆕 Estado del botón de sincronización
   bool _hasError = false;
   String _errorMessage = '';
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
@@ -68,13 +69,13 @@ class _BrigadasScreenState extends State<BrigadasScreen> {
       
       debugPrint('✅ _cargarBrigadas: Estado actualizado - ${brigadas.length} brigadas cargadas');
       
-      // Intentar sincronizar en segundo plano si hay token
+      // Auto-sincronizar al cargar si hay brigadas pendientes
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       if (authProvider.isAuthenticated && authProvider.token != null) {
-        debugPrint('🔄 _cargarBrigadas: Iniciando sincronización en segundo plano');
-        _sincronizarEnSegundoPlano(authProvider.token!);
-      } else {
-        debugPrint('⚠️ _cargarBrigadas: No hay token para sincronización');
+        final pendientes = brigadas.where((b) => b.syncStatus == 0).length;
+        if (pendientes > 0) {
+          _sincronizarBrigadas(); // Con feedback visible
+        }
       }
       
     } catch (e, stackTrace) {
@@ -89,23 +90,67 @@ class _BrigadasScreenState extends State<BrigadasScreen> {
     }
   }
 
-  Future<void> _sincronizarEnSegundoPlano(String token) async {
+  // 🆕 Método de sincronización con feedback visible al usuario
+  Future<void> _sincronizarBrigadas() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (!authProvider.isAuthenticated || authProvider.token == null) return;
+    if (_isSyncing) return;
+
+    setState(() => _isSyncing = true);
+
     try {
-      debugPrint('🔄 _sincronizarEnSegundoPlano: Iniciando...');
-      await BrigadaService.sincronizarBrigadasPendientes(token);
-      
-      // Recargar brigadas después de sincronizar
+      final resultado = await BrigadaService.sincronizarBrigadasPendientes(
+        authProvider.token!
+      );
+
+      // Recargar brigadas locales tras sincronizar
       final brigadas = await _dbHelper.getAllBrigadas();
-      debugPrint('🔄 _sincronizarEnSegundoPlano: Brigadas después de sync: ${brigadas.length}');
-      
+
       if (mounted) {
         setState(() {
           _brigadas = brigadas;
+          _isSyncing = false;
         });
-        debugPrint('✅ _sincronizarEnSegundoPlano: Estado actualizado');
+
+        final exitosas = resultado['exitosas'] ?? 0;
+        final fallidas = resultado['fallidas'] ?? 0;
+        final errores = resultado['errores'] as List? ?? [];
+
+        String mensaje;
+        Color color;
+
+        if (exitosas > 0) {
+          mensaje = '✅ $exitosas brigada(s) sincronizada(s) correctamente';
+          color = Colors.green.shade700;
+        } else if (fallidas > 0) {
+          final primerError = errores.isNotEmpty ? errores.first.toString() : 'Error desconocido';
+          mensaje = '⚠️ Error al sincronizar: $primerError';
+          color = Colors.orange.shade700;
+        } else {
+          mensaje = 'ℹ️ No hay brigadas pendientes por sincronizar';
+          color = Colors.blue.shade700;
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(mensaje, style: const TextStyle(color: Colors.white)),
+          backgroundColor: color,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          duration: const Duration(seconds: 4),
+        ));
       }
     } catch (e) {
-      debugPrint('⚠️ _sincronizarEnSegundoPlano: Error: $e');
+      if (mounted) {
+        setState(() => _isSyncing = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('❌ Error de sincronización: $e',
+              style: const TextStyle(color: Colors.white)),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          duration: const Duration(seconds: 4),
+        ));
+      }
     }
   }
 
@@ -221,12 +266,25 @@ class _BrigadasScreenState extends State<BrigadasScreen> {
         elevation: 0,
         centerTitle: true,
         actions: [
+          // 🆕 Botón de sincronización con servidor
           IconButton(
-            onPressed: () {
-              debugPrint('🔄 AppBar: Botón refresh presionado');
-              _cargarBrigadas();
-            },
-            icon: _isLoading 
+            onPressed: _isSyncing ? null : _sincronizarBrigadas,
+            icon: _isSyncing
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.cloud_sync),
+            tooltip: 'Sincronizar con servidor',
+          ),
+          // Botón de actualización local
+          IconButton(
+            onPressed: _isLoading ? null : _cargarBrigadas,
+            icon: _isLoading
                 ? const SizedBox(
                     width: 20,
                     height: 20,
@@ -236,7 +294,7 @@ class _BrigadasScreenState extends State<BrigadasScreen> {
                     ),
                   )
                 : const Icon(Icons.refresh),
-            tooltip: 'Actualizar',
+            tooltip: 'Actualizar lista',
           ),
         ],
         bottom: PreferredSize(

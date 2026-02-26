@@ -4162,6 +4162,24 @@ Future<int> countEncuestasPorUsuario(
         await txn.update('detalle_envio_muestras', {'paciente_id': newServerId},
             where: 'paciente_id = ?', whereArgs: [oldOfflineId]);
       } catch (e) {}
+
+      try {
+        // 9. Actualizar campo JSON pacientes_ids en tabla brigadas
+        final brigadas = await txn.query('brigadas');
+        for (final brigada in brigadas) {
+          final String idsJson = brigada['pacientes_ids'] as String? ?? '[]';
+          final List<dynamic> ids = jsonDecode(idsJson);
+          if (ids.contains(oldOfflineId)) {
+            final updatedIds = ids.map((id) => id == oldOfflineId ? newServerId : id).toList();
+            await txn.update(
+              'brigadas',
+              {'pacientes_ids': jsonEncode(updatedIds)},
+              where: 'id = ?',
+              whereArgs: [brigada['id']],
+            );
+          }
+        }
+      } catch (e) {}
     });
   }
 } 
